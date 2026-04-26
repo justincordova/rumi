@@ -1,0 +1,35 @@
+{
+  "name": "@rumi/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "build": "bun build ./src/server.ts --target bun --outdir dist",
+    "typecheck": "tsc -b",
+    "test": "bun test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.0",
+    "@fastify/helmet": "^12.0.0",
+    "@fastify/rate-limit": "^10.0.0",
+    "@fastify/websocket": "^11.0.0",
+    "@hocuspocus/extension-database": "^2.13.0",
+    "@hocuspocus/server": "^2.13.0",
+    "@rumi/protocol": "workspace:*",
+    "drizzle-orm": "^0.36.0",
+    "fastify": "^5.0.0",
+    "pg": "^8.13.0",
+    "pino": "^9.5.0",
+    "yjs": "^13.6.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "drizzle-kit": "^0.28.0",
+    "pino-pretty": "^11.0.0"
+  }
+}

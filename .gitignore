@@ -1,0 +1,20 @@
+node_modules
+dist
+dist-node
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.turbo
+.vercel
+.fly
+.cache
+coverage
+
+# TanStack Router auto-generated route tree
+**/routeTree.gen.ts
+
+# Underscore-prefixed folders inside docs/ are local-only (e.g. docs/_refs)
+docs/_*
