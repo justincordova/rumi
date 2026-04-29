@@ -2,6 +2,15 @@
 
 > **Goal:** Stand up the Rumi monorepo with `apps/web`, `apps/server`, `packages/protocol`, install all dependencies decided in SPEC.md, configure shared tooling (Biome, base tsconfig, Bun workspaces), and verify both apps boot. No feature code.
 > **Spec:** `docs/SPEC.md`
+> **Status:** **Executed.** This plan has already shipped (the repo's current `apps/`, `packages/`, root configs, and Bun workspaces all match what's described below).
+>
+> **Known stale steps superseded by `auth-and-rooms-plan.md` Task 1:** This plan still reflects pre-pivot decisions that the next phase tears out. Do **not** re-run scaffolding without applying these overrides:
+> - **No local Postgres / no Docker.** SPEC.md decided cloud Supabase is the only Postgres in MVP. Skip Phase 2's `docker-compose.yml` (Task 3.5) and the `db:up` / `db:down` scripts. The repo-root `docker-compose.yml`, if present, is removed in auth-and-rooms Task 1.
+> - **Server port is 3000, not 3001.** All references to `localhost:3001`, `PORT=3001`, and `WEB_ORIGIN=http://localhost:5173` should target port `3000`. Auth-and-rooms Task 1 retargets.
+> - **WS path is `/ws`, not `/sync`.** `VITE_WS_URL=ws://localhost:3000/ws` (not `…:3001/sync`).
+> - **No `SUPABASE_JWT_SECRET`.** We use asymmetric JWKS verification (`SUPABASE_JWKS_URL` + `SUPABASE_JWT_ISSUER` + `SUPABASE_JWT_AUDIENCE`), not HS256. Drop the JWT secret stub from `apps/server/.env.example`.
+> - **No `SUPABASE_SERVICE_ROLE_KEY`.** The server doesn't need service-role privileges; auth happens via verified user JWTs. Drop from any `.env.example`.
+> - **`apps/server/.env.example`** does not exist after scaffolding; auth-and-rooms Task 4 creates it with the cloud Supabase shape.
 
 ## Phase 1: Workspace root
 
@@ -207,8 +216,8 @@
   - Expect: zero peer-dep warnings that matter; `node_modules` at root and per-workspace symlinks for `@rumi/protocol`.
 - **Verify:**
   - `bun install` exits 0.
-  - `rtk ls apps/server/node_modules/@rumi/protocol` resolves (workspace symlink).
-  - `rtk ls apps/web/node_modules/@rumi/protocol` resolves.
+- `ls apps/server/node_modules/@rumi/protocol` resolves (workspace symlink).
+- `ls apps/web/node_modules/@rumi/protocol` resolves.
   - `bun.lockb` exists at root.
 
 ### Task 3.2: Server entry — `apps/server/src/server.ts` + supporting modules
