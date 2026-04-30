@@ -14,7 +14,14 @@ export function buildHocuspocus() {
 
     async onAuthenticate(data) {
       const result = await onAuthenticate(data);
-      await enforceConnectionLimits(data);
+      // Hocuspocus only merges the return value into `data.context` AFTER
+      // this hook resolves, so we pass the identity explicitly rather than
+      // reading from `data.context` (which is still empty here).
+      await enforceConnectionLimits(data, {
+        roomId: result.roomId,
+        roomOwner: result.roomOwner,
+        userId: "user" in result ? result.user.id : undefined,
+      });
       return result;
     },
 
