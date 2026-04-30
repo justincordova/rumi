@@ -82,7 +82,7 @@ describe("createTabsService", () => {
             select: () => ({
               from: () => ({
                 where: () => ({
-                  for: () => [{ count: 3 }],
+                  for: () => [{ ordinal: 0 }, { ordinal: 1 }, { ordinal: 2 }],
                 }),
               }),
             }),

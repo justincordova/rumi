@@ -72,12 +72,12 @@ export function RoomCard({ room }: { room: Room & { pendingInvite?: boolean } })
       className="group relative rounded-xl border border-border bg-surface p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md cursor-pointer"
       onClick={() => {
         if (!editing && !menuOpen && !deleteOpen) {
-          navigate({ to: "/r/$slug", params: { slug: room.slug } });
+          navigate({ to: "/r/$slug", params: { slug: room.slug }, search: { tab: undefined } });
         }
       }}
       onKeyDown={(e) => {
         if (!editing && (e.key === "Enter" || e.key === " ")) {
-          navigate({ to: "/r/$slug", params: { slug: room.slug } });
+          navigate({ to: "/r/$slug", params: { slug: room.slug }, search: { tab: undefined } });
         }
       }}
     >

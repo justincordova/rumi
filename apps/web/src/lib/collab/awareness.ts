@@ -10,8 +10,19 @@ export interface LocalAwareness {
 function colorFor(userId: string): string {
   let h = 0;
   for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) | 0;
-  const palette = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#8b5cf6"] as const;
-  return palette[Math.abs(h) % palette.length];
+  const idx = Math.abs(h) % 5;
+  switch (idx) {
+    case 0:
+      return "#6366f1";
+    case 1:
+      return "#ec4899";
+    case 2:
+      return "#f59e0b";
+    case 3:
+      return "#10b981";
+    default:
+      return "#8b5cf6";
+  }
 }
 
 export function buildLocalAwareness(user: SessionUser | null, guestId?: string): LocalAwareness {

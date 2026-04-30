@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { AppError } from "@/lib/errors";
 
-mock.module("@/db/client", () => ({ db: {} }));
+mock.module("@/db/client", () => ({ db: {}, closeDb: async () => {} }));
 mock.module("jose", () => ({
   createRemoteJWKSet: mock(() => "mock-jwks"),
   jwtVerify: mock(async () => ({

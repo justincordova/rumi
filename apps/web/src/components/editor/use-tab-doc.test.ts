@@ -74,9 +74,10 @@ describe("awareness buildLocalAwareness", () => {
     expect(result.avatar_url).toBe("https://example.com/avatar.jpg");
   });
 
-  it("returns empty object for null user", async () => {
+  it("returns guest defaults for null user", async () => {
     const { buildLocalAwareness } = await import("@/lib/collab/awareness");
     const result = buildLocalAwareness(null);
-    expect(Object.keys(result).length).toBe(0);
+    expect(result.user_id).toBeUndefined();
+    expect(result.display_name).toBe("Guest");
   });
 });

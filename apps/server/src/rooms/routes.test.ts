@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
 
 // Mock DB client before loading server to avoid real DB connection
-mock.module("@/db/client", () => ({ db: {} }));
+mock.module("@/db/client", () => ({ db: {}, closeDb: async () => {} }));
 
 // Mock JWKS before auth modules load
 mock.module("jose", () => ({

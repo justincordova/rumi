@@ -12,7 +12,7 @@ declare module "fastify" {
 const OPTIONAL_AUTH_RE = /^\/api\/rooms\/[a-z0-9-]+$/;
 
 const authPlugin: FastifyPluginAsync = async (app) => {
-  app.addHook("onRequest", async (req, reply) => {
+  app.addHook("onRequest", async (req, _reply) => {
     if (!req.url.startsWith("/api/")) return;
 
     const isOptional = req.method === "GET" && OPTIONAL_AUTH_RE.test(req.url);
@@ -20,16 +20,12 @@ const authPlugin: FastifyPluginAsync = async (app) => {
     const auth = req.headers.authorization;
     if (!auth?.startsWith("Bearer ")) {
       if (isOptional) return;
-      const err = new AuthError("unauthorized", "Missing Authorization header");
-      return reply.code(err.statusCode).send(envelope(err));
+      throw new AuthError("unauthorized", "Missing Authorization header");
     }
     try {
       req.user = await verifyJwt(auth.slice("Bearer ".length));
     } catch (err) {
       if (isOptional) return;
-      if (err instanceof AuthError) {
-        return reply.code(err.statusCode).send(envelope(err));
-      }
       throw err;
     }
   });
