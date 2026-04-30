@@ -5,7 +5,7 @@ mock.module("@/lib/env", () => ({
   env: {
     VITE_API_URL: "http://localhost:3000",
     VITE_SUPABASE_URL: "https://test.supabase.co",
-    VITE_SUPABASE_ANON_KEY: "test-anon-key",
+    VITE_SUPABASE_PUBLISHABLE_KEY: "test-publishable-key",
     VITE_WS_URL: "ws://localhost:3000/ws",
   },
 }));

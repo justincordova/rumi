@@ -15,3 +15,17 @@ export function colorFor(userId: string): string {
   const idx = Math.abs(h) % 5;
   return `hsl(var(--presence-${idx + 1}))`;
 }
+
+/**
+ * Resolves the trusted identity for a given Hocuspocus connection context.
+ * Signed-in users get their verified user.id; guests get a stable per-socket id
+ * derived from the (server-issued) socketId. Clients cannot influence either.
+ */
+export function trustedIdentityFor(
+  ctx: { user?: { id?: string } } | null | undefined,
+  socketId: string,
+): string {
+  const userId = ctx?.user?.id;
+  if (userId) return userId;
+  return `guest:${socketId}`;
+}

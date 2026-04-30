@@ -28,7 +28,10 @@ function RoomError({ error }: { error: unknown }) {
             ? "Sign in required"
             : "Something went wrong";
     toast.error(msg);
-    if (session.status !== "authenticated") {
+    // Only bounce to sign-in when the user is anonymous AND the failure is
+    // an auth one. A signed-in user hitting a forbidden/not_found room
+    // belongs back on the dashboard, not the sign-in page.
+    if (session.status !== "authenticated" && (code === "unauthorized" || code === "forbidden")) {
       nav({ to: "/sign-in", search: { next: window.location.pathname } });
     } else {
       nav({ to: "/" });
@@ -44,7 +47,10 @@ export const Route = createFileRoute("/r/$slug")({
     try {
       return await apiFetch<GetRoomResponseType>(`/api/rooms/${params.slug}`);
     } catch (err) {
-      if (err instanceof ApiError && (err.code === "unauthorized" || err.code === "forbidden")) {
+      // Anonymous users get bounced to sign-in. Signed-in users who lack
+      // access bubble the error up to errorComponent, which routes them
+      // back to the dashboard.
+      if (err instanceof ApiError && err.code === "unauthorized") {
         throw redirect({ to: "/sign-in", search: { next: `/r/${params.slug}` } });
       }
       throw err;

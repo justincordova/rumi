@@ -1,20 +1,13 @@
-import type {
-  roomInvites as roomInvitesTable,
-  rooms as roomsTable,
-  tabs as tabsTable,
-} from "@/db/schema";
 import {
   CreateInviteBody,
   CreateRoomBody,
   InviteIdParams,
-  type RoomInvite as ProtocolInvite,
-  type Room as ProtocolRoom,
   SlugParam,
-  type TabSummary,
   UpdateRoomBody,
 } from "@rumi/protocol";
 import type { FastifyPluginAsync } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { serializeInvite, serializeRoom, serializeTab } from "./serialize";
 
 export const roomsRoutes: FastifyPluginAsync = async (app) => {
   const typed = app.withTypeProvider<ZodTypeProvider>();
@@ -22,13 +15,15 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
   typed.post("/", { schema: { body: CreateRoomBody } }, async (req, reply) => {
     // biome-ignore lint/style/noNonNullAssertion: auth plugin guarantees req.user is set for /api/ routes
     const room = await app.service.createRoom({ ownerId: req.user!.id, ...req.body });
-    return reply.code(201).send({ room: serialize(room) });
+    return reply.code(201).send({ room: serializeRoom(room) });
   });
 
   typed.get("/", async (req) => {
     // biome-ignore lint/style/noNonNullAssertion: auth plugin guarantees req.user is set for /api/ routes
     const roomList = await app.service.listRooms(req.user!.id, req.user!.email);
-    return { rooms: roomList.map((r) => ({ ...serialize(r), pendingInvite: r.pendingInvite })) };
+    return {
+      rooms: roomList.map((r) => ({ ...serializeRoom(r), pendingInvite: r.pendingInvite })),
+    };
   });
 
   typed.get("/:slug", { schema: { params: SlugParam } }, async (req) => {
@@ -38,7 +33,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
       req.user?.email,
     );
     return {
-      room: serialize(room),
+      room: serializeRoom(room),
       role,
       tabs: tabs.map(serializeTab),
     };
@@ -52,7 +47,7 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
       req.body,
     );
     if (sideEffectsNeeded) await app.dropRoomConnections(room.id);
-    return { room: serialize(room) };
+    return { room: serializeRoom(room) };
   });
 
   typed.delete("/:slug", { schema: { params: SlugParam } }, async (req, reply) => {
@@ -88,40 +83,3 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(204).send();
   });
 };
-
-function serializeTab(t: typeof tabsTable.$inferSelect): TabSummary {
-  return {
-    id: t.id,
-    roomId: t.roomId,
-    type: t.type,
-    language: t.language,
-    name: t.name,
-    ordinal: t.ordinal,
-    createdAt: t.createdAt.toISOString(),
-    updatedAt: t.updatedAt.toISOString(),
-  };
-}
-
-function serialize(r: typeof roomsTable.$inferSelect): ProtocolRoom {
-  return {
-    id: r.id,
-    slug: r.slug,
-    name: r.name,
-    ownerId: r.ownerId,
-    visibility: r.visibility,
-    guestAccess: r.guestAccess,
-    createdAt: r.createdAt.toISOString(),
-    updatedAt: r.updatedAt.toISOString(),
-  };
-}
-
-function serializeInvite(i: typeof roomInvitesTable.$inferSelect): ProtocolInvite {
-  return {
-    id: i.id,
-    roomId: i.roomId,
-    invitedEmail: i.invitedEmail,
-    invitedBy: i.invitedBy,
-    createdAt: i.createdAt.toISOString(),
-    acceptedAt: i.acceptedAt?.toISOString() ?? null,
-  };
-}

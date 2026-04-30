@@ -15,6 +15,13 @@
       "when": 1777445315921,
       "tag": "0001_guest_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777445315922,
+      "tag": "0002_room_visibility_model",
+      "breakpoints": true
     }
   ]
 }

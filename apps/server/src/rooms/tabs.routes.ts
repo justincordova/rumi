@@ -1,14 +1,8 @@
-import type { tabs as tabsTable } from "@/db/schema";
 import { broadcastTabsCreated, broadcastTabsDeleted, broadcastTabsUpdated } from "@/sync/control";
-import {
-  CreateTabBody,
-  SlugParam,
-  TabIdParams,
-  type TabSummary,
-  UpdateTabBody,
-} from "@rumi/protocol";
+import { CreateTabBody, SlugParam, TabIdParams, UpdateTabBody } from "@rumi/protocol";
 import type { FastifyPluginAsync } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { serializeTab } from "./serialize";
 
 export const tabsRoutes: FastifyPluginAsync = async (app) => {
   const typed = app.withTypeProvider<ZodTypeProvider>();
@@ -71,16 +65,3 @@ export const tabsRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(204).send();
   });
 };
-
-function serializeTab(t: typeof tabsTable.$inferSelect): TabSummary {
-  return {
-    id: t.id,
-    roomId: t.roomId,
-    type: t.type,
-    language: t.language,
-    name: t.name,
-    ordinal: t.ordinal,
-    createdAt: t.createdAt.toISOString(),
-    updatedAt: t.updatedAt.toISOString(),
-  };
-}
