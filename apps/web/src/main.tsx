@@ -1,7 +1,10 @@
+import { initAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { routeTree } from "./routeTree.gen";
+import "./styles/fonts.css";
 import "./styles/globals.css";
 
 const router = createRouter({ routeTree });
@@ -17,8 +20,24 @@ if (!rootElement) {
   throw new Error("Root element not found");
 }
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <RouterProvider router={router} />
-  </StrictMode>,
-);
+async function bootstrap(root: HTMLElement) {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  if (code) {
+    await supabase.auth.exchangeCodeForSession(code);
+    params.delete("code");
+    const clean = params.toString();
+    const next = window.location.pathname + (clean ? `?${clean}` : "");
+    window.history.replaceState(null, "", next);
+  }
+
+  await initAuth();
+
+  createRoot(root).render(
+    <StrictMode>
+      <RouterProvider router={router} />
+    </StrictMode>,
+  );
+}
+
+bootstrap(rootElement);

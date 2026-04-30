@@ -1,17 +1,11 @@
 import { z } from "zod";
 
-const envSchema = z.object({
-  VITE_SUPABASE_URL: z.string().default(""),
-  VITE_SUPABASE_ANON_KEY: z.string().default(""),
-  VITE_WS_URL: z.string().default("ws://localhost:3001/sync"),
+const Env = z.object({
+  VITE_API_URL: z.string().url(),
+  VITE_SUPABASE_URL: z.string().url(),
+  VITE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+  VITE_WS_URL: z.string().default("ws://localhost:3000/ws"),
 });
 
-const parsed = envSchema.safeParse(import.meta.env);
-
-if (!parsed.success) {
-  console.error("Invalid environment variables:", parsed.error.flatten().fieldErrors);
-  throw new Error("Invalid environment variables");
-}
-
-export const env = parsed.data;
+export const env = Env.parse(import.meta.env);
 export type Env = typeof env;

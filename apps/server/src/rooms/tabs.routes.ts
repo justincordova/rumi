@@ -1,0 +1,86 @@
+import type { tabs as tabsTable } from "@/db/schema";
+import { broadcastTabsCreated, broadcastTabsDeleted, broadcastTabsUpdated } from "@/sync/control";
+import {
+  CreateTabBody,
+  SlugParam,
+  TabIdParams,
+  type TabSummary,
+  UpdateTabBody,
+} from "@rumi/protocol";
+import type { FastifyPluginAsync } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+
+export const tabsRoutes: FastifyPluginAsync = async (app) => {
+  const typed = app.withTypeProvider<ZodTypeProvider>();
+
+  typed.get("/:slug/tabs", { schema: { params: SlugParam } }, async (req) => {
+    // biome-ignore lint/style/noNonNullAssertion: auth plugin guarantees req.user is set for /api/ routes
+    const tabs = await app.tabsService.listTabs(req.params.slug, req.user!.id);
+    return { tabs: tabs.map(serializeTab) };
+  });
+
+  typed.post(
+    "/:slug/tabs",
+    { schema: { params: SlugParam, body: CreateTabBody } },
+    async (req, reply) => {
+      // biome-ignore lint/style/noNonNullAssertion: auth plugin guarantees req.user is set for /api/ routes
+      const tab = await app.tabsService.createTab(req.params.slug, req.user!.id, req.body);
+      const serialized = serializeTab(tab);
+      app.log.info({ userId: req.user?.id, tabId: tab.id, type: tab.type }, "tab created");
+      // Broadcast to control doc — failure is non-fatal (REST re-fetch is authoritative)
+      void broadcastTabsCreated(app.hocuspocus, tab.roomId, serialized).catch((e) =>
+        app.log.warn({ err: e }, "broadcastTabsCreated failed"),
+      );
+      return reply.code(201).send({ tab: serialized });
+    },
+  );
+
+  typed.patch(
+    "/:slug/tabs/:tabId",
+    { schema: { params: TabIdParams, body: UpdateTabBody } },
+    async (req) => {
+      const tab = await app.tabsService.updateTab(
+        req.params.slug,
+        // biome-ignore lint/style/noNonNullAssertion: auth plugin guarantees req.user is set for /api/ routes
+        req.user!.id,
+        req.params.tabId,
+        req.body,
+      );
+      const serialized = serializeTab(tab);
+      app.log.info({ userId: req.user?.id, tabId: tab.id }, "tab updated");
+      void broadcastTabsUpdated(app.hocuspocus, tab.roomId, serialized).catch((e) =>
+        app.log.warn({ err: e }, "broadcastTabsUpdated failed"),
+      );
+      return { tab: serialized };
+    },
+  );
+
+  typed.delete("/:slug/tabs/:tabId", { schema: { params: TabIdParams } }, async (req, reply) => {
+    const { tabId, roomId } = await app.tabsService.deleteTab(
+      req.params.slug,
+      // biome-ignore lint/style/noNonNullAssertion: auth plugin guarantees req.user is set for /api/ routes
+      req.user!.id,
+      req.params.tabId,
+    );
+    // Drop live WS connections for this tab.
+    app.closeTabConnections(tabId);
+    app.log.info({ userId: req.user?.id, tabId }, "tab deleted");
+    void broadcastTabsDeleted(app.hocuspocus, roomId, tabId).catch((e) =>
+      app.log.warn({ err: e }, "broadcastTabsDeleted failed"),
+    );
+    return reply.code(204).send();
+  });
+};
+
+function serializeTab(t: typeof tabsTable.$inferSelect): TabSummary {
+  return {
+    id: t.id,
+    roomId: t.roomId,
+    type: t.type,
+    language: t.language,
+    name: t.name,
+    ordinal: t.ordinal,
+    createdAt: t.createdAt.toISOString(),
+    updatedAt: t.updatedAt.toISOString(),
+  };
+}

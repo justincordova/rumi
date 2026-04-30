@@ -1,11 +1,25 @@
-import { AppError } from "@/lib/errors";
+import { env } from "@/lib/env";
+import { AuthError } from "@/lib/errors";
+import { jwtVerify } from "jose";
+import { JWKS } from "./jwks";
 
-/**
- * Verify a Supabase-issued JWT and return the user identity.
- *
- * Stub: real implementation lands with the auth feature plan. SPEC.md commits
- * to this contract; feature plans depend on the function existing.
- */
-export async function verifySupabaseJwt(_token: string): Promise<never> {
-  throw new AppError("verifySupabaseJwt not implemented", 501);
+export interface AuthenticatedUser {
+  id: string;
+  email: string;
+}
+
+export async function verifyJwt(token: string): Promise<AuthenticatedUser> {
+  try {
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: env.SUPABASE_JWT_ISSUER,
+      audience: env.SUPABASE_JWT_AUDIENCE,
+    });
+    if (!payload.sub || typeof payload.email !== "string") {
+      throw new AuthError("unauthorized", "JWT missing required claims");
+    }
+    return { id: payload.sub, email: payload.email.toLowerCase() };
+  } catch (err) {
+    if (err instanceof AuthError) throw err;
+    throw new AuthError("unauthorized", "Invalid or expired token");
+  }
 }

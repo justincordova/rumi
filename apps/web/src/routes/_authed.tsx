@@ -1,0 +1,26 @@
+import { useSession } from "@/lib/auth";
+import { Outlet, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+
+export const Route = createFileRoute("/_authed")({
+  beforeLoad: ({ location }) => {
+    const { status } = useSession.getState();
+    if (status === "anonymous") {
+      throw redirect({ to: "/sign-in", search: { next: location.pathname } });
+    }
+  },
+  component: AuthedLayout,
+});
+
+function AuthedLayout() {
+  const status = useSession((s) => s.status);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (status === "anonymous") {
+      navigate({ to: "/sign-in", search: { next: "/" } });
+    }
+  }, [status, navigate]);
+
+  return <Outlet />;
+}

@@ -1,9 +1,15 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  PORT: z.coerce.number().int().positive().default(3001),
+  PORT: z.coerce.number().int().positive().default(3000),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
+  DATABASE_URL: z.string().url(),
+  SUPABASE_JWKS_URL: z.string().url(),
+  SUPABASE_JWT_ISSUER: z.string().url(),
+  SUPABASE_JWT_AUDIENCE: z.string().default("authenticated"),
+  WEB_ORIGIN: z.string().url().default("http://localhost:5173"),
+  WS_PUBLIC_ORIGIN: z.string().url().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

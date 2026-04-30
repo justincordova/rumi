@@ -1,7 +1,11 @@
-import { env } from "@/lib/env";
 import { createClient } from "@supabase/supabase-js";
+import { env } from "./env";
 
-const url = env.VITE_SUPABASE_URL || "https://placeholder.supabase.co";
-const anonKey = env.VITE_SUPABASE_ANON_KEY || "placeholder";
-
-export const supabase = createClient(url, anonKey);
+export const supabase = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    flowType: "pkce",
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+  },
+});
