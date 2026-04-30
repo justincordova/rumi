@@ -58,7 +58,7 @@ async function authenticateJwt(token: string, documentName: string) {
     return { user, roomId: room.id, tabId, readOnly: false };
   } catch (err) {
     if (err instanceof AuthError) throw err;
-    logger.warn({ err, documentName }, "ws auth: jwt verify failed");
+    logger.warn({ err, documentName }, "ws auth: jwt verify or room lookup failed");
     throw new AuthError("unauthorized", "Invalid token");
   }
 }
@@ -87,7 +87,7 @@ async function authenticateGuest(documentName: string) {
 
   const readOnly = room.guestAccess === "view";
 
-  logger.info({ roomId: room.id, tabId, readOnly, documentName }, "ws guest authenticated");
+  logger.debug({ roomId: room.id, tabId, readOnly, documentName }, "ws guest authenticated");
 
   return { isGuest: true, roomId: room.id, tabId, readOnly };
 }

@@ -58,10 +58,11 @@ export async function buildServer() {
 
   // Real Hocuspocus-backed implementations.
   app.decorate("closeTabConnections", (tabId: string) => {
+    logger.debug({ tabId }, "closing tab ws connections");
     hocuspocus.closeConnections(tabId);
   });
   app.decorate("dropRoomConnections", async (roomId: string) => {
-    // Close all live tab connections + the room control doc connection.
+    logger.debug({ roomId }, "dropping room ws connections");
     const tabIds = await db
       .select({ id: tabsTable.id })
       .from(tabsTable)
@@ -83,11 +84,11 @@ export async function buildServer() {
 
   app.get("/health", async () => ({ status: "ok", uptime: process.uptime() }));
 
-  app.setErrorHandler((err, _req, reply) => {
+  app.setErrorHandler((err, req, reply) => {
     if (err instanceof AppError) {
       return reply.code(err.statusCode).send(envelope(err));
     }
-    logger.error({ err }, "unhandled error");
+    logger.error({ err, reqId: req.id, url: req.url, method: req.method }, "unhandled error");
     return reply.code(500).send(envelope(new AppError("server_error", "Internal error", 500)));
   });
 
@@ -110,18 +111,29 @@ if (import.meta.main) {
       return;
     }
     wss.handleUpgrade(request, socket, head, (ws) => {
-      // biome-ignore lint/suspicious/noExplicitAny: Hocuspocus expects a ws.WebSocket instance
-      app.hocuspocus.handleConnection(ws as any, request);
+      try {
+        // biome-ignore lint/suspicious/noExplicitAny: Hocuspocus expects a ws.WebSocket instance
+        app.hocuspocus.handleConnection(ws as any, request);
+      } catch (err) {
+        logger.error({ err, url: request.url }, "ws handleConnection failed");
+        ws.close();
+      }
     });
   });
 
   await app.listen({ port: env.PORT, host: "0.0.0.0" });
-  logger.info(`listening on :${env.PORT}`);
+  logger.info({ port: env.PORT }, "listening");
 
   const shutdown = async () => {
-    await app.hocuspocus.destroy();
-    await app.close();
-    await closeDb();
+    try {
+      await app.hocuspocus.destroy();
+      await app.close();
+      await closeDb();
+      logger.info("shutdown complete");
+    } catch (err) {
+      logger.error({ err }, "error during shutdown");
+      process.exit(1);
+    }
   };
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);

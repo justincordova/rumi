@@ -21,25 +21,32 @@ export function buildHocuspocus() {
       const arr = document.getArray("tabs");
       if (arr.length > 0) return;
 
-      const rows = await db
-        .select()
-        .from(tabs)
-        .where(eq(tabs.roomId, ctx.roomId))
-        .orderBy(tabs.ordinal);
+      try {
+        const rows = await db
+          .select()
+          .from(tabs)
+          .where(eq(tabs.roomId, ctx.roomId))
+          .orderBy(tabs.ordinal);
 
-      if (rows.length > 0) {
-        arr.insert(
-          0,
-          rows.map((t) => ({
-            id: t.id,
-            roomId: t.roomId,
-            type: t.type,
-            language: t.language,
-            name: t.name,
-            ordinal: t.ordinal,
-            createdAt: t.createdAt.toISOString(),
-            updatedAt: t.updatedAt.toISOString(),
-          })),
+        if (rows.length > 0) {
+          arr.insert(
+            0,
+            rows.map((t) => ({
+              id: t.id,
+              roomId: t.roomId,
+              type: t.type,
+              language: t.language,
+              name: t.name,
+              ordinal: t.ordinal,
+              createdAt: t.createdAt.toISOString(),
+              updatedAt: t.updatedAt.toISOString(),
+            })),
+          );
+        }
+      } catch (err) {
+        logger.error(
+          { err, roomId: ctx.roomId, docName: document.name },
+          "failed to load tabs into control doc",
         );
       }
     },
@@ -54,53 +61,54 @@ export function buildHocuspocus() {
     // matches the trusted values, the next pass is a no-op, breaking the
     // recursion that would otherwise be triggered by the re-emit.
     async onAwarenessUpdate({ awareness, added, updated, document }) {
-      const changedClients = [...(added ?? []), ...(updated ?? [])];
-      if (changedClients.length === 0) return;
+      try {
+        const changedClients = [...(added ?? []), ...(updated ?? [])];
+        if (changedClients.length === 0) return;
 
-      // Build a clientId → connection map by walking the document's connections.
-      // The Document.connections map keys websockets to { clients, connection };
-      // `clients` is the set of awareness clientIds that connection owns.
-      const ownerByClient = new Map<number, { context: unknown; socketId: string }>();
-      for (const entry of document.connections.values()) {
-        for (const clientId of entry.clients) {
-          ownerByClient.set(clientId, {
-            context: entry.connection.context,
-            socketId: entry.connection.socketId,
-          });
+        const ownerByClient = new Map<number, { context: unknown; socketId: string }>();
+        for (const entry of document.connections.values()) {
+          for (const clientId of entry.clients) {
+            ownerByClient.set(clientId, {
+              context: entry.connection.context,
+              socketId: entry.connection.socketId,
+            });
+          }
         }
-      }
 
-      const corrected: number[] = [];
-      for (const clientId of changedClients) {
-        const owner = ownerByClient.get(clientId);
-        if (!owner) continue;
+        const corrected: number[] = [];
+        for (const clientId of changedClients) {
+          const owner = ownerByClient.get(clientId);
+          if (!owner) continue;
 
-        const state = awareness.states.get(clientId);
-        if (!state) continue;
+          const state = awareness.states.get(clientId);
+          if (!state) continue;
 
-        // biome-ignore lint/suspicious/noExplicitAny: Hocuspocus context is typed as unknown
-        const trustedId = trustedIdentityFor(owner.context as any, owner.socketId);
-        const trustedColor = colorFor(trustedId);
+          // biome-ignore lint/suspicious/noExplicitAny: Hocuspocus context is typed as unknown
+          const trustedId = trustedIdentityFor(owner.context as any, owner.socketId);
+          const trustedColor = colorFor(trustedId);
 
-        if (state.user_id === trustedId && state.color === trustedColor) continue;
+          if (state.user_id === trustedId && state.color === trustedColor) continue;
 
-        awareness.states.set(clientId, {
-          ...state,
-          user_id: trustedId,
-          color: trustedColor,
-        });
-        const meta = awareness.meta.get(clientId);
-        awareness.meta.set(clientId, {
-          clock: (meta?.clock ?? 0) + 1,
-          lastUpdated: Date.now(),
-        });
-        corrected.push(clientId);
-      }
+          awareness.states.set(clientId, {
+            ...state,
+            user_id: trustedId,
+            color: trustedColor,
+          });
+          const meta = awareness.meta.get(clientId);
+          awareness.meta.set(clientId, {
+            clock: (meta?.clock ?? 0) + 1,
+            lastUpdated: Date.now(),
+          });
+          corrected.push(clientId);
+        }
 
-      if (corrected.length > 0) {
-        // null connectionInstance signals a server-originated awareness change
-        // so Hocuspocus' handleAwarenessUpdate broadcasts to every connection.
-        awareness.emit("update", [{ added: [], updated: corrected, removed: [] }, null]);
+        if (corrected.length > 0) {
+          // null connectionInstance signals a server-originated awareness change
+          // so Hocuspocus' handleAwarenessUpdate broadcasts to every connection.
+          awareness.emit("update", [{ added: [], updated: corrected, removed: [] }, null]);
+        }
+      } catch (err) {
+        logger.error({ err, docName: document.name }, "awareness identity stamping failed");
       }
     },
 
@@ -114,9 +122,6 @@ export function buildHocuspocus() {
       );
     },
 
-    // `connected` fires after auth + initial sync — the connection is ready to receive messages.
-    // We use it to push the server-resolved readOnly flag to the client via a stateless message.
-    // Also touches rooms.updatedAt on control-doc connections so "last used" stays current.
     async connected({ context, connectionInstance }) {
       // biome-ignore lint/suspicious/noExplicitAny: Hocuspocus context is typed as unknown
       const ctx = context as any;
@@ -127,9 +132,12 @@ export function buildHocuspocus() {
       connectionInstance.sendStateless(
         JSON.stringify({ type: "session", readOnly: !!ctx.readOnly }),
       );
-      // Touch updatedAt on the room when someone connects to the control doc (not per-tab).
       if (ctx.roomId && !ctx.tabId) {
-        await db.update(rooms).set({ updatedAt: new Date() }).where(eq(rooms.id, ctx.roomId));
+        try {
+          await db.update(rooms).set({ updatedAt: new Date() }).where(eq(rooms.id, ctx.roomId));
+        } catch (err) {
+          logger.warn({ err, roomId: ctx.roomId }, "failed to touch room updatedAt on connect");
+        }
       }
     },
 

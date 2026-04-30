@@ -1,6 +1,7 @@
 import type { DbClient } from "@/db/client";
 import { roomInvites, roomMembers, rooms, tabs } from "@/db/schema";
 import { AppError, AuthError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { fallbackSlug, generateSlug } from "./slug";
 
@@ -48,10 +49,14 @@ export function createService(db: DbClient) {
         } catch (err: unknown) {
           // biome-ignore lint/suspicious/noExplicitAny: postgres error codes aren't typed
           const pgErr = err as any;
-          if (pgErr?.code === "23505" && pgErr?.constraint_name === "rooms_slug_unique") continue;
+          if (pgErr?.code === "23505" && pgErr?.constraint_name === "rooms_slug_unique") {
+            logger.debug({ slug, attempt: attempt + 1 }, "slug collision, retrying");
+            continue;
+          }
           throw err;
         }
       }
+      logger.error({ attempts: 6 }, "failed to generate unique slug after 6 attempts");
       throw new AppError("server_error", "Failed to generate unique slug after 6 attempts", 500);
     },
 

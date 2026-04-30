@@ -21,10 +21,7 @@ export const tabsRoutes: FastifyPluginAsync = async (app) => {
       const tab = await app.tabsService.createTab(req.params.slug, req.user!.id, req.body);
       const serialized = serializeTab(tab);
       app.log.info({ userId: req.user?.id, tabId: tab.id, type: tab.type }, "tab created");
-      // Broadcast to control doc — failure is non-fatal (REST re-fetch is authoritative)
-      void broadcastTabsCreated(app.hocuspocus, tab.roomId, serialized).catch((e) =>
-        app.log.warn({ err: e }, "broadcastTabsCreated failed"),
-      );
+      void broadcastTabsCreated(app.hocuspocus, tab.roomId, serialized);
       return reply.code(201).send({ tab: serialized });
     },
   );
@@ -42,9 +39,7 @@ export const tabsRoutes: FastifyPluginAsync = async (app) => {
       );
       const serialized = serializeTab(tab);
       app.log.info({ userId: req.user?.id, tabId: tab.id }, "tab updated");
-      void broadcastTabsUpdated(app.hocuspocus, tab.roomId, serialized).catch((e) =>
-        app.log.warn({ err: e }, "broadcastTabsUpdated failed"),
-      );
+      void broadcastTabsUpdated(app.hocuspocus, tab.roomId, serialized);
       return { tab: serialized };
     },
   );
@@ -56,12 +51,9 @@ export const tabsRoutes: FastifyPluginAsync = async (app) => {
       req.user!.id,
       req.params.tabId,
     );
-    // Drop live WS connections for this tab.
     app.closeTabConnections(tabId);
     app.log.info({ userId: req.user?.id, tabId }, "tab deleted");
-    void broadcastTabsDeleted(app.hocuspocus, roomId, tabId).catch((e) =>
-      app.log.warn({ err: e }, "broadcastTabsDeleted failed"),
-    );
+    void broadcastTabsDeleted(app.hocuspocus, roomId, tabId);
     return reply.code(204).send();
   });
 };

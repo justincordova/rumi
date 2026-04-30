@@ -1,4 +1,5 @@
 import { AuthError, envelope } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 import type { FastifyPluginAsync } from "fastify";
 import fp from "fastify-plugin";
 import { type AuthenticatedUser, verifyJwt } from "./verify";
@@ -25,7 +26,10 @@ const authPlugin: FastifyPluginAsync = async (app) => {
     try {
       req.user = await verifyJwt(auth.slice("Bearer ".length));
     } catch (err) {
-      if (isOptional) return;
+      if (isOptional) {
+        logger.debug({ err, url: req.url }, "optional auth failed, continuing anonymously");
+        return;
+      }
       throw err;
     }
   });
