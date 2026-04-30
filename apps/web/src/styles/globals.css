@@ -5,45 +5,44 @@
 
 /* Tailwind v4 design tokens — canonical declarations */
 @theme {
-  /* Light theme color defaults */
-  --color-background: hsl(40 16% 97%);
-  --color-foreground: hsl(230 18% 14%);
-  --color-surface: hsl(0 0% 100%);
-  --color-surface-elevated: hsl(0 0% 100%);
-  --color-primary: hsl(244 62% 56%);
-  --color-primary-foreground: hsl(0 0% 100%);
-  --color-primary-soft: hsl(244 80% 96%);
-  --color-secondary: hsl(40 12% 94%);
-  --color-secondary-foreground: hsl(230 18% 14%);
-  --color-muted: hsl(40 14% 95%);
-  --color-muted-foreground: hsl(230 8% 45%);
-  --color-accent: hsl(244 80% 96%);
-  --color-accent-foreground: hsl(244 62% 40%);
-  --color-destructive: hsl(0 72% 56%);
-  --color-destructive-foreground: hsl(0 0% 100%);
-  --color-success: hsl(152 58% 44%);
-  --color-warning: hsl(36 92% 54%);
-  --color-border: hsl(36 12% 90%);
-  --color-border-strong: hsl(36 10% 84%);
-  --color-input: hsl(36 12% 90%);
-  --color-ring: hsl(244 62% 56%);
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(230 18% 14%);
-  --color-presence-1: hsl(244 62% 56%);
-  --color-presence-2: hsl(162 58% 46%);
-  --color-presence-3: hsl(14 80% 60%);
-  --color-presence-4: hsl(280 60% 60%);
-  --color-presence-5: hsl(36 92% 54%);
+  --color-background: #eff1f5;
+  --color-foreground: #4c4f69;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-primary: #8839ef;
+  --color-primary-foreground: #ffffff;
+  --color-primary-soft: #dcd8f5;
+  --color-secondary: #e6e9ef;
+  --color-secondary-foreground: #4c4f69;
+  --color-muted: #e6e9ef;
+  --color-muted-foreground: #8c8fa1;
+  --color-accent: #dcd8f5;
+  --color-accent-foreground: #8839ef;
+  --color-destructive: #d20f39;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #40a02b;
+  --color-warning: #df8e1d;
+  --color-border: #ccd0da;
+  --color-border-strong: #bcc0cc;
+  --color-input: #ccd0da;
+  --color-ring: #8839ef;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #4c4f69;
+  --color-presence-1: #1e66f5;
+  --color-presence-2: #40a02b;
+  --color-presence-3: #fe640b;
+  --color-presence-4: #ea76cb;
+  --color-presence-5: #df8e1d;
 
   /* Radius */
   --radius: 0.75rem;
 
   /* Shadows */
-  --shadow-xs: 0 1px 2px hsl(230 18% 14% / 0.04);
-  --shadow-sm: 0 1px 2px hsl(230 18% 14% / 0.04), 0 1px 3px hsl(230 18% 14% / 0.06);
-  --shadow-md: 0 4px 12px -2px hsl(230 18% 14% / 0.08), 0 2px 4px -2px hsl(230 18% 14% / 0.04);
-  --shadow-lg: 0 12px 32px -8px hsl(230 18% 14% / 0.12), 0 4px 8px -4px hsl(230 18% 14% / 0.06);
-  --shadow-float: 0 8px 24px -6px hsl(244 62% 30% / 0.15), 0 2px 6px -2px hsl(230 18% 14% / 0.06);
+  --shadow-xs: 0 1px 2px #4c4f6908;
+  --shadow-sm: 0 1px 2px #4c4f6908, 0 1px 3px #4c4f690f;
+  --shadow-md: 0 4px 12px -2px #4c4f6914, 0 2px 4px -2px #4c4f6908;
+  --shadow-lg: 0 12px 32px -8px #4c4f691f, 0 4px 8px -4px #4c4f690f;
+  --shadow-float: 0 8px 24px -6px #8839ef26, 0 2px 6px -2px #4c4f690f;
 
   /* Motion */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -98,37 +97,36 @@
 :root {
   --ui-font: "Lato", system-ui, sans-serif;
   --editor-font: "Geist Mono Variable", ui-monospace, monospace;
-  --gradient-subtle: radial-gradient(circle at 30% 0%, hsl(244 80% 96% / 0.6), transparent 60%);
-  --gradient-brand: linear-gradient(135deg, hsl(244 62% 56%), hsl(264 70% 60%));
+  --gradient-subtle: radial-gradient(circle at 30% 0%, #dcd8f599, transparent 60%);
+  --gradient-brand: linear-gradient(135deg, #8839ef, #ea76cb);
 }
 
-/* Dark theme overrides — same --color-* keys, different values */
+/* Dark theme overrides — Catppuccin Mocha */
 [data-theme="dark"] {
-  --color-background: hsl(230 20% 9%);
-  --color-foreground: hsl(40 16% 96%);
-  --color-surface: hsl(230 18% 12%);
-  --color-surface-elevated: hsl(230 16% 15%);
-  --color-primary: hsl(244 80% 70%);
-  --color-primary-foreground: hsl(230 30% 10%);
-  --color-primary-soft: hsl(244 40% 20%);
-  --color-secondary: hsl(230 14% 17%);
-  --color-secondary-foreground: hsl(40 16% 96%);
-  --color-muted: hsl(230 14% 16%);
-  --color-muted-foreground: hsl(230 8% 62%);
-  --color-accent: hsl(244 40% 22%);
-  --color-accent-foreground: hsl(244 80% 80%);
-  --color-destructive: hsl(0 62% 50%);
-  --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(230 14% 18%);
-  --color-border-strong: hsl(230 14% 24%);
-  --color-input: hsl(230 14% 18%);
-  --color-ring: hsl(244 80% 70%);
-  --color-popover: hsl(230 18% 13%);
-  --color-popover-foreground: hsl(40 16% 96%);
+  --color-background: #181825;
+  --color-foreground: #cdd6f4;
+  --color-surface: #1e1e2e;
+  --color-surface-elevated: #313244;
+  --color-primary: #cba6f7;
+  --color-primary-foreground: #11111b;
+  --color-primary-soft: #cba6f726;
+  --color-secondary: #313244;
+  --color-secondary-foreground: #cdd6f4;
+  --color-muted: #313244;
+  --color-muted-foreground: #7f849c;
+  --color-accent: #45475a;
+  --color-accent-foreground: #cba6f7;
+  --color-destructive: #f38ba8;
+  --color-destructive-foreground: #11111b;
+  --color-border: #313244;
+  --color-border-strong: #45475a;
+  --color-input: #313244;
+  --color-ring: #cba6f7;
+  --color-popover: #1e1e2e;
+  --color-popover-foreground: #cdd6f4;
 
-  /* Dark gradients */
-  --gradient-subtle: radial-gradient(circle at 30% 0%, hsl(244 40% 22% / 0.6), transparent 60%);
-  --gradient-brand: linear-gradient(135deg, hsl(244 80% 70%), hsl(264 80% 72%));
+  --gradient-subtle: radial-gradient(circle at 30% 0%, #cba6f726, transparent 60%);
+  --gradient-brand: linear-gradient(135deg, #cba6f7, #f5c2e7);
 }
 
 /* Base resets + body */
