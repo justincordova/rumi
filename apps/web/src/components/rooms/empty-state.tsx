@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 export function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-      <img src={logoT} alt="Rumi" className="h-14 w-14 mb-6" />
+      <img src={logoT} alt="Rumi" className="h-24 w-24 mb-6" />
       <h2 className="font-display text-3xl font-semibold tracking-tight text-balance">
         Start your first room
       </h2>
