@@ -8,6 +8,8 @@ export const ErrorCode = z.enum([
   "slug_taken",
   "invite_not_found",
   "tab_limit_reached",
+  "plan_limit_reached",
+  "room_limit",
   "last_tab",
   "server_error",
 ]);

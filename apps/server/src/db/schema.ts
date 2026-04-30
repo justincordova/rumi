@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   customType,
   integer,
@@ -70,6 +71,23 @@ export const tabs = pgTable(
 
 const bytea = customType<{ data: Uint8Array; default: false }>({
   dataType: () => "bytea",
+});
+
+export const subscriptions = pgTable("subscriptions", {
+  userId: uuid("user_id").primaryKey(),
+  plan: text("plan", { enum: ["free", "pro", "max"] })
+    .notNull()
+    .default("free"),
+  status: text("status", { enum: ["active", "past_due", "canceled"] })
+    .notNull()
+    .default("active"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id").unique(),
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const tabDocuments = pgTable("tab_documents", {

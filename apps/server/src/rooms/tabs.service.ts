@@ -2,8 +2,7 @@ import type { DbClient } from "@/db/client";
 import { roomMembers, rooms, tabs } from "@/db/schema";
 import { AppError, AuthError } from "@/lib/errors";
 import { and, eq, sql } from "drizzle-orm";
-
-const TAB_CAP = 3;
+import { getUserPlan } from "./plan";
 
 export type TabsService = ReturnType<typeof createTabsService>;
 
@@ -18,7 +17,7 @@ export function createTabsService(db: DbClient) {
       where: and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, userId)),
     });
     if (!member) throw new AuthError("forbidden", "Not a member");
-    return { room, member, canEdit: true };
+    return { room, member, canEdit: true, userId };
   }
 
   return {
@@ -38,10 +37,11 @@ export function createTabsService(db: DbClient) {
       const { room, canEdit } = await authorize(slug, userId);
       if (!canEdit) throw new AuthError("forbidden", "Read-only access");
 
-      // Reject language on drawing tabs.
       if (body.type === "drawing" && body.language) {
         throw new AppError("validation_failed", "Drawing tabs cannot have a language", 422);
       }
+
+      const plan = await getUserPlan(userId);
 
       return db.transaction(async (tx) => {
         const existing = await tx
@@ -50,8 +50,8 @@ export function createTabsService(db: DbClient) {
           .where(eq(tabs.roomId, room.id))
           .for("update");
 
-        if (existing.length >= TAB_CAP) {
-          throw new AppError("tab_limit_reached", `Max ${TAB_CAP} tabs per room`, 422);
+        if (existing.length >= plan.maxTabsPerRoom) {
+          throw new AppError("tab_limit_reached", `Max ${plan.maxTabsPerRoom} tabs per room`, 422);
         }
 
         const ordinal = existing.length;

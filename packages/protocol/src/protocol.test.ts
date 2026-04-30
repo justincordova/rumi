@@ -6,13 +6,17 @@ import {
   ErrorCode,
   ErrorEnvelope,
   GetRoomResponse,
+  GetSubscriptionResponse,
   GuestAccess,
   InviteIdParams,
   ListRoomsResponse,
+  PlanType,
   Role,
   Room,
   RoomInvite,
   SlugParam,
+  Subscription,
+  SubscriptionStatus,
   TabSummary,
   TabType,
   UpdateRoomBody,
@@ -217,5 +221,52 @@ describe("ListRoomsResponse", () => {
       ],
     };
     expect(ListRoomsResponse.parse(data).rooms[0]?.pendingInvite).toBe(true);
+  });
+});
+
+describe("PlanType", () => {
+  it("accepts valid plan types", () => {
+    expect(PlanType.parse("free")).toBe("free");
+    expect(PlanType.parse("pro")).toBe("pro");
+    expect(PlanType.parse("max")).toBe("max");
+  });
+  it("rejects invalid plan", () => {
+    expect(() => PlanType.parse("enterprise")).toThrow();
+  });
+});
+
+describe("SubscriptionStatus", () => {
+  it("accepts valid statuses", () => {
+    expect(SubscriptionStatus.parse("active")).toBe("active");
+    expect(SubscriptionStatus.parse("past_due")).toBe("past_due");
+    expect(SubscriptionStatus.parse("canceled")).toBe("canceled");
+  });
+});
+
+describe("Subscription", () => {
+  it("parses a valid subscription", () => {
+    const result = Subscription.parse({
+      plan: "pro",
+      status: "active",
+      currentPeriodEnd: new Date().toISOString(),
+    });
+    expect(result.plan).toBe("pro");
+  });
+  it("parses subscription without currentPeriodEnd", () => {
+    const result = Subscription.parse({ plan: "free", status: "active" });
+    expect(result.currentPeriodEnd).toBeUndefined();
+  });
+});
+
+describe("GetSubscriptionResponse", () => {
+  it("parses response with subscription", () => {
+    const result = GetSubscriptionResponse.parse({
+      subscription: { plan: "pro", status: "active", currentPeriodEnd: new Date().toISOString() },
+    });
+    expect(result.subscription?.plan).toBe("pro");
+  });
+  it("parses response with null subscription", () => {
+    const result = GetSubscriptionResponse.parse({ subscription: null });
+    expect(result.subscription).toBeNull();
   });
 });

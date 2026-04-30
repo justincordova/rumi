@@ -6,7 +6,7 @@ brainstorm → plan → execute workflow).
 
 ---
 
-## 1. Settings Page
+## 1. Settings Page ✅
 
 **Why first:** Prerequisite for exposing plan/billing UI to logged-in users.
 Currently user preferences (theme, fonts) are accessible only via a small
@@ -26,7 +26,7 @@ surface plan status, usage, and upgrade CTAs.
 
 ---
 
-## 2. Pricing Tiers — Define & Enforce
+## 2. Pricing Tiers — Define & Enforce ✅
 
 **Why second:** Defines the limits that everything downstream (Stripe,
 landing page, settings) references. Must be locked before building billing.
@@ -216,4 +216,43 @@ AI generation (future, requires billing)
 - **Mobile polish** — phone is best-effort today; a dedicated mobile pass
   post-launch
 - **Export** — download tab content as `.md` / `.txt`; download drawing as
-  PNG/SVG (tldraw supports this natively)
+  PNG/SVG (tldraw supports this natively). Gate behind Pro and Max tiers
+  after implemented.
+
+---
+
+## Future monetization levers
+
+Not in current scope. Evaluate after billing is live.
+
+- **File upload size limits** — Free tier gets a small upload cap (e.g. 1MB per
+  image), Pro/Max get larger (e.g. 20MB). Relevant when Rumi supports image
+  embeds in markdown tabs. Gate behind Pro+.
+- **Version history** — Full tab version history with diff/restore. Would
+  require a `tab_versions` table. Notion and HackMD gate this behind paid.
+  Gate behind Pro+.
+- **Custom branding** — Remove Rumi branding from shared/public room pages.
+  Notion gates "remove branding" behind paid. Gate behind Max.
+- **AI generation** — Credits-based AI features (generate text, generate
+  drawings, code completion). Per the TODO item 5 above. Pro gets a monthly
+  credit pool, Max gets a larger pool, Free gets none.
+
+---
+
+## Handoff: Settings Page & Pricing Tiers
+
+Items 1 (Settings Page) and 2 (Pricing Tiers) are implemented. Here's what's
+next for anyone picking up item 3 (Stripe billing) or item 4 (Landing page):
+
+- `getUserPlan(userId)` in `apps/server/src/rooms/plan.ts` returns plan limits.
+  The core logic is in `resolvePlan(row)` — a pure function that's easy to test.
+- Concurrent user limit is enforced by counting unique users across all
+  Hocuspocus documents for the room. Only runs on control doc connections
+  (`room:<roomId>`) to avoid double-counting. See
+  `apps/server/src/sync/connection-limits.ts`.
+- Rooms-open limit (10, all tiers) enforced the same way.
+- The `subscriptions` table has `stripe_*` columns ready for Stripe integration.
+- Settings page reads from `GET /api/subscriptions/me`.
+- The tier structure is Free / Pro / Max (not Team). See
+  `docs/designs/pricing-tiers.md` for the full breakdown.
+- Next items on the roadmap: Stripe billing (item 3), Landing page (item 4).

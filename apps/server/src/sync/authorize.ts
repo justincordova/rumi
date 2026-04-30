@@ -55,7 +55,7 @@ async function authenticateJwt(token: string, documentName: string) {
 
     logger.info({ userId: user.id, roomId: room.id, tabId, documentName }, "ws authenticated");
 
-    return { user, roomId: room.id, tabId, readOnly: false };
+    return { user, roomId: room.id, tabId, readOnly: false, roomOwner: room.ownerId };
   } catch (err) {
     if (err instanceof AuthError) throw err;
     logger.warn({ err, documentName }, "ws auth: jwt verify or room lookup failed");
@@ -89,5 +89,5 @@ async function authenticateGuest(documentName: string) {
 
   logger.debug({ roomId: room.id, tabId, readOnly, documentName }, "ws guest authenticated");
 
-  return { isGuest: true, roomId: room.id, tabId, readOnly };
+  return { isGuest: true, roomId: room.id, tabId, readOnly, roomOwner: room.ownerId };
 }

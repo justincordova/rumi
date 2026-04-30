@@ -2,7 +2,8 @@ import type { DbClient } from "@/db/client";
 import { roomInvites, roomMembers, rooms, tabs } from "@/db/schema";
 import { AppError, AuthError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { getUserPlan } from "./plan";
 import { fallbackSlug, generateSlug } from "./slug";
 
 export type Service = ReturnType<typeof createService>;
@@ -15,6 +16,20 @@ export function createService(db: DbClient) {
       visibility?: "open" | "private";
       guestAccess?: "none" | "view" | "edit";
     }) {
+      const plan = await getUserPlan(opts.ownerId);
+      const ownedCount = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(rooms)
+        .where(and(eq(rooms.ownerId, opts.ownerId), isNull(rooms.deletedAt)));
+      const count = ownedCount[0]?.count ?? 0;
+      if (count >= plan.maxRooms) {
+        throw new AppError(
+          "plan_limit_reached",
+          `${plan.plan === "free" ? "Free plan" : `${plan.plan} plan`} limited to ${plan.maxRooms} rooms. Upgrade for more.`,
+          403,
+        );
+      }
+
       for (let attempt = 0; attempt < 6; attempt++) {
         const slug = attempt < 5 ? generateSlug() : fallbackSlug();
         try {

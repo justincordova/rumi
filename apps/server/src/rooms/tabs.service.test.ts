@@ -1,6 +1,24 @@
-import { describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { AppError, AuthError } from "@/lib/errors";
+import { getUserPlan } from "./plan";
 import { createTabsService } from "./tabs.service";
+
+mock.module("@/rooms/plan", () => ({
+  getUserPlan: mock(async () => ({
+    plan: "free",
+    maxRooms: 3,
+    maxTabsPerRoom: 3,
+    maxConcurrentUsers: 5,
+  })),
+  PLAN_LIMITS: {
+    free: { maxRooms: 3, maxTabsPerRoom: 3, maxConcurrentUsers: 5 },
+    pro: { maxRooms: 25, maxTabsPerRoom: 10, maxConcurrentUsers: 15 },
+    max: { maxRooms: 100, maxTabsPerRoom: 50, maxConcurrentUsers: 50 },
+  },
+  MAX_ROOMS_OPEN: 10,
+}));
+
+const planMod = await import("@/rooms/plan");
 
 const baseRoom = {
   id: "room-id",
@@ -75,7 +93,7 @@ function makeDb(overrides: Record<string, unknown> = {}) {
 
 describe("createTabsService", () => {
   describe("createTab", () => {
-    it("enforces 3-tab cap (tab_limit_reached)", async () => {
+    it("enforces tab cap from plan (tab_limit_reached)", async () => {
       const db = makeDb({
         transaction: async (fn: (tx: unknown) => unknown) => {
           const stubTx = {
@@ -83,6 +101,41 @@ describe("createTabsService", () => {
               from: () => ({
                 where: () => ({
                   for: () => [{ ordinal: 0 }, { ordinal: 1 }, { ordinal: 2 }],
+                }),
+              }),
+            }),
+            insert: () => ({
+              values: () => ({
+                returning: async () => [baseTab],
+              }),
+            }),
+            query: makeDb().query,
+          };
+          return fn(stubTx);
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createTabsService(db as any);
+      await expect(svc.createTab("test-slug", "user-id", { type: "tab" })).rejects.toBeInstanceOf(
+        AppError,
+      );
+    });
+
+    it("respects pro plan tab limit of 10", async () => {
+      planMod.getUserPlan.mockImplementationOnce(async () => ({
+        plan: "pro",
+        maxRooms: 25,
+        maxTabsPerRoom: 10,
+        maxConcurrentUsers: 15,
+      }));
+      const tabs = Array.from({ length: 10 }, (_, i) => ({ ordinal: i }));
+      const db = makeDb({
+        transaction: async (fn: (tx: unknown) => unknown) => {
+          const stubTx = {
+            select: () => ({
+              from: () => ({
+                where: () => ({
+                  for: () => tabs,
                 }),
               }),
             }),

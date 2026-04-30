@@ -8,6 +8,7 @@ import { roomsRoutes } from "@/rooms/routes";
 import { createService } from "@/rooms/service";
 import { tabsRoutes } from "@/rooms/tabs.routes";
 import { createTabsService } from "@/rooms/tabs.service";
+import { subscriptionRoutes } from "@/subscriptions/routes";
 import { buildHocuspocus } from "@/sync/hocuspocus";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -81,6 +82,7 @@ export async function buildServer() {
     },
     { prefix: "/api/rooms" },
   );
+  await app.register(subscriptionRoutes, { prefix: "/api/subscriptions" });
 
   app.get("/health", async () => ({ status: "ok", uptime: process.uptime() }));
 

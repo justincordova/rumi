@@ -21,7 +21,7 @@ import { type RoomSort, useRoomsStore } from "@/stores/rooms";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import type { Room } from "@rumi/protocol";
 import type { UpdateRoomResponse } from "@rumi/protocol";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDownAZ,
   Bell,
@@ -45,6 +45,7 @@ interface TopBarProps {
   isGuest?: boolean;
   onCreateRoom?: () => void;
   activeTabName?: string;
+  label?: string;
 }
 
 export function TopBar({
@@ -54,8 +55,8 @@ export function TopBar({
   isGuest,
   onCreateRoom,
   activeTabName,
+  label,
 }: TopBarProps) {
-  const { user } = useSession();
   const theme = usePrefs((s) => s.theme);
   const setTheme = usePrefs((s) => s.setTheme);
   const rooms = useRoomsStore((s) => s.rooms);
@@ -76,7 +77,7 @@ export function TopBar({
       {!room && (
         <>
           <div className="h-4 w-px bg-border shrink-0" />
-          <span className="text-sm font-medium text-muted-foreground">Your rooms</span>
+          <span className="text-sm font-medium text-muted-foreground">{label ?? "Your rooms"}</span>
         </>
       )}
 
@@ -224,39 +225,50 @@ export function TopBar({
           </DropdownMenu>
         ) : (
           // Dashboard user dropdown
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.displayName} />
-                  <AvatarFallback>{user?.displayName?.[0] ?? "?"}</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={16} className="w-48">
-              <DropdownMenuLabel className="font-medium text-sm">
-                {user?.displayName}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled>
-                <Zap className="h-3.5 w-3.5 mr-2" />
-                Upgrade
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled>
-                <CreditCard className="h-3.5 w-3.5 mr-2" />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled>
-                <Settings className="h-3.5 w-3.5 mr-2" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={signOut}>Sign out</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <DashboardDropdown />
         )}
       </div>
     </header>
+  );
+}
+
+function DashboardDropdown() {
+  const { user } = useSession();
+  const navigate = useNavigate();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="rounded-full">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.displayName} />
+            <AvatarFallback>{user?.displayName?.[0] ?? "?"}</AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={16} className="w-48">
+        <DropdownMenuLabel className="font-medium text-sm">{user?.displayName}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => navigate({ to: "/upgrade" })}>
+          <Zap className="h-3.5 w-3.5 mr-2" />
+          Upgrade
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => navigate({ to: "/settings", search: { tab: "billing" } })}
+        >
+          <CreditCard className="h-3.5 w-3.5 mr-2" />
+          Billing
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => navigate({ to: "/settings", search: { tab: "general" } })}
+        >
+          <Settings className="h-3.5 w-3.5 mr-2" />
+          Settings
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={signOut}>Sign out</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

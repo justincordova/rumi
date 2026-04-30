@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { Server } from "@hocuspocus/server";
 import { eq } from "drizzle-orm";
 import { onAuthenticate } from "./authorize";
+import { enforceConnectionLimits } from "./connection-limits";
 import { buildDatabaseExtension } from "./persistence";
 import { colorFor, trustedIdentityFor } from "./presence";
 
@@ -11,7 +12,11 @@ export function buildHocuspocus() {
   return Server.configure({
     extensions: [buildDatabaseExtension()],
 
-    onAuthenticate,
+    async onAuthenticate(data) {
+      const result = await onAuthenticate(data);
+      await enforceConnectionLimits(data);
+      return result;
+    },
 
     async onLoadDocument({ context, document }) {
       // biome-ignore lint/suspicious/noExplicitAny: Hocuspocus context is typed as unknown

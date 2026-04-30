@@ -1,6 +1,24 @@
-import { describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { AppError, AuthError } from "@/lib/errors";
+import { getUserPlan } from "./plan";
 import { createService } from "./service";
+
+mock.module("@/rooms/plan", () => ({
+  getUserPlan: mock(async () => ({
+    plan: "free",
+    maxRooms: 3,
+    maxTabsPerRoom: 3,
+    maxConcurrentUsers: 5,
+  })),
+  PLAN_LIMITS: {
+    free: { maxRooms: 3, maxTabsPerRoom: 3, maxConcurrentUsers: 5 },
+    pro: { maxRooms: 25, maxTabsPerRoom: 10, maxConcurrentUsers: 15 },
+    max: { maxRooms: 100, maxTabsPerRoom: 50, maxConcurrentUsers: 50 },
+  },
+  MAX_ROOMS_OPEN: 10,
+}));
+
+const planMod = await import("@/rooms/plan");
 
 // Minimal stub for a Drizzle-like query interface
 function makeDb(overrides: Record<string, unknown> = {}) {
@@ -28,7 +46,7 @@ function makeDb(overrides: Record<string, unknown> = {}) {
         innerJoin: () => ({
           where: async () => [],
         }),
-        where: async () => [],
+        where: async () => [{ count: 0 }],
       }),
     }),
     update: () => ({
@@ -93,7 +111,7 @@ describe("createService", () => {
       expect(result.slug).toBe("test-slug");
     });
 
-    it("retries on slug collision (23505) and eventually throws server_error", async () => {
+    it("retries on slug collision (23506) and eventually throws server_error", async () => {
       let attempts = 0;
       const db = makeDb({
         transaction: async () => {
@@ -109,6 +127,41 @@ describe("createService", () => {
       const svc = createService(db as any);
       await expect(svc.createRoom({ ownerId: "user-id" })).rejects.toBeInstanceOf(AppError);
       expect(attempts).toBe(6);
+    });
+
+    it("throws plan_limit_reached when user is at room limit", async () => {
+      planMod.getUserPlan.mockImplementationOnce(async () => ({
+        plan: "free",
+        maxRooms: 3,
+        maxTabsPerRoom: 3,
+        maxConcurrentUsers: 5,
+      }));
+      const db = makeDb({
+        select: () => ({
+          from: () => ({
+            innerJoin: () => ({ where: async () => [] }),
+            where: async () => [{ count: 3 }],
+          }),
+        }),
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await expect(svc.createRoom({ ownerId: "user-id" })).rejects.toThrow(
+        "Free plan limited to 3 rooms",
+      );
+    });
+
+    it("creates room when user is under limit", async () => {
+      planMod.getUserPlan.mockImplementationOnce(async () => ({
+        plan: "free",
+        maxRooms: 3,
+        maxTabsPerRoom: 3,
+        maxConcurrentUsers: 5,
+      }));
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(makeDb() as any);
+      const result = await svc.createRoom({ ownerId: "user-id" });
+      expect(result.slug).toBe("test-slug");
     });
   });
 

@@ -7,6 +7,8 @@ export interface SessionUser {
   email: string;
   displayName: string;
   avatarUrl: string | null;
+  provider: string | null;
+  identities: Array<{ provider: string }>;
 }
 
 interface SessionState {
@@ -31,12 +33,16 @@ function pickNonEmpty(...vs: (string | null | undefined)[]): string | null {
 
 export function extractProfile(u: SupabaseUser): SessionUser {
   const m = (u.user_metadata ?? {}) as Record<string, string | null | undefined>;
+  const identities = (u.app_metadata?.identities as Array<{ provider: string }> | undefined) ?? [];
+  const provider = identities[0]?.provider ?? null;
   return {
     id: u.id,
     email: (u.email ?? "").toLowerCase(),
     displayName:
       pickNonEmpty(m.full_name, m.name, m.user_name, u.email?.split("@")[0]) ?? "Unknown",
     avatarUrl: pickNonEmpty(m.avatar_url, m.picture),
+    provider,
+    identities,
   };
 }
 
@@ -74,6 +80,12 @@ export async function initAuth() {
 export async function signInWithProvider(provider: "github" | "google", next = "/") {
   const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
   await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
+}
+
+export async function linkProvider(provider: "github" | "google", next = "/settings") {
+  const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+  const { error } = await supabase.auth.linkIdentity({ provider, options: { redirectTo } });
+  if (error) throw error;
 }
 
 export async function signOut() {
