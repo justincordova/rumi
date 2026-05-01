@@ -89,6 +89,7 @@
         "tldraw": "^4.5.10",
         "unified": "^11.0.0",
         "y-codemirror.next": "^0.3.5",
+        "y-utility": "^0.1.4",
         "yjs": "^13.6.0",
         "zod": "^3.23.0",
         "zustand": "^5.0.0",
@@ -1364,6 +1365,8 @@
     "y-codemirror.next": ["y-codemirror.next@0.3.5", "", { "dependencies": { "lib0": "^0.2.42" }, "peerDependencies": { "@codemirror/state": "^6.0.0", "@codemirror/view": "^6.0.0", "yjs": "^13.5.6" } }, "sha512-VluNu3e5HfEXybnypnsGwKAj+fKLd4iAnR7JuX1Sfyydmn1jCBS5wwEL/uS04Ch2ib0DnMAOF6ZRR/8kK3wyGw=="],
 
     "y-protocols": ["y-protocols@1.0.7", "", { "dependencies": { "lib0": "^0.2.85" }, "peerDependencies": { "yjs": "^13.0.0" } }, "sha512-YSVsLoXxO67J6eE/nV4AtFtT3QEotZf5sK5BHxFBXso7VDUT3Tx07IfA6hsu5Q5OmBdMkQVmFZ9QOA7fikWvnw=="],
+
+    "y-utility": ["y-utility@0.1.4", "", { "dependencies": { "lib0": "^0.2.43" }, "peerDependencies": { "yjs": "^13.5.29" } }, "sha512-i8HSo2DGRB13PSm9B0hbljPBramKWK2Gi9R+ZCPrstyIx0VJAdcaurGdYTmcu2SBJI9HWcSCW0siSF2SyRa4lg=="],
 
     "y18n": ["y18n@5.0.8", "", {}, "sha512-0pfFzegeDWJHJIAmTLRP2DwHjdF5s7jo9tuztdQxAhINCdvS+3nGINqPd00AphqJR/0LhANUS6/+7SCb98YOfA=="],
 

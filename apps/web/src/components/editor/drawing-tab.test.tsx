@@ -48,12 +48,12 @@ describe("DrawingTab — Yjs store (unit)", () => {
     expect(() => store.dispose()).not.toThrow();
   });
 
-  it("store binds to the correct Y.Map key 'tldraw'", async () => {
+  it("store binds to the 'tldraw-v2' Y.Array key", async () => {
     const { createYjsStore } = await import("@/lib/drawing/yjs-store");
     const doc = new Y.Doc();
-    createYjsStore({ doc });
-    // The store should have called getMap("tldraw") during setup
-    expect(doc.getMap("tldraw")).toBeDefined();
+    const { store } = createYjsStore({ doc });
+    expect(doc.getArray("tldraw-v2")).toBeDefined();
+    store.dispose();
   });
 
   it("two stores on separate docs are independent", async () => {
@@ -63,8 +63,7 @@ describe("DrawingTab — Yjs store (unit)", () => {
     const { store: store1 } = createYjsStore({ doc: doc1 });
     const { store: store2 } = createYjsStore({ doc: doc2 });
 
-    // Verify both have separate Y.Maps
-    expect(doc1.getMap("tldraw")).not.toBe(doc2.getMap("tldraw"));
+    expect(doc1.getArray("tldraw-v2")).not.toBe(doc2.getArray("tldraw-v2"));
 
     store1.dispose();
     store2.dispose();

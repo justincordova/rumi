@@ -11,23 +11,23 @@ mock.module("@/lib/env", () => ({
   },
 }));
 
-import type { TLRecord } from "tldraw";
 import * as Y from "yjs";
 
 const { createYjsStore } = await import("./yjs-store");
 
 describe("createYjsStore", () => {
-  it("creates a store bound to a Y.Doc", () => {
+  it("creates a store + bind() bound to a Y.Doc", () => {
     const doc = new Y.Doc();
-    const { store, bind } = createYjsStore({ doc });
+    const { store, yStore, bind } = createYjsStore({ doc });
 
-    // Store should be an object with tldraw store methods
     expect(typeof store.put).toBe("function");
     expect(typeof store.remove).toBe("function");
     expect(typeof store.allRecords).toBe("function");
     expect(typeof store.listen).toBe("function");
     expect(typeof store.dispose).toBe("function");
     expect(typeof bind).toBe("function");
+    expect(typeof yStore.set).toBe("function");
+    expect(typeof yStore.get).toBe("function");
 
     store.dispose();
   });
@@ -35,20 +35,16 @@ describe("createYjsStore", () => {
   it("disposes cleanly without errors", () => {
     const doc = new Y.Doc();
     const { store } = createYjsStore({ doc });
-    // dispose should not throw
     expect(() => store.dispose()).not.toThrow();
   });
 
-  it("two stores on shared doc both bind to the same Y.Map", () => {
+  it("uses the 'tldraw-v2' Y.Array key for record storage", () => {
     const doc = new Y.Doc();
-    const { store: store1 } = createYjsStore({ doc });
-    const { store: store2 } = createYjsStore({ doc });
-
-    // Both stores exist and bind to the same Y.Doc
-    const yShapes = doc.getMap<TLRecord>("tldraw");
-    expect(yShapes).toBeDefined();
-
-    store1.dispose();
-    store2.dispose();
+    const { store } = createYjsStore({ doc });
+    // Should be the Y.Array we registered, not a Y.Map.
+    const yArr = doc.getArray("tldraw-v2");
+    expect(yArr).toBeDefined();
+    expect(yArr.toArray()).toEqual([]);
+    store.dispose();
   });
 });
