@@ -17,13 +17,12 @@ import { apiFetch } from "@/lib/api";
 import { signInWithProvider, signOut, useSession } from "@/lib/auth";
 import { EDITOR_FONTS, type EditorFontKey } from "@/lib/fonts";
 import { usePrefs } from "@/lib/prefs";
-import { type RoomSort, useRoomsStore } from "@/stores/rooms";
+import { useRoomsStore } from "@/stores/rooms";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import type { Room } from "@rumi/protocol";
 import type { UpdateRoomResponse } from "@rumi/protocol";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  ArrowDownAZ,
   Bell,
   Check,
   CreditCard,
@@ -43,25 +42,13 @@ interface TopBarProps {
   status?: "connecting" | "connected" | "disconnected";
   provider?: HocuspocusProvider | null;
   isGuest?: boolean;
-  onCreateRoom?: () => void;
   activeTabName?: string;
   label?: string;
 }
 
-export function TopBar({
-  room,
-  status,
-  provider,
-  isGuest,
-  onCreateRoom,
-  activeTabName,
-  label,
-}: TopBarProps) {
+export function TopBar({ room, status, provider, isGuest, activeTabName, label }: TopBarProps) {
   const theme = usePrefs((s) => s.theme);
   const setTheme = usePrefs((s) => s.setTheme);
-  const rooms = useRoomsStore((s) => s.rooms);
-  const sort = useRoomsStore((s) => s.sort);
-  const setSort = useRoomsStore((s) => s.setSort);
 
   return (
     <header className="h-14 border-b border-border bg-surface/80 backdrop-blur-md sticky top-0 z-10 flex items-center pl-4 pr-3 gap-3">
@@ -100,60 +87,10 @@ export function TopBar({
 
       <div className="ml-auto flex items-center gap-3">
         {/* Dashboard controls */}
-        {onCreateRoom && (
-          <>
-            {/* Room count */}
-            {rooms.length > 0 && (
-              <span className="text-[12px] text-muted-foreground tabular-nums">
-                {rooms.length} {rooms.length === 1 ? "room" : "rooms"}
-              </span>
-            )}
-
-            {/* Sort control */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <ArrowDownAZ className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={16} className="w-44">
-                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Sort by
-                </DropdownMenuLabel>
-                {(
-                  [
-                    { value: "updated", label: "Last updated" },
-                    { value: "created", label: "Date created" },
-                    { value: "name", label: "Name" },
-                  ] as { value: RoomSort; label: string }[]
-                ).map((opt) => (
-                  <DropdownMenuItem
-                    key={opt.value}
-                    onSelect={() => setSort(opt.value)}
-                    className="flex items-center gap-2"
-                  >
-                    {sort === opt.value && <Check className="h-3.5 w-3.5" />}
-                    <span className={sort === opt.value ? "" : "ml-[20px]"}>{opt.label}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Notification bell */}
-            <Button variant="ghost" size="icon" className="h-8 w-8 relative" disabled>
-              <Bell className="h-4 w-4" />
-            </Button>
-
-            {/* New room button */}
-            <button
-              type="button"
-              onClick={onCreateRoom}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              New
-            </button>
-          </>
+        {!room && (
+          <Button variant="ghost" size="icon" className="h-8 w-8 relative" disabled>
+            <Bell className="h-4 w-4" />
+          </Button>
         )}
 
         {/* Live pill — directly left of presence avatars */}
