@@ -37,6 +37,8 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@rumi/protocol": "workspace:*",
     "@shikijs/rehype": "^1.0.0",
+    "@stripe/react-stripe-js": "^6.3.0",
+    "@stripe/stripe-js": "^9.4.0",
     "@supabase/supabase-js": "^2.46.0",
     "@tanstack/react-router": "^1.95.0",
     "class-variance-authority": "^0.7.1",

@@ -1,8 +1,9 @@
+import { CheckoutModal } from "@/components/billing/checkout-modal";
 import { Button } from "@/components/ui/button";
-import { apiFetch } from "@/lib/api";
 import { useSession } from "@/lib/auth";
+import { env } from "@/lib/env";
 import { COMPARISON_ROWS, PLANS, type PlanKey } from "@/lib/plans";
-import type { GetSubscriptionResponse } from "@rumi/protocol";
+import { useSubscriptionStore } from "@/stores/subscription";
 import { Link } from "@tanstack/react-router";
 import { Check, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -13,21 +14,38 @@ export function PricingSection() {
   const [interval, setInterval] = useState<Interval>("monthly");
   const { status } = useSession();
   const authenticated = status === "authenticated";
-  const [plan, setPlan] = useState<PlanKey>("free");
+  const subscription = useSubscriptionStore((s) => s.subscription);
+  const subStatus = useSubscriptionStore((s) => s.status);
+  const fetchSub = useSubscriptionStore((s) => s.fetch);
+  const pollUntilPlanChange = useSubscriptionStore((s) => s.pollUntilPlanChange);
+  const [checkoutPlan, setCheckoutPlan] = useState<"pro" | "max" | null>(null);
+  const embeddedEnabled = Boolean(env.VITE_STRIPE_PUBLISHABLE_KEY);
+
+  const plan = (subscription?.plan as PlanKey) ?? "free";
 
   useEffect(() => {
-    if (!authenticated) return;
-    apiFetch<GetSubscriptionResponse>("/api/subscriptions/me")
-      .then((data) => {
-        if (data.subscription) {
-          setPlan(data.subscription.plan as PlanKey);
-        }
-      })
-      .catch(() => {});
-  }, [authenticated]);
+    if (authenticated && subStatus === "idle") void fetchSub();
+  }, [authenticated, subStatus, fetchSub]);
+
+  function handleUpgrade(targetPlan: "pro" | "max") {
+    setCheckoutPlan(targetPlan);
+  }
 
   return (
     <section id="pricing" className="mx-auto max-w-6xl px-6 pt-10 pb-20">
+      {embeddedEnabled && checkoutPlan && (
+        <CheckoutModal
+          open={checkoutPlan !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCheckoutPlan(null);
+              void pollUntilPlanChange("free");
+            }
+          }}
+          plan={checkoutPlan}
+          interval={interval}
+        />
+      )}
       <div className="text-center mb-10">
         <h2 className="font-display text-3xl font-bold tracking-tight">Simple pricing</h2>
         <p className="mt-2 text-muted-foreground text-[15px]">
@@ -56,7 +74,7 @@ export function PricingSection() {
           >
             Yearly
             <span className="ml-1.5 inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-              -25%
+              -17%
             </span>
           </button>
         </div>
@@ -142,7 +160,7 @@ export function PricingSection() {
                       variant={isPro ? "default" : "outline"}
                       size="sm"
                       className="w-full"
-                      disabled
+                      onClick={() => handleUpgrade(p.key as "pro" | "max")}
                     >
                       Upgrade
                     </Button>

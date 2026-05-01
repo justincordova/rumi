@@ -1,3 +1,4 @@
+import { CheckoutModal } from "@/components/billing/checkout-modal";
 import { TopBar } from "@/components/topbar";
 import {
   AlertDialog,
@@ -12,20 +13,35 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { linkProvider, signOut, useSession } from "@/lib/auth";
+import { env } from "@/lib/env";
 import { usePrefs } from "@/lib/prefs";
-import type { GetSubscriptionResponse } from "@rumi/protocol";
+import { useSubscriptionStore } from "@/stores/subscription";
+import type { PortalResponse } from "@rumi/protocol";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Check, CreditCard, Download, Github, LogOut, Settings2, Trash2, User } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  Check,
+  CreditCard,
+  ExternalLink,
+  Github,
+  LogOut,
+  Settings2,
+  Trash2,
+  User,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 const settingsTabSchema = z.enum(["general", "account", "billing"]).catch("general");
+const checkoutStateSchema = z.enum(["success", "cancel"]).optional().catch(undefined);
 
 export const Route = createFileRoute("/_authed/settings")({
-  validateSearch: (search) => ({ tab: settingsTabSchema.parse(search.tab) }),
+  validateSearch: (search) => ({
+    tab: settingsTabSchema.parse(search.tab),
+    checkout: checkoutStateSchema.parse((search as Record<string, unknown>).checkout),
+  }),
   component: SettingsPage,
 });
 
@@ -42,7 +58,7 @@ function SettingsPage() {
   const navigate = useNavigate();
 
   function setTab(value: Tab) {
-    navigate({ to: "/settings", search: { tab: value } });
+    navigate({ to: "/settings", search: { tab: value, checkout: undefined } });
   }
 
   return (
@@ -364,153 +380,216 @@ function DangerZoneSection() {
   );
 }
 
-const MOCK_INVOICES = [
-  { id: "INV-001", date: "Mar 1, 2026", total: "$0.00", status: "Paid" as const },
-  { id: "INV-002", date: "Feb 1, 2026", total: "$0.00", status: "Paid" as const },
-  { id: "INV-003", date: "Jan 1, 2026", total: "$0.00", status: "Paid" as const },
-];
-
 function BillingTab() {
   const navigate = useNavigate();
-  const [plan, setPlan] = useState<"free" | "pro" | "max">("free");
+  const checkout = Route.useSearch({ select: (s) => s.checkout });
+  const subscription = useSubscriptionStore((s) => s.subscription);
+  const subStatus = useSubscriptionStore((s) => s.status);
+  const fetchSub = useSubscriptionStore((s) => s.fetch);
+  const pollUntilPlanChange = useSubscriptionStore((s) => s.pollUntilPlanChange);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<"pro" | "max" | null>(null);
+  const [checkoutInterval, setCheckoutInterval] = useState<"monthly" | "yearly">("monthly");
+  const embeddedEnabled = Boolean(env.VITE_STRIPE_PUBLISHABLE_KEY);
 
   useEffect(() => {
-    apiFetch<GetSubscriptionResponse>("/api/subscriptions/me")
-      .then((data) => {
-        if (data.subscription) {
-          setPlan(data.subscription.plan as "free" | "pro" | "max");
-        }
-      })
-      .catch(() => {});
-  }, []);
+    if (subStatus === "idle") void fetchSub();
+  }, [subStatus, fetchSub]);
+
+  const checkoutRef = useRef(checkout);
+  useEffect(() => {
+    const initial = checkoutRef.current;
+    if (initial === "success") {
+      toast.success("You're now subscribed. Welcome to your new plan!");
+      void pollUntilPlanChange("free");
+      navigate({ to: "/settings", search: { tab: "billing", checkout: undefined }, replace: true });
+    } else if (initial === "cancel") {
+      toast.info("Checkout canceled — you're still on the Free plan.");
+      navigate({ to: "/settings", search: { tab: "billing", checkout: undefined }, replace: true });
+    }
+  }, [pollUntilPlanChange, navigate]);
+
+  async function handlePortal() {
+    setPortalLoading(true);
+    try {
+      const { url } = await apiFetch<PortalResponse>("/api/billing/portal", { method: "POST" });
+      window.location.href = url;
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "no_stripe_customer") {
+        navigate({ to: "/pricing" });
+      } else if (err instanceof ApiError && err.code === "stripe_not_configured") {
+        toast.info("Billing isn't enabled in this environment yet.");
+      } else {
+        toast.error("Couldn't open billing portal. Please try again.");
+      }
+      setPortalLoading(false);
+    }
+  }
+
+  const loaded = subStatus === "ready" || subStatus === "error";
+  const plan = subscription?.plan ?? "free";
+  const isPaid = plan !== "free";
 
   const planLabel = plan === "max" ? "Max" : plan.charAt(0).toUpperCase() + plan.slice(1);
-
   const planBadgeClass =
-    plan === "pro"
+    plan === "pro" || plan === "max"
       ? "bg-primary/10 text-primary border-primary/20"
-      : plan === "max"
-        ? "bg-primary/10 text-primary border-primary/20"
-        : "bg-muted text-muted-foreground border-border";
+      : "bg-muted text-muted-foreground border-border";
+
+  const periodEnd = subscription?.currentPeriodEnd
+    ? new Date(subscription.currentPeriodEnd).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null;
+
+  if (!loaded) {
+    return (
+      <div className="space-y-4">
+        <div className="border rounded-xl p-5 space-y-4 animate-pulse">
+          <div className="h-4 w-24 rounded bg-muted" />
+          <div className="h-3 w-48 rounded bg-muted" />
+          <div className="flex items-center justify-between">
+            <div className="h-7 w-16 rounded-full bg-muted" />
+            <div className="h-8 w-24 rounded-md bg-muted" />
+          </div>
+        </div>
+        <div className="border rounded-xl p-5 space-y-4 animate-pulse">
+          <div className="h-4 w-16 rounded bg-muted" />
+          <div className="h-3 w-64 rounded bg-muted" />
+          <div className="h-8 w-32 rounded-md bg-muted" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <CurrentPlanSection
-        planLabel={planLabel}
-        planBadgeClass={planBadgeClass}
-        onUpgrade={() => navigate({ to: "/pricing" })}
-      />
-      <BillingHistorySection />
-      <CancelPlanSection />
+      {embeddedEnabled && checkoutPlan && (
+        <CheckoutModal
+          open={checkoutPlan !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCheckoutPlan(null);
+              void pollUntilPlanChange(plan);
+            }
+          }}
+          plan={checkoutPlan}
+          interval={checkoutInterval}
+        />
+      )}
+
+      {/* Current plan */}
+      <section className="border rounded-xl p-5 space-y-4">
+        <div>
+          <h2 className="text-[15px] font-semibold">Current plan</h2>
+          <p className="text-[13px] text-muted-foreground mt-0.5">
+            Your active subscription and usage limits.
+          </p>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold ${planBadgeClass}`}
+            >
+              {planLabel}
+            </span>
+            {isPaid && periodEnd && (
+              <span className="text-[13px] text-muted-foreground">
+                {subscription?.cancelAtPeriodEnd ? `Cancels ${periodEnd}` : `Renews ${periodEnd}`}
+              </span>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (embeddedEnabled) {
+                setCheckoutPlan(plan === "pro" ? "max" : "pro");
+                setCheckoutInterval("monthly");
+              } else {
+                navigate({ to: "/pricing" });
+              }
+            }}
+          >
+            {isPaid ? "Change plan" : "Upgrade"}
+          </Button>
+        </div>
+      </section>
+
+      {/* Billing management */}
+      {isPaid ? (
+        <section className="border rounded-xl p-5 space-y-4">
+          <div>
+            <h2 className="text-[15px] font-semibold">Billing</h2>
+            <p className="text-[13px] text-muted-foreground mt-0.5">
+              View invoices, update your payment method, or change plans via the Stripe billing
+              portal.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePortal}
+            disabled={portalLoading}
+            className="gap-2"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            {portalLoading ? "Opening…" : "Manage billing"}
+          </Button>
+        </section>
+      ) : (
+        <section className="border rounded-xl p-5 space-y-4">
+          <div>
+            <h2 className="text-[15px] font-semibold">Billing</h2>
+            <p className="text-[13px] text-muted-foreground mt-0.5">
+              You&apos;re on the Free plan. Upgrade to unlock more rooms, tabs, and concurrent
+              users.
+            </p>
+          </div>
+          <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+            <CreditCard className="h-4 w-4 shrink-0" />
+            <span>No payment method on file.</span>
+            <button
+              type="button"
+              onClick={() => {
+                if (embeddedEnabled) {
+                  setCheckoutPlan("pro");
+                  setCheckoutInterval("monthly");
+                } else {
+                  navigate({ to: "/pricing" });
+                }
+              }}
+              className="text-primary hover:text-primary/80 transition-colors underline-offset-2 hover:underline"
+            >
+              View upgrade options
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* Cancel plan — only shown for paid users */}
+      {isPaid && <CancelPlanSection onOpenPortal={handlePortal} portalLoading={portalLoading} />}
     </div>
   );
 }
 
-function CurrentPlanSection({
-  planLabel,
-  planBadgeClass,
-  onUpgrade,
+function CancelPlanSection({
+  onOpenPortal,
+  portalLoading,
 }: {
-  planLabel: string;
-  planBadgeClass: string;
-  onUpgrade: () => void;
+  onOpenPortal: () => void;
+  portalLoading: boolean;
 }) {
-  return (
-    <section className="border rounded-xl p-5 space-y-4">
-      <div>
-        <h2 className="text-[15px] font-semibold">Current plan</h2>
-        <p className="text-[13px] text-muted-foreground mt-0.5">
-          Your active subscription and usage limits.
-        </p>
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span
-            className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold ${planBadgeClass}`}
-          >
-            {planLabel}
-          </span>
-        </div>
-        <Button variant="outline" size="sm" onClick={onUpgrade}>
-          Change plan
-        </Button>
-      </div>
-    </section>
-  );
-}
-
-function BillingHistorySection() {
-  return (
-    <section className="border rounded-xl p-5 space-y-4">
-      <div>
-        <h2 className="text-[15px] font-semibold">Billing history</h2>
-        <p className="text-[13px] text-muted-foreground mt-0.5">
-          Payment method and past invoices.
-        </p>
-      </div>
-      <div className="flex items-center justify-between py-2">
-        <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
-          <CreditCard className="h-4 w-4" />
-          <span>No payment method on file</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => toast.info("Coming soon")}
-          className="text-sm text-primary hover:text-primary/80 transition-colors"
-        >
-          Add
-        </button>
-      </div>
-      <div className="border-t pt-3">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left">
-              <th className="pb-2 font-medium text-muted-foreground text-[13px]">Date</th>
-              <th className="pb-2 font-medium text-muted-foreground text-[13px]">Total</th>
-              <th className="pb-2 font-medium text-muted-foreground text-[13px]">Status</th>
-              <th className="pb-2 font-medium text-muted-foreground text-[13px] text-right">
-                Receipt
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {MOCK_INVOICES.map((inv) => (
-              <tr key={inv.id} className="border-t first:border-t-0">
-                <td className="py-2.5">{inv.date}</td>
-                <td className="py-2.5">{inv.total}</td>
-                <td className="py-2.5">
-                  <span className="inline-flex items-center rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                    {inv.status}
-                  </span>
-                </td>
-                <td className="py-2.5 text-right">
-                  <button
-                    type="button"
-                    onClick={() => toast.info("Coming soon")}
-                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    PDF
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-function CancelPlanSection() {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
     <section className="border rounded-xl p-5 space-y-3">
       <h2 className="text-[15px] font-semibold">Cancel plan</h2>
       <p className="text-[13px] text-muted-foreground">
-        Downgrade to the Free plan at the end of your billing period. Rooms exceeding free limits
-        become read-only.
+        Downgrade to the Free plan at the end of your billing period. You&apos;ll keep access until
+        your period ends.
       </p>
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogTrigger asChild>
@@ -525,19 +604,20 @@ function CancelPlanSection() {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel plan?</AlertDialogTitle>
             <AlertDialogDescription>
-              You&apos;ll be downgraded to the Free plan at the end of your current billing period.
-              Rooms exceeding the free limits will become read-only.
+              You&apos;ll be redirected to the Stripe billing portal to cancel. Access continues
+              through the end of your current billing period.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep plan</AlertDialogCancel>
             <AlertDialogAction
+              disabled={portalLoading}
               onClick={() => {
-                toast.info("Coming soon");
                 setConfirmOpen(false);
+                onOpenPortal();
               }}
             >
-              Cancel plan
+              Continue to portal
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
