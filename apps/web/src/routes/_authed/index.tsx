@@ -44,7 +44,10 @@ function DashboardPage() {
           <div className="animate-fade-in flex items-end justify-between gap-4">
             <div>
               <h1 className="text-3xl font-display font-semibold tracking-tight">
-                {greeting}, {firstName}
+                {greeting},{" "}
+                <span className="animate-gradient bg-gradient-to-r from-[#8839ef] via-[#ea76cb] to-[#8839ef] bg-clip-text text-transparent drop-shadow-[0_0_18px_rgba(136,57,239,0.35)] dark:from-[#cba6f7] dark:via-[#f5c2e7] dark:to-[#cba6f7] dark:drop-shadow-[0_0_18px_rgba(203,166,247,0.35)]">
+                  {firstName}
+                </span>
               </h1>
               <p className="text-muted-foreground mt-1.5 text-[15px]">
                 Pick up where you left off or start something new.
