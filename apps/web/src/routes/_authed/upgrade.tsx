@@ -80,8 +80,8 @@ function UpgradePage() {
   return (
     <div className="min-h-screen flex flex-col">
       <TopBar label="Upgrade" />
-      <main className="flex-1 max-w-3xl w-full mx-auto px-6 py-6 space-y-6">
-        <div className="grid grid-cols-3 gap-4">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-8 py-8 space-y-8">
+        <div className="grid grid-cols-3 gap-6">
           {PLANS.map((p) => {
             const isCurrent = plan === p.key;
             const colors = PLAN_COLORS[p.key];
@@ -90,28 +90,28 @@ function UpgradePage() {
                 key={p.key}
                 className={`relative border rounded-xl overflow-hidden flex flex-col ${colors.card}`}
               >
-                <div className={`px-5 pt-5 pb-3 ${colors.accent}`}>
+                <div className={`px-6 pt-6 pb-4 ${colors.accent}`}>
                   {p.popular && (
-                    <span className="inline-block mb-2 rounded-full bg-blue-600 text-white px-2.5 py-0.5 text-[11px] font-semibold">
+                    <span className="inline-block mb-2 rounded-full bg-blue-600 text-white px-3 py-0.5 text-xs font-semibold">
                       Popular
                     </span>
                   )}
-                  <h3 className={`text-base font-semibold ${colors.header}`}>{p.name}</h3>
+                  <h3 className={`text-lg font-semibold ${colors.header}`}>{p.name}</h3>
                   <div className="mt-1">
-                    <span className="text-2xl font-bold">{p.price}</span>
+                    <span className="text-3xl font-bold">{p.price}</span>
                     <span className="text-sm text-muted-foreground">{p.period}</span>
                   </div>
                 </div>
-                <div className="px-5 py-4 flex flex-col flex-1">
-                  <ul className="space-y-2 flex-1">
+                <div className="px-6 py-5 flex flex-col flex-1">
+                  <ul className="space-y-2.5 flex-1">
                     {p.features.map((f) => (
                       <li key={f} className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Check className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                        <Check className="h-4 w-4 shrink-0 text-blue-500" />
                         {f}
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-5">
+                  <div className="mt-6">
                     {isCurrent ? (
                       <div className="h-9 flex items-center justify-center rounded-md border border-dashed border-border">
                         <span className="text-xs font-medium text-muted-foreground">
@@ -139,16 +139,16 @@ function UpgradePage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/30">
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground" />
-                <th className="text-center py-3 px-4 font-semibold">Free</th>
-                <th className="text-center py-3 px-4 font-semibold text-blue-600">Pro</th>
-                <th className="text-center py-3 px-4 font-semibold text-purple-600">Max</th>
+                <th className="text-left py-3.5 px-5 font-medium text-muted-foreground" />
+                <th className="text-center py-3.5 px-5 font-semibold">Free</th>
+                <th className="text-center py-3.5 px-5 font-semibold text-blue-600">Pro</th>
+                <th className="text-center py-3.5 px-5 font-semibold text-purple-600">Max</th>
               </tr>
             </thead>
             <tbody>
               {COMPARISON_ROWS.map((row) => (
                 <tr key={row.label} className="border-b last:border-0">
-                  <td className="py-2.5 px-4 text-muted-foreground">
+                  <td className="py-3 px-5 text-muted-foreground">
                     {row.label}
                     {row.planned && (
                       <span className="ml-1.5 text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wide">
@@ -156,9 +156,9 @@ function UpgradePage() {
                       </span>
                     )}
                   </td>
-                  <td className="py-2.5 px-4 text-center">{row.free}</td>
-                  <td className="py-2.5 px-4 text-center">{row.pro}</td>
-                  <td className="py-2.5 px-4 text-center">{row.max}</td>
+                  <td className="py-3 px-5 text-center">{row.free}</td>
+                  <td className="py-3 px-5 text-center">{row.pro}</td>
+                  <td className="py-3 px-5 text-center">{row.max}</td>
                 </tr>
               ))}
             </tbody>
