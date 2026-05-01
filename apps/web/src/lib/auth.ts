@@ -90,4 +90,5 @@ export async function linkProvider(provider: "github" | "google", next = "/setti
 
 export async function signOut() {
   await supabase.auth.signOut();
+  window.location.href = "/";
 }
