@@ -1,6 +1,7 @@
 import { CreateRoomDialog } from "@/components/rooms/create-room-dialog";
 import { EmptyState } from "@/components/rooms/empty-state";
 import { RoomCard } from "@/components/rooms/room-card";
+import { RoomRow } from "@/components/rooms/room-row";
 import { TopBar } from "@/components/topbar";
 import {
   DropdownMenu,
@@ -11,17 +12,28 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth";
-import { type RoomSort, useRoomsStore } from "@/stores/rooms";
+import { type RoomSort, type ViewMode, useRoomsStore } from "@/stores/rooms";
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowDownAZ, Check, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowDownAZ, Check, LayoutGrid, List, Plus, Search } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/_authed/")({
   component: DashboardPage,
 });
 
 function DashboardPage() {
-  const { rooms, status, fetch, sort, setSort } = useRoomsStore();
+  const {
+    rooms,
+    status,
+    fetch,
+    sort,
+    setSort,
+    search,
+    setSearch,
+    viewMode,
+    setViewMode,
+    filtered,
+  } = useRoomsStore();
   const { user } = useSession();
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -32,6 +44,7 @@ function DashboardPage() {
   const firstName = user?.displayName?.split(" ")[0] ?? "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const displayed = filtered();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -54,10 +67,11 @@ function DashboardPage() {
               </p>
             </div>
             {rooms.length > 0 && (
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[12px] text-muted-foreground tabular-nums">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[12px] text-muted-foreground tabular-nums mr-1">
                   {rooms.length} {rooms.length === 1 ? "room" : "rooms"}
                 </span>
+                <ViewToggle mode={viewMode} onChange={setViewMode} />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -116,19 +130,55 @@ function DashboardPage() {
             )}
           </div>
 
+          {rooms.length > 0 && status !== "loading" && (
+            <div className="animate-fade-in flex items-center gap-3">
+              <div className="flex-1 flex items-center gap-2 h-9 rounded-lg border border-border bg-surface/80 px-3">
+                <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search rooms…"
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <span className="text-xs">&#x2715;</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {status === "loading" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div
+              className={`gap-5 ${viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "flex flex-col"}`}
+            >
               {[0, 1, 2].map((n) => (
-                <Skeleton key={n} className="h-40 rounded-xl" />
+                <Skeleton
+                  key={n}
+                  className={viewMode === "grid" ? "h-40 rounded-xl" : "h-14 rounded-lg"}
+                />
               ))}
+            </div>
+          )}
+          {status === "ready" && rooms.length > 0 && displayed.length === 0 && search && (
+            <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+              <p className="text-muted-foreground text-[15px]">
+                No rooms match "<span className="text-foreground font-medium">{search}</span>"
+              </p>
             </div>
           )}
           {status === "ready" && rooms.length === 0 && (
             <EmptyState onCreate={() => setCreateOpen(true)} />
           )}
-          {status === "ready" && rooms.length > 0 && (
+          {status === "ready" && displayed.length > 0 && viewMode === "grid" && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {rooms.map((r, i) => (
+              {displayed.map((r, i) => (
                 <div
                   key={r.id}
                   className="animate-fade-in"
@@ -139,9 +189,47 @@ function DashboardPage() {
               ))}
             </div>
           )}
+          {status === "ready" && displayed.length > 0 && viewMode === "list" && (
+            <div className="flex flex-col gap-2">
+              {displayed.map((r, i) => (
+                <div
+                  key={r.id}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${i * 40}ms` }}
+                >
+                  <RoomRow room={r} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+        <p className="absolute bottom-4 left-0 right-0 text-center text-[12px] text-muted-foreground/50">
+          &copy; {new Date().getFullYear()} Rumi
+        </p>
       </main>
+
       <CreateRoomDialog open={createOpen} onOpenChange={setCreateOpen} />
+    </div>
+  );
+}
+
+function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
+  return (
+    <div className="flex items-center rounded-md border border-border bg-muted/50 p-0.5">
+      <button
+        type="button"
+        onClick={() => onChange("grid")}
+        className={`grid h-7 w-7 place-items-center rounded-[5px] transition-colors ${mode === "grid" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+      >
+        <LayoutGrid className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("list")}
+        className={`grid h-7 w-7 place-items-center rounded-[5px] transition-colors ${mode === "list" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+      >
+        <List className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }

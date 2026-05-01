@@ -17,7 +17,7 @@ import { linkProvider, signOut, useSession } from "@/lib/auth";
 import { usePrefs } from "@/lib/prefs";
 import type { GetSubscriptionResponse } from "@rumi/protocol";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Check, CreditCard, Download, Github } from "lucide-react";
+import { Check, CreditCard, Download, Github, LogOut, Settings2, Trash2, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -31,10 +31,10 @@ export const Route = createFileRoute("/_authed/settings")({
 
 type Tab = z.infer<typeof settingsTabSchema>;
 
-const TABS: { value: Tab; label: string }[] = [
-  { value: "general", label: "General" },
-  { value: "account", label: "Account" },
-  { value: "billing", label: "Billing" },
+const TABS: { value: Tab; label: string; icon: typeof Settings2 }[] = [
+  { value: "general", label: "General", icon: Settings2 },
+  { value: "account", label: "Account", icon: User },
+  { value: "billing", label: "Billing", icon: CreditCard },
 ];
 
 function SettingsPage() {
@@ -47,24 +47,29 @@ function SettingsPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <TopBar label="Settings" />
-      <main className="flex-1 max-w-2xl w-full mx-auto px-6 py-6 space-y-6">
-        <div className="flex gap-6 border-b">
-          {TABS.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => setTab(t.value)}
-              className={`pb-3 text-sm font-medium transition-colors relative ${
-                tab === t.value ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t.label}
-              {tab === t.value && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground" />
-              )}
-            </button>
-          ))}
+      <TopBar />
+      <main className="flex-1 max-w-2xl w-full mx-auto px-6 pt-6 pb-8 space-y-5">
+        <h1 className="text-2xl font-display font-semibold tracking-tight">Settings</h1>
+
+        <div className="flex gap-1 rounded-lg border border-border bg-muted/40 p-1">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setTab(t.value)}
+                className={`flex items-center gap-1.5 flex-1 justify-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  tab === t.value
+                    ? "bg-surface text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
         {tab === "general" && <GeneralTab />}
@@ -77,7 +82,7 @@ function SettingsPage() {
 
 function GeneralTab() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <AppearanceSection />
       <NotificationsSection />
     </div>
@@ -89,11 +94,16 @@ function AppearanceSection() {
   const setTheme = usePrefs((s) => s.setTheme);
 
   return (
-    <section className="border rounded-xl p-6 space-y-5">
-      <h2 className="text-lg font-semibold">Appearance</h2>
+    <section className="border rounded-xl p-5 space-y-4">
       <div>
-        <span className="text-sm font-medium text-muted-foreground mb-2 block">Theme</span>
-        <div className="flex gap-1 rounded-lg border p-1 w-fit">
+        <h2 className="text-[15px] font-semibold">Appearance</h2>
+        <p className="text-[13px] text-muted-foreground mt-0.5">
+          Customize how Rumi looks on your screen.
+        </p>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-sm">Theme</span>
+        <div className="flex gap-1 rounded-lg border p-1">
           {(["light", "dark", "system"] as const).map((t) => (
             <button
               key={t}
@@ -116,35 +126,15 @@ function AppearanceSection() {
 
 function NotificationsSection() {
   return (
-    <section className="border rounded-xl p-6 space-y-5">
-      <h2 className="text-lg font-semibold">Notifications</h2>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-sm">Email notifications</span>
-            <span className="text-xs text-muted-foreground ml-2">Coming soon</span>
-          </div>
-          <button
-            type="button"
-            disabled
-            className="relative h-6 w-11 rounded-full bg-muted cursor-not-allowed opacity-60"
-          >
-            <span className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm translate-x-0.5" />
-          </button>
-        </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-sm">Desktop notifications</span>
-            <span className="text-xs text-muted-foreground ml-2">Coming soon</span>
-          </div>
-          <button
-            type="button"
-            disabled
-            className="relative h-6 w-11 rounded-full bg-muted cursor-not-allowed opacity-60"
-          >
-            <span className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm translate-x-0.5" />
-          </button>
-        </div>
+    <section className="border rounded-xl p-5 space-y-4">
+      <div>
+        <h2 className="text-[15px] font-semibold">Notifications</h2>
+        <p className="text-[13px] text-muted-foreground mt-0.5">
+          Email and desktop notification preferences.
+        </p>
+      </div>
+      <div className="flex items-center justify-center py-5 rounded-lg border border-dashed border-border">
+        <span className="text-sm text-muted-foreground">Coming soon</span>
       </div>
     </section>
   );
@@ -152,11 +142,20 @@ function NotificationsSection() {
 
 function AccountTab() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ProfileSection />
       <LinkedAccountsSection />
-      <SignOutSection />
       <DangerZoneSection />
+      <div className="flex justify-center pt-4">
+        <button
+          type="button"
+          onClick={signOut}
+          className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </button>
+      </div>
     </div>
   );
 }
@@ -173,13 +172,16 @@ function ProfileSection() {
   }
 
   return (
-    <section className="border rounded-xl p-6 space-y-5">
-      <h2 className="text-lg font-semibold">Profile</h2>
+    <section className="border rounded-xl p-5 space-y-4">
+      <div>
+        <h2 className="text-[15px] font-semibold">Profile</h2>
+        <p className="text-[13px] text-muted-foreground mt-0.5">
+          Your public display name and email.
+        </p>
+      </div>
       <div className="space-y-3">
         <div>
-          <span className="text-sm font-medium text-muted-foreground mb-1.5 block">
-            Display name
-          </span>
+          <span className="text-sm text-muted-foreground mb-1.5 block">Display name</span>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -191,8 +193,8 @@ function ProfileSection() {
           />
         </div>
         <div>
-          <span className="text-sm font-medium text-muted-foreground mb-1.5 block">Email</span>
-          <p className="text-sm text-muted-foreground">{user?.email}</p>
+          <span className="text-sm text-muted-foreground mb-1.5 block">Email</span>
+          <p className="text-sm">{user?.email}</p>
         </div>
       </div>
     </section>
@@ -255,9 +257,14 @@ function LinkedAccountsSection() {
   }
 
   return (
-    <section className="border rounded-xl p-6 space-y-5">
-      <h2 className="text-lg font-semibold">Linked Accounts</h2>
-      <div className="space-y-3">
+    <section className="border rounded-xl p-5 space-y-4">
+      <div>
+        <h2 className="text-[15px] font-semibold">Linked Accounts</h2>
+        <p className="text-[13px] text-muted-foreground mt-0.5">
+          Connect providers for one-click sign-in.
+        </p>
+      </div>
+      <div className="space-y-2">
         {SUPPORTED_PROVIDERS.map((p) => {
           const linked = linkedProviders.has(p.id);
           const { Icon } = p;
@@ -299,26 +306,18 @@ function LinkedAccountsSection() {
   );
 }
 
-function SignOutSection() {
-  return (
-    <section className="border rounded-xl p-6 space-y-4">
-      <h2 className="text-lg font-semibold">Session</h2>
-      <Button variant="outline" size="sm" onClick={signOut}>
-        Sign out
-      </Button>
-    </section>
-  );
-}
-
 function DangerZoneSection() {
   const [confirmText, setConfirmText] = useState("");
   const [open, setOpen] = useState(false);
 
   return (
-    <section className="border border-red-500/30 rounded-xl p-6 space-y-4">
-      <h2 className="text-lg font-semibold text-red-600">Danger Zone</h2>
-      <p className="text-sm text-muted-foreground">
-        Permanently delete your account and all associated data.
+    <section className="border border-destructive/30 rounded-xl p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <Trash2 className="h-4 w-4 text-destructive" />
+        <h2 className="text-[15px] font-semibold text-destructive">Delete account</h2>
+      </div>
+      <p className="text-[13px] text-muted-foreground">
+        Permanently delete your account and all associated data. This cannot be undone.
       </p>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogTrigger asChild>
@@ -389,20 +388,19 @@ function BillingTab() {
 
   const planBadgeClass =
     plan === "pro"
-      ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
+      ? "bg-primary/10 text-primary border-primary/20"
       : plan === "max"
-        ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
+        ? "bg-primary/10 text-primary border-primary/20"
         : "bg-muted text-muted-foreground border-border";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <CurrentPlanSection
         planLabel={planLabel}
         planBadgeClass={planBadgeClass}
         onUpgrade={() => navigate({ to: "/upgrade" })}
       />
-      <PaymentMethodSection />
-      <InvoicesSection />
+      <BillingHistorySection />
       <CancelPlanSection />
     </div>
   );
@@ -418,8 +416,13 @@ function CurrentPlanSection({
   onUpgrade: () => void;
 }) {
   return (
-    <section className="border rounded-xl p-6 space-y-5">
-      <h2 className="text-lg font-semibold">Current Plan</h2>
+    <section className="border rounded-xl p-5 space-y-4">
+      <div>
+        <h2 className="text-[15px] font-semibold">Current plan</h2>
+        <p className="text-[13px] text-muted-foreground mt-0.5">
+          Your active subscription and usage limits.
+        </p>
+      </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span
@@ -436,60 +439,65 @@ function CurrentPlanSection({
   );
 }
 
-function PaymentMethodSection() {
+function BillingHistorySection() {
   return (
-    <section className="border rounded-xl p-6 space-y-5">
-      <h2 className="text-lg font-semibold">Payment Method</h2>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <CreditCard className="h-5 w-5" />
+    <section className="border rounded-xl p-5 space-y-4">
+      <div>
+        <h2 className="text-[15px] font-semibold">Billing history</h2>
+        <p className="text-[13px] text-muted-foreground mt-0.5">
+          Payment method and past invoices.
+        </p>
+      </div>
+      <div className="flex items-center justify-between py-2">
+        <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+          <CreditCard className="h-4 w-4" />
           <span>No payment method on file</span>
         </div>
-        <Button variant="outline" size="sm" onClick={() => toast.info("Coming soon")}>
+        <button
+          type="button"
+          onClick={() => toast.info("Coming soon")}
+          className="text-sm text-primary hover:text-primary/80 transition-colors"
+        >
           Add
-        </Button>
+        </button>
       </div>
-    </section>
-  );
-}
-
-function InvoicesSection() {
-  return (
-    <section className="border rounded-xl p-6 space-y-5">
-      <h2 className="text-lg font-semibold">Invoices</h2>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b text-left">
-            <th className="pb-2 font-medium text-muted-foreground">Date</th>
-            <th className="pb-2 font-medium text-muted-foreground">Total</th>
-            <th className="pb-2 font-medium text-muted-foreground">Status</th>
-            <th className="pb-2 font-medium text-muted-foreground text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {MOCK_INVOICES.map((inv) => (
-            <tr key={inv.id} className="border-b last:border-0">
-              <td className="py-2.5">{inv.date}</td>
-              <td className="py-2.5">{inv.total}</td>
-              <td className="py-2.5">
-                <span className="inline-flex items-center gap-1 rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">
-                  {inv.status}
-                </span>
-              </td>
-              <td className="py-2.5 text-right">
-                <button
-                  type="button"
-                  onClick={() => toast.info("Coming soon")}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  PDF
-                </button>
-              </td>
+      <div className="border-t pt-3">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left">
+              <th className="pb-2 font-medium text-muted-foreground text-[13px]">Date</th>
+              <th className="pb-2 font-medium text-muted-foreground text-[13px]">Total</th>
+              <th className="pb-2 font-medium text-muted-foreground text-[13px]">Status</th>
+              <th className="pb-2 font-medium text-muted-foreground text-[13px] text-right">
+                Receipt
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {MOCK_INVOICES.map((inv) => (
+              <tr key={inv.id} className="border-t first:border-t-0">
+                <td className="py-2.5">{inv.date}</td>
+                <td className="py-2.5">{inv.total}</td>
+                <td className="py-2.5">
+                  <span className="inline-flex items-center rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                    {inv.status}
+                  </span>
+                </td>
+                <td className="py-2.5 text-right">
+                  <button
+                    type="button"
+                    onClick={() => toast.info("Coming soon")}
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    PDF
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
@@ -498,17 +506,20 @@ function CancelPlanSection() {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
-    <section className="border rounded-xl p-6 space-y-4">
-      <h2 className="text-lg font-semibold">Cancel Plan</h2>
-      <p className="text-sm text-muted-foreground">
-        Downgrade to the Free plan. Your rooms and tabs exceeding the free limits will become
-        read-only.
+    <section className="border rounded-xl p-5 space-y-3">
+      <h2 className="text-[15px] font-semibold">Cancel plan</h2>
+      <p className="text-[13px] text-muted-foreground">
+        Downgrade to the Free plan at the end of your billing period. Rooms exceeding free limits
+        become read-only.
       </p>
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogTrigger asChild>
-          <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-            Cancel plan
-          </Button>
+          <button
+            type="button"
+            className="text-sm text-destructive/70 hover:text-destructive transition-colors"
+          >
+            Cancel my plan
+          </button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>

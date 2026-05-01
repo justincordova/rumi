@@ -43,10 +43,9 @@ interface TopBarProps {
   provider?: HocuspocusProvider | null;
   isGuest?: boolean;
   activeTabName?: string;
-  label?: string;
 }
 
-export function TopBar({ room, status, provider, isGuest, activeTabName, label }: TopBarProps) {
+export function TopBar({ room, status, provider, isGuest, activeTabName }: TopBarProps) {
   const theme = usePrefs((s) => s.theme);
   const setTheme = usePrefs((s) => s.setTheme);
 
@@ -59,14 +58,6 @@ export function TopBar({ room, status, provider, isGuest, activeTabName, label }
         </div>
         <span className="font-display text-[15px] font-semibold tracking-tight">Rumi</span>
       </Link>
-
-      {/* Dashboard label */}
-      {!room && (
-        <>
-          <div className="h-4 w-px bg-border shrink-0" />
-          <span className="text-sm font-medium text-muted-foreground">{label ?? "Your rooms"}</span>
-        </>
-      )}
 
       {/* Room title + visibility badge */}
       {room && (
@@ -88,9 +79,18 @@ export function TopBar({ room, status, provider, isGuest, activeTabName, label }
       <div className="ml-auto flex items-center gap-3">
         {/* Dashboard controls */}
         {!room && (
-          <Button variant="ghost" size="icon" className="h-8 w-8 relative" disabled>
-            <Bell className="h-4 w-4" />
-          </Button>
+          <>
+            <Link
+              to="/upgrade"
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[12px] font-medium text-primary transition-colors hover:bg-primary/10 hover:border-primary/30"
+            >
+              <Zap className="h-3 w-3" />
+              Free plan
+            </Link>
+            <Button variant="ghost" size="icon" className="h-8 w-8 relative" disabled>
+              <Bell className="h-4 w-4" />
+            </Button>
+          </>
         )}
 
         {/* Live pill — directly left of presence avatars */}
