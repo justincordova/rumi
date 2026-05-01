@@ -37,7 +37,7 @@ export function Hero() {
           <br />
           for{" "}
           <WordSwap
-            words={["technical", "research", "team"]}
+            words={["project", "research", "team"]}
             className="bg-gradient-to-r from-[#8839ef] via-[#ea76cb] to-[#8839ef] bg-clip-text text-transparent dark:from-[#cba6f7] dark:via-[#f5c2e7] dark:to-[#cba6f7]"
           />{" "}
           docs
