@@ -12,6 +12,11 @@ export const ErrorCode = z.enum([
   "room_limit",
   "last_tab",
   "server_error",
+  "stripe_not_configured",
+  "no_stripe_customer",
+  "webhook_signature_invalid",
+  "invalid_plan",
+  "invalid_state",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

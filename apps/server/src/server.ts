@@ -1,4 +1,6 @@
 import authPlugin from "@/auth/plugin";
+import { billingRoutes } from "@/billing/routes";
+import { webhookRoutes } from "@/billing/webhook";
 import { closeDb, db } from "@/db/client";
 import { tabs as tabsTable } from "@/db/schema";
 import { env } from "@/lib/env";
@@ -62,6 +64,32 @@ export async function buildServer() {
     logger.debug({ tabId }, "closing tab ws connections");
     hocuspocus.closeConnections(tabId);
   });
+  app.decorate("dropUserConnections", (userId: string) => {
+    logger.debug({ userId }, "dropping user ws connections");
+    let closed = 0;
+    let failed = 0;
+    for (const doc of hocuspocus.documents.values()) {
+      for (const conn of doc.getConnections()) {
+        // biome-ignore lint/suspicious/noExplicitAny: Hocuspocus context is typed as unknown
+        const ctx = conn.context as any;
+        if (ctx?.user?.id === userId) {
+          try {
+            conn.close();
+            closed++;
+          } catch (err) {
+            failed++;
+            logger.warn(
+              { err, userId, documentName: doc.name },
+              "failed to close ws connection during user drop",
+            );
+          }
+        }
+      }
+    }
+    if (failed > 0) {
+      logger.warn({ userId, closed, failed }, "dropUserConnections completed with failures");
+    }
+  });
   app.decorate("dropRoomConnections", async (roomId: string) => {
     logger.debug({ roomId }, "dropping room ws connections");
     const tabIds = await db
@@ -83,6 +111,8 @@ export async function buildServer() {
     { prefix: "/api/rooms" },
   );
   await app.register(subscriptionRoutes, { prefix: "/api/subscriptions" });
+  await app.register(billingRoutes, { prefix: "/api/billing" });
+  await app.register(webhookRoutes, { prefix: "/api/billing" });
 
   app.get("/health", async () => ({ status: "ok", uptime: process.uptime() }));
 

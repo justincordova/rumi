@@ -10,6 +10,7 @@ export const Subscription = z.object({
   plan: PlanType,
   status: SubscriptionStatus,
   currentPeriodEnd: z.string().datetime().optional(),
+  cancelAtPeriodEnd: z.boolean().optional(),
 });
 export type Subscription = z.infer<typeof Subscription>;
 

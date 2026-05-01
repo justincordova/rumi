@@ -41,7 +41,7 @@ export function createTabsService(db: DbClient) {
         throw new AppError("validation_failed", "Drawing tabs cannot have a language", 422);
       }
 
-      const plan = await getUserPlan(userId);
+      const plan = await getUserPlan(room.ownerId);
 
       return db.transaction(async (tx) => {
         const existing = await tx

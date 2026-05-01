@@ -10,6 +10,13 @@ const envSchema = z.object({
   SUPABASE_JWT_AUDIENCE: z.string().default("authenticated"),
   WEB_ORIGIN: z.string().url().default("http://localhost:5173"),
   WS_PUBLIC_ORIGIN: z.string().url().optional(),
+  WEB_URL: z.string().url().default("http://localhost:5173"),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_PRO_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_PRO_YEARLY: z.string().optional(),
+  STRIPE_PRICE_MAX_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_MAX_YEARLY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

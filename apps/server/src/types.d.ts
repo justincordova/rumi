@@ -9,5 +9,6 @@ declare module "fastify" {
     hocuspocus: Hocuspocus;
     dropRoomConnections: (roomId: string) => Promise<void>;
     closeTabConnections: (tabId: string) => void;
+    dropUserConnections: (userId: string) => void;
   }
 }

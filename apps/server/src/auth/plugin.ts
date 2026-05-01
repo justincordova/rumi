@@ -10,13 +10,24 @@ declare module "fastify" {
   }
 }
 
-const OPTIONAL_AUTH_RE = /^\/api\/rooms\/[a-z0-9-]+$/;
+const PUBLIC_ROUTES: ReadonlyArray<{ method: string; pattern: RegExp; optional: boolean }> = [
+  // GET /api/rooms/:slug — try to read Bearer but continue anonymously on failure
+  { method: "GET", pattern: /^\/api\/rooms\/[a-z0-9-]+$/, optional: true },
+  // POST /api/billing/webhook — fully public; Stripe signature is the auth
+  { method: "POST", pattern: /^\/api\/billing\/webhook$/, optional: false },
+];
 
 const authPlugin: FastifyPluginAsync = async (app) => {
   app.addHook("onRequest", async (req, _reply) => {
     if (!req.url.startsWith("/api/")) return;
 
-    const isOptional = req.method === "GET" && OPTIONAL_AUTH_RE.test(req.url);
+    const matched = PUBLIC_ROUTES.find((r) => r.method === req.method && r.pattern.test(req.url));
+
+    // Fully public — skip auth entirely (webhook uses Stripe signature instead)
+    if (matched && !matched.optional) return;
+
+    // Optional auth — try to read Bearer but don't require it
+    const isOptional = matched !== undefined;
 
     const auth = req.headers.authorization;
     if (!auth?.startsWith("Bearer ")) {
