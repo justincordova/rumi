@@ -398,7 +398,7 @@ function BillingTab() {
       <CurrentPlanSection
         planLabel={planLabel}
         planBadgeClass={planBadgeClass}
-        onUpgrade={() => navigate({ to: "/upgrade" })}
+        onUpgrade={() => navigate({ to: "/pricing" })}
       />
       <BillingHistorySection />
       <CancelPlanSection />

@@ -50,120 +50,122 @@ export function TopBar({ room, status, provider, isGuest, activeTabName }: TopBa
   const setTheme = usePrefs((s) => s.setTheme);
 
   return (
-    <header className="h-14 border-b border-border bg-surface/80 backdrop-blur-md sticky top-0 z-10 flex items-center pl-4 pr-3 gap-3">
-      {/* Brand */}
-      <Link to="/" className="flex items-center gap-2 shrink-0">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md">
-          <img src={logoT} alt="Rumi" className="h-7 w-7" />
-        </div>
-        <span className="font-display text-[15px] font-semibold tracking-tight">Rumi</span>
-      </Link>
+    <header className="h-14 border-b border-border bg-surface/80 backdrop-blur-md sticky top-0 z-10">
+      <div className="mx-auto flex h-full max-w-6xl items-center px-6 gap-3">
+        {/* Brand */}
+        <Link to="/" className="flex items-center gap-2 shrink-0">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md">
+            <img src={logoT} alt="Rumi" className="h-7 w-7" />
+          </div>
+          <span className="font-display text-[15px] font-semibold tracking-tight">Rumi</span>
+        </Link>
 
-      {/* Room title + visibility badge */}
-      {room && (
-        <>
-          <div className="h-4 w-px bg-border shrink-0" />
-          <RoomTitle room={room} />
-          <VisibilityBadge room={room} />
-          {activeTabName && (
-            <>
-              <div className="h-4 w-px bg-border shrink-0" />
-              <span className="text-[13px] text-muted-foreground truncate max-w-[160px]">
-                {activeTabName}
-              </span>
-            </>
-          )}
-        </>
-      )}
-
-      <div className="ml-auto flex items-center gap-3">
-        {/* Dashboard controls */}
-        {!room && (
+        {/* Room title + visibility badge */}
+        {room && (
           <>
-            <Link
-              to="/upgrade"
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[12px] font-medium text-primary transition-colors hover:bg-primary/10 hover:border-primary/30"
-            >
-              <Zap className="h-3 w-3" />
-              Free plan
-            </Link>
-            <Button variant="ghost" size="icon" className="h-8 w-8 relative" disabled>
-              <Bell className="h-4 w-4" />
-            </Button>
+            <div className="h-4 w-px bg-border shrink-0" />
+            <RoomTitle room={room} />
+            <VisibilityBadge room={room} />
+            {activeTabName && (
+              <>
+                <div className="h-4 w-px bg-border shrink-0" />
+                <span className="text-[13px] text-muted-foreground truncate max-w-[160px]">
+                  {activeTabName}
+                </span>
+              </>
+            )}
           </>
         )}
 
-        {/* Live pill — directly left of presence avatars */}
-        {room && status === "connected" && (
-          <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inset-0 animate-pulse-soft rounded-full bg-success" />
-              <span className="relative inline-block h-1.5 w-1.5 rounded-full bg-success" />
-            </span>
-            <span className="text-[11px] font-medium text-success">Live</span>
-          </div>
-        )}
-
-        {room && provider && status === "connected" && (
-          <PresenceAvatars provider={provider} max={5} />
-        )}
-
-        {room && <ShareButton room={room} />}
-
-        {isGuest && room ? (
-          <Button
-            onClick={() => signInWithProvider("github", window.location.pathname)}
-            className="bg-foreground text-background hover:bg-foreground/90 shadow-sm hover:shadow-md transition-all h-8 px-3"
-          >
-            <LogIn className="h-3.5 w-3.5 mr-1.5" />
-            Sign in
-          </Button>
-        ) : room ? (
-          // Room settings dropdown
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Settings2 className="h-4 w-4" />
+        <div className="ml-auto flex items-center gap-3">
+          {/* Dashboard controls */}
+          {!room && (
+            <>
+              <Link
+                to="/pricing"
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[12px] font-medium text-primary transition-colors hover:bg-primary/10 hover:border-primary/30"
+              >
+                <Zap className="h-3 w-3" />
+                Free plan
+              </Link>
+              <Button variant="ghost" size="icon" className="h-8 w-8 relative" disabled>
+                <Bell className="h-4 w-4" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={16} className="w-52">
-              <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Room
-              </DropdownMenuLabel>
-              <RenameRoomItem room={room} />
-              <CopyLinkItem />
-              <VisibilitySelector room={room} />
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Appearance
-              </DropdownMenuLabel>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
-                  {(["light", "dark", "system"] as const).map((t) => (
-                    <DropdownMenuItem
-                      key={t}
-                      onSelect={() => setTheme(t)}
-                      className="flex items-center gap-2"
-                    >
-                      {theme === t && <Check className="h-3.5 w-3.5" />}
-                      <span className={theme === t ? "" : "ml-[20px]"}>
-                        {t.charAt(0).toUpperCase() + t.slice(1)}
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-              <EditorFontItem />
-              <FontSizeItem />
-              <WordWrapItem />
-              <CompactModeItem />
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          // Dashboard user dropdown
-          <DashboardDropdown />
-        )}
+            </>
+          )}
+
+          {/* Live pill — directly left of presence avatars */}
+          {room && status === "connected" && (
+            <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inset-0 animate-pulse-soft rounded-full bg-success" />
+                <span className="relative inline-block h-1.5 w-1.5 rounded-full bg-success" />
+              </span>
+              <span className="text-[11px] font-medium text-success">Live</span>
+            </div>
+          )}
+
+          {room && provider && status === "connected" && (
+            <PresenceAvatars provider={provider} max={5} />
+          )}
+
+          {room && <ShareButton room={room} />}
+
+          {isGuest && room ? (
+            <Button
+              onClick={() => signInWithProvider("github", window.location.pathname)}
+              className="bg-foreground text-background hover:bg-foreground/90 shadow-sm hover:shadow-md transition-all h-8 px-3"
+            >
+              <LogIn className="h-3.5 w-3.5 mr-1.5" />
+              Sign in
+            </Button>
+          ) : room ? (
+            // Room settings dropdown
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={16} className="w-52">
+                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Room
+                </DropdownMenuLabel>
+                <RenameRoomItem room={room} />
+                <CopyLinkItem />
+                <VisibilitySelector room={room} />
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Appearance
+                </DropdownMenuLabel>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {(["light", "dark", "system"] as const).map((t) => (
+                      <DropdownMenuItem
+                        key={t}
+                        onSelect={() => setTheme(t)}
+                        className="flex items-center gap-2"
+                      >
+                        {theme === t && <Check className="h-3.5 w-3.5" />}
+                        <span className={theme === t ? "" : "ml-[20px]"}>
+                          {t.charAt(0).toUpperCase() + t.slice(1)}
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <EditorFontItem />
+                <FontSizeItem />
+                <WordWrapItem />
+                <CompactModeItem />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            // Dashboard user dropdown
+            <DashboardDropdown />
+          )}
+        </div>
       </div>
     </header>
   );
@@ -186,7 +188,7 @@ function DashboardDropdown() {
       <DropdownMenuContent align="end" sideOffset={16} className="w-48">
         <DropdownMenuLabel className="font-medium text-sm">{user?.displayName}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => navigate({ to: "/upgrade" })}>
+        <DropdownMenuItem onSelect={() => navigate({ to: "/pricing" })}>
           <Zap className="h-3.5 w-3.5 mr-2" />
           Upgrade
         </DropdownMenuItem>
