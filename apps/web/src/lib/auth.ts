@@ -77,7 +77,7 @@ export async function initAuth() {
   });
 }
 
-export async function signInWithProvider(provider: "github" | "google", next = "/") {
+export async function signInWithProvider(provider: "github" | "google", next = "/dashboard") {
   const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
   await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
 }

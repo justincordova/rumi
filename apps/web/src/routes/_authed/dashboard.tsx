@@ -17,7 +17,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDownAZ, Check, LayoutGrid, List, Plus, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-export const Route = createFileRoute("/_authed/")({
+export const Route = createFileRoute("/_authed/dashboard")({
   component: DashboardPage,
 });
 

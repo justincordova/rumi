@@ -7,7 +7,7 @@ import { FcGoogle } from "react-icons/fc";
 
 export const Route = createFileRoute("/sign-in")({
   component: SignInPage,
-  validateSearch: (s) => ({ next: typeof s.next === "string" ? s.next : "/" }),
+  validateSearch: (s) => ({ next: typeof s.next === "string" ? s.next : "/dashboard" }),
 });
 
 function SignInPage() {

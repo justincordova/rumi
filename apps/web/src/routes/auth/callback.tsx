@@ -4,7 +4,7 @@ import { useEffect } from "react";
 export const Route = createFileRoute("/auth/callback")({
   component: CallbackPage,
   validateSearch: (s) => ({
-    next: typeof s.next === "string" ? s.next : "/",
+    next: typeof s.next === "string" ? s.next : "/dashboard",
   }),
 });
 

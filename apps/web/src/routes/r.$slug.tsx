@@ -34,7 +34,7 @@ function RoomError({ error }: { error: unknown }) {
     if (session.status !== "authenticated" && (code === "unauthorized" || code === "forbidden")) {
       nav({ to: "/sign-in", search: { next: window.location.pathname } });
     } else {
-      nav({ to: "/" });
+      nav({ to: "/dashboard" });
     }
   }, [error, nav, session.status]);
 

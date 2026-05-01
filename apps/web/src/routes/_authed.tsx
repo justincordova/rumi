@@ -18,7 +18,7 @@ function AuthedLayout() {
 
   useEffect(() => {
     if (status === "anonymous") {
-      navigate({ to: "/sign-in", search: { next: "/" } });
+      navigate({ to: "/sign-in", search: { next: "/dashboard" } });
     }
   }, [status, navigate]);
 
