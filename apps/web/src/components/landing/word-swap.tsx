@@ -35,6 +35,7 @@ export function WordSwap({
       style={{
         display: "inline-block",
         minWidth: `${longest.length}ch`,
+        paddingBottom: "0.15em",
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(6px)",
         transition: "opacity 200ms ease-out, transform 200ms ease-out",
