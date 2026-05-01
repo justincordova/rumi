@@ -1,0 +1,146 @@
+import logoT from "@/assets/logos/logo-t.png";
+import { PresenceAvatars } from "@/components/editor/presence-avatars";
+import { Button } from "@/components/ui/button";
+import { signInWithProvider } from "@/lib/auth";
+import { usePrefs } from "@/lib/prefs";
+import type { HocuspocusProvider } from "@hocuspocus/provider";
+import type { Room } from "@rumi/protocol";
+import { Link } from "@tanstack/react-router";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Bell, Check, LogIn, Settings2 } from "lucide-react";
+import { DashboardDropdown } from "./dashboard-dropdown";
+import { AppearanceItems } from "./appearance-items";
+import { PlanBadge } from "./plan-badge";
+import { RenameRoomItem, CopyLinkItem, VisibilitySelector } from "./room-menu";
+import { RoomTitle } from "./room-title";
+import { ShareButton } from "./share-button";
+import { VisibilityBadge } from "./visibility-badge";
+
+interface TopBarProps {
+  room?: Room;
+  status?: "connecting" | "connected" | "disconnected";
+  provider?: HocuspocusProvider | null;
+  isGuest?: boolean;
+  activeTabName?: string;
+}
+
+export function TopBar({ room, status, provider, isGuest, activeTabName }: TopBarProps) {
+  const theme = usePrefs((s) => s.theme);
+  const setTheme = usePrefs((s) => s.setTheme);
+
+  return (
+    <header className="h-14 border-b border-border bg-surface/80 backdrop-blur-md sticky top-0 z-10">
+      <div className="flex h-full items-center px-4 lg:px-8 gap-3">
+        <Link to="/" className="flex items-center gap-2 shrink-0">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md">
+            <img src={logoT} alt="Rumi" className="h-7 w-7" />
+          </div>
+          <span className="font-display text-[15px] font-semibold tracking-tight">Rumi</span>
+        </Link>
+
+        {room && (
+          <>
+            <div className="h-4 w-px bg-border shrink-0" />
+            <RoomTitle room={room} />
+            <VisibilityBadge room={room} />
+            {activeTabName && (
+              <>
+                <div className="h-4 w-px bg-border shrink-0" />
+                <span className="text-[13px] text-muted-foreground truncate max-w-[160px]">
+                  {activeTabName}
+                </span>
+              </>
+            )}
+          </>
+        )}
+
+        <div className="ml-auto flex items-center gap-3">
+          {!room && (
+            <>
+              <PlanBadge />
+              <Button variant="ghost" size="icon" className="h-8 w-8 relative" disabled>
+                <Bell className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+
+          {room && status === "connected" && (
+            <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inset-0 animate-pulse-soft rounded-full bg-success" />
+                <span className="relative inline-block h-1.5 w-1.5 rounded-full bg-success" />
+              </span>
+              <span className="text-[11px] font-medium text-success">Live</span>
+            </div>
+          )}
+
+          {room && provider && status === "connected" && (
+            <PresenceAvatars provider={provider} max={5} />
+          )}
+
+          {room && <ShareButton room={room} />}
+
+          {isGuest && room ? (
+            <Button
+              onClick={() => signInWithProvider("github", window.location.pathname)}
+              className="bg-foreground text-background hover:bg-foreground/90 shadow-sm hover:shadow-md transition-all h-8 px-3"
+            >
+              <LogIn className="h-3.5 w-3.5 mr-1.5" />
+              Sign in
+            </Button>
+          ) : room ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={16} className="w-52">
+                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Room
+                </DropdownMenuLabel>
+                <RenameRoomItem room={room} />
+                <CopyLinkItem />
+                <VisibilitySelector room={room} />
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Appearance
+                </DropdownMenuLabel>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {(["light", "dark", "system"] as const).map((t) => (
+                      <DropdownMenuItem
+                        key={t}
+                        onSelect={() => setTheme(t)}
+                        className="flex items-center gap-2"
+                      >
+                        {theme === t && <Check className="h-3.5 w-3.5" />}
+                        <span className={theme === t ? "" : "ml-[20px]"}>
+                          {t.charAt(0).toUpperCase() + t.slice(1)}
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <AppearanceItems />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <DashboardDropdown />
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}

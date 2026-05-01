@@ -8,7 +8,7 @@ export function LandingNav() {
 
   return (
     <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+      <div className="flex h-14 items-center justify-between px-4 lg:px-8">
         <Link to="/" className="flex items-center gap-2">
           <img src={logoT} alt="Rumi" className="h-7 w-7" />
           <span className="font-display text-[15px] font-semibold tracking-tight">Rumi</span>
