@@ -66,6 +66,8 @@ export const roomsRoutes: FastifyPluginAsync = async (app) => {
         // biome-ignore lint/style/noNonNullAssertion: auth plugin guarantees req.user is set for /api/ routes
         req.user!.id,
         req.body.email,
+        // biome-ignore lint/style/noNonNullAssertion: auth plugin guarantees req.user is set for /api/ routes
+        req.user!.email,
       );
       return reply.code(201).send({ invite: serializeInvite(invite) });
     },

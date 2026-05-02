@@ -3,7 +3,9 @@ import {
   boolean,
   check,
   customType,
+  index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -101,5 +103,31 @@ export const tabDocuments = pgTable("tab_documents", {
     .primaryKey()
     .references(() => tabs.id, { onDelete: "cascade" }),
   state: bytea("state").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    type: text("type", {
+      enum: ["invite_received", "invite_accepted"],
+    }).notNull(),
+    payload: jsonb("payload").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("notifications_user_created_idx").on(t.userId, t.createdAt.desc()),
+    index("notifications_user_unread_idx").on(t.userId).where(sql`${t.readAt} IS NULL`),
+  ],
+);
+
+export const notificationPreferences = pgTable("notification_preferences", {
+  userId: uuid("user_id").primaryKey(),
+  emailEnabled: boolean("email_enabled").notNull().default(true),
+  inviteReceivedEmail: boolean("invite_received_email").notNull().default(true),
+  inviteAcceptedEmail: boolean("invite_accepted_email").notNull().default(true),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

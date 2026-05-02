@@ -15,6 +15,8 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; pattern: RegExp; optional: 
   { method: "GET", pattern: /^\/api\/rooms\/[a-z0-9-]+$/, optional: true },
   // POST /api/billing/webhook — fully public; Stripe signature is the auth
   { method: "POST", pattern: /^\/api\/billing\/webhook$/, optional: false },
+  // POST /api/notifications/unsubscribe — public; HMAC-signed token replaces JWT
+  { method: "POST", pattern: /^\/api\/notifications\/unsubscribe/, optional: false },
 ];
 
 const authPlugin: FastifyPluginAsync = async (app) => {

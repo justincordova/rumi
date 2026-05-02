@@ -1,0 +1,794 @@
+$ cd apps/server && bun run dev 2>&1 | tee logs/server.log
+tee: logs/server.log: No such file or directory
+$ bun run --hot src/server.ts
+[02:25:38.700] [32mINFO[39m: [36mServer listening at http://127.0.0.1:3000[39m
+[02:25:38.701] [32mINFO[39m: [36mServer listening at http://10.74.246.186:3000[39m
+[02:25:38.701] [32mINFO[39m: [36mlistening[39m
+    port: 3000
+[02:26:04.859] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-1"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56934
+    }
+[02:26:04.894] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-1"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 26.649290999997902
+[02:26:04.906] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-2"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56934
+    }
+[02:26:06.062] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-3"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56947
+    }
+[02:26:06.067] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-3"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 0.8425420000021404
+[02:26:06.068] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-4"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56949
+    }
+[02:26:06.068] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-5"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/rooms",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56951
+    }
+[02:26:06.069] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-5"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 0.14270899999974063
+[02:26:06.069] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-6"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:26:06.069] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-6"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 0.2947910000002594
+[02:26:06.070] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-7"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/rooms",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56955
+    }
+[02:26:06.071] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-7"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 0.6064169999990554
+[02:26:06.074] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-8"
+    req: {
+      "method": "GET",
+      "url": "/api/rooms",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56951
+    }
+[02:26:06.074] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-9"
+    req: {
+      "method": "GET",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56947
+    }
+[02:26:06.652] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-9"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 577.9724170000009
+[02:26:06.655] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-a"
+    req: {
+      "method": "GET",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56955
+    }
+[02:26:06.807] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-4"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 739.3033340000002
+[02:26:06.808] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-b"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56947
+    }
+[02:26:06.815] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-8"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 741.7160000000003
+[02:26:06.816] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-c"
+    req: {
+      "method": "GET",
+      "url": "/api/rooms",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56949
+    }
+[02:26:06.820] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-a"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 164.7903750000005
+[02:26:07.129] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-b"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 320.1965409999975
+[02:26:07.140] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-c"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 322.9671249999992
+[02:26:09.553] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-d"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56949
+    }
+[02:26:09.881] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-d"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 328.0049590000017
+[02:26:09.883] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-e"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56947
+    }
+[02:26:10.202] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-e"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 319.2360410000001
+[02:26:11.544] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-f"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/billing/portal",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56947
+    }
+[02:26:11.546] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-f"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 1.2841670000052545
+[02:26:11.550] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-g"
+    req: {
+      "method": "POST",
+      "url": "/api/billing/portal",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56947
+    }
+[02:26:12.117] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-g"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 567.0356250000041
+[02:26:12.339] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-h"
+    req: {
+      "method": "POST",
+      "url": "/api/billing/webhook",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56980
+    }
+[02:26:12.343] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-h"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 4.108000000000175
+[02:26:32.215] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-i"
+    req: {
+      "method": "POST",
+      "url": "/api/billing/webhook",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56980
+    }
+[02:26:33.670] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-i"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 1454.0279999999984
+[02:26:43.548] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-j"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/rooms/querulous-bear-43",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56947
+    }
+[02:26:43.550] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-j"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 1.6244999999980791
+[02:26:43.552] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-k"
+    req: {
+      "method": "GET",
+      "url": "/api/rooms/querulous-bear-43",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56947
+    }
+[02:26:44.041] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-k"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 489.1570000000065
+[02:26:44.241] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-l"
+    req: {
+      "method": "GET",
+      "url": "/api/rooms/querulous-bear-43",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56947
+    }
+[02:26:44.623] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-m"
+    req: {
+      "method": "GET",
+      "url": "/api/rooms/querulous-bear-43",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56949
+    }
+[02:26:45.274] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-n"
+    req: {
+      "method": "GET",
+      "url": "/api/rooms/querulous-bear-43",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56955
+    }
+[02:26:45.764] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-n"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 489.7920000000013
+[02:26:45.795] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-o"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56955
+    }
+[02:26:45.796] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-o"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 0.5571249999920838
+[02:26:45.806] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-p"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56955
+    }
+[02:26:45.807] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-p"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 0.47050000001036096
+[02:26:45.807] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-q"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56951
+    }
+[02:26:46.141] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-q"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 333.64608299999963
+[02:26:46.142] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-r"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56955
+    }
+[02:26:46.347] [32mINFO[39m: [36mws authenticated[39m
+    userId: "06345986-4292-4c08-908b-7ae2928961dc"
+    roomId: "db8ad244-285d-44e3-9b19-a4a77fa6d92c"
+    tabId: "eef92cfc-86aa-4536-9de3-12ec64f245e4"
+    documentName: "eef92cfc-86aa-4536-9de3-12ec64f245e4"
+[02:26:46.471] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-r"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 329.09666700000525
+[02:26:46.628] [32mINFO[39m: [36mws authenticated[39m
+    userId: "06345986-4292-4c08-908b-7ae2928961dc"
+    roomId: "db8ad244-285d-44e3-9b19-a4a77fa6d92c"
+    tabId: null
+    documentName: "room:db8ad244-285d-44e3-9b19-a4a77fa6d92c"
+[02:26:49.738] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-s"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56955
+    }
+[02:26:49.739] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-s"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 1.3570000000036089
+[02:26:49.740] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-t"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56951
+    }
+[02:26:49.743] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-u"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/rooms",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:26:49.743] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-u"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 0.3155419999966398
+[02:26:49.753] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-v"
+    req: {
+      "method": "GET",
+      "url": "/api/rooms",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:26:49.754] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-w"
+    req: {
+      "method": "GET",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56955
+    }
+[02:26:49.755] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-x"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 57036
+    }
+[02:26:49.755] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-x"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 0.12425000000803266
+[02:26:49.755] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-y"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/rooms",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 57037
+    }
+[02:26:49.756] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-y"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 0.42712500000197906
+[02:26:49.920] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-w"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 165.61841700000514
+[02:26:49.921] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-z"
+    req: {
+      "method": "GET",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 57037
+    }
+[02:26:50.081] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-v"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 327.6525410000031
+[02:26:50.082] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-t"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 341.9624999999942
+[02:26:50.084] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-10"
+    req: {
+      "method": "GET",
+      "url": "/api/rooms",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56955
+    }
+[02:26:50.086] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-11"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:26:50.092] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-z"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 170.81133299999055
+[02:26:50.422] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-11"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 336.32012499999837
+[02:26:50.425] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-10"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 340.59337499999674
+[02:26:54.264] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-12"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56955
+    }
+[02:26:54.269] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-12"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 4.2700000000040745
+[02:26:54.272] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-13"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56955
+    }
+[02:26:54.277] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-14"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:26:54.278] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-14"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 0.5729169999976875
+[02:26:54.603] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-13"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 330.0201670000097
+[02:26:54.604] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-15"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:26:54.934] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-15"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 329.56037500000093
+[02:27:24.303] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-16"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:27:24.309] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-16"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 5.210708999991766
+[02:27:24.316] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-17"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:27:25.119] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-17"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 803.2951669999893
+[02:27:54.305] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-18"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:27:54.309] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-18"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 2.6734160000050906
+[02:27:54.313] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-19"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:27:55.067] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-19"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 754.4410419999913
+[02:28:05.835] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-1a"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/billing/checkout/embedded",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:28:05.837] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-1a"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 1.3885830000217538
+[02:28:05.881] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-1b"
+    req: {
+      "method": "POST",
+      "url": "/api/billing/checkout/embedded",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:28:07.284] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-1b"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 1403.7909579999978
+[02:28:24.283] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-1c"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:28:24.285] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-1c"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 1.459041000023717
+[02:28:24.290] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-1d"
+    req: {
+      "method": "GET",
+      "url": "/api/notifications",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:28:25.054] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-1d"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 764.485875000013
+[02:28:44.028] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-1e"
+    req: {
+      "method": "OPTIONS",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:28:44.031] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-1e"
+    res: {
+      "statusCode": 204
+    }
+    responseTime: 1.554666999989422
+[02:28:44.077] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-1f"
+    req: {
+      "method": "GET",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:28:44.715] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-1f"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 636.5496670000139
+[02:28:45.490] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-1g"
+    req: {
+      "method": "GET",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:28:45.657] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-1g"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 166.4180420000048
+[02:28:47.221] [32mINFO[39m: [36mincoming request[39m
+    reqId: "req-1h"
+    req: {
+      "method": "GET",
+      "url": "/api/subscriptions/me",
+      "host": "localhost:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 56953
+    }
+[02:28:47.396] [32mINFO[39m: [36mrequest completed[39m
+    reqId: "req-1h"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 171.64537499999278

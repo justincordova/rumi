@@ -1,5 +1,6 @@
 export * from "./billing";
 export * from "./errors";
+export * from "./notifications";
 export * from "./rooms";
 export * from "./subscriptions";
 

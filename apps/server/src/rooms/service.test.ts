@@ -1,4 +1,11 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
+
+// Mock email module so tests don't need UNSUBSCRIBE_HMAC_SECRET or RESEND_API_KEY
+mock.module("@/notifications/email", () => ({
+  sendInviteEmail: mock(async () => {}),
+  sendInviteAcceptedEmail: mock(async () => {}),
+}));
+
 import { AppError, AuthError } from "@/lib/errors";
 import { getUserPlan } from "./plan";
 import { createService } from "./service";
@@ -429,6 +436,104 @@ describe("createService", () => {
       const svc = createService(db as any);
       const result = await svc.createInvite("test", "user-id", "A@B.com");
       expect(result).toEqual(existingInvite);
+    });
+
+    it("rejects self-invite with invalid_state", async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(makeDb() as any);
+      await expect(
+        svc.createInvite("test", "user-id", "owner@example.com", "owner@example.com"),
+      ).rejects.toMatchObject({ code: "invalid_state" });
+    });
+
+    it("rejects self-invite case-insensitively", async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(makeDb() as any);
+      await expect(
+        svc.createInvite("test", "user-id", "OWNER@Example.com", "owner@example.com"),
+      ).rejects.toMatchObject({ code: "invalid_state" });
+    });
+
+    it("fires notification + email side effects when deps wired", async () => {
+      let notifRecorded = false;
+      const db = makeDb({
+        insert: () => ({
+          values: () => ({
+            returning: async () => [
+              {
+                id: "invite-id",
+                roomId: "room-id",
+                invitedEmail: "invitee@example.com",
+                invitedBy: "user-id",
+                createdAt: new Date(),
+                acceptedAt: null,
+              },
+            ],
+          }),
+        }),
+        query: {
+          ...makeDb().query,
+          rooms: {
+            findFirst: async () => ({
+              id: "room-id",
+              slug: "test",
+              name: "Test",
+              ownerId: "user-id",
+              visibility: "private",
+              guestAccess: "none",
+              deletedAt: null,
+            }),
+          },
+          roomInvites: { findFirst: async () => null, findMany: async () => [] },
+        },
+      });
+
+      const mockDeps = {
+        notifications: {
+          recordNotification: async () => {
+            notifRecorded = true;
+            // biome-ignore lint/suspicious/noExplicitAny: test stub return value
+            return {} as any;
+          },
+          getPreferences: async () => ({
+            emailEnabled: true,
+            inviteReceivedEmail: true,
+            inviteAcceptedEmail: true,
+          }),
+          listNotifications: async () => ({ notifications: [], unreadCount: 0 }),
+          markRead: async () => {},
+          updatePreferences: async () => ({
+            emailEnabled: true,
+            inviteReceivedEmail: true,
+            inviteAcceptedEmail: true,
+          }),
+        },
+        lookupUserIdByEmail: async () => "invitee-user-id",
+        getUserProfile: async () => ({ email: "inviter@example.com", displayName: "Alice" }),
+      };
+
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any, mockDeps as any);
+      await svc.createInvite("test", "user-id", "invitee@example.com", "inviter@example.com");
+      expect(notifRecorded).toBe(true);
+    });
+
+    it("no DB row, no notification, no email on self-invite rejection", async () => {
+      let insertCalled = false;
+      const db = makeDb({
+        insert: () => ({
+          values: () => {
+            insertCalled = true;
+            return { returning: async () => [] };
+          },
+        }),
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await expect(
+        svc.createInvite("test", "user-id", "owner@example.com", "owner@example.com"),
+      ).rejects.toMatchObject({ code: "invalid_state" });
+      expect(insertCalled).toBe(false);
     });
   });
 });

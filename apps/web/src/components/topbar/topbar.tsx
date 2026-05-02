@@ -1,11 +1,7 @@
 import logoT from "@/assets/logos/logo-t.png";
 import { PresenceAvatars } from "@/components/editor/presence-avatars";
+import { BellPopover } from "@/components/notifications/bell-popover";
 import { Button } from "@/components/ui/button";
-import { signInWithProvider } from "@/lib/auth";
-import { usePrefs } from "@/lib/prefs";
-import type { HocuspocusProvider } from "@hocuspocus/provider";
-import type { Room } from "@rumi/protocol";
-import { Link } from "@tanstack/react-router";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,11 +13,16 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, Check, LogIn, Settings2 } from "lucide-react";
-import { DashboardDropdown } from "./dashboard-dropdown";
+import { signInWithProvider } from "@/lib/auth";
+import { usePrefs } from "@/lib/prefs";
+import type { HocuspocusProvider } from "@hocuspocus/provider";
+import type { Room } from "@rumi/protocol";
+import { Link } from "@tanstack/react-router";
+import { Check, LogIn, Settings2 } from "lucide-react";
 import { AppearanceItems } from "./appearance-items";
+import { DashboardDropdown } from "./dashboard-dropdown";
 import { PlanBadge } from "./plan-badge";
-import { RenameRoomItem, CopyLinkItem, VisibilitySelector } from "./room-menu";
+import { CopyLinkItem, RenameRoomItem, VisibilitySelector } from "./room-menu";
 import { RoomTitle } from "./room-title";
 import { ShareButton } from "./share-button";
 import { VisibilityBadge } from "./visibility-badge";
@@ -68,9 +69,7 @@ export function TopBar({ room, status, provider, isGuest, activeTabName }: TopBa
           {!room && (
             <>
               <PlanBadge />
-              <Button variant="ghost" size="icon" className="h-8 w-8 relative" disabled>
-                <Bell className="h-4 w-4" />
-              </Button>
+              <BellPopover />
             </>
           )}
 
@@ -87,6 +86,8 @@ export function TopBar({ room, status, provider, isGuest, activeTabName }: TopBa
           {room && provider && status === "connected" && (
             <PresenceAvatars provider={provider} max={5} />
           )}
+
+          {room && !isGuest && <BellPopover />}
 
           {room && <ShareButton room={room} />}
 

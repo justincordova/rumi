@@ -70,7 +70,8 @@ export function InviteDialog({ open, onOpenChange, slug }: Props) {
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Tell them to sign in with this email to join the room.
+              They'll receive an email with a link to the room. They need to sign in with this email
+              to join.
             </p>
           </div>
           {invites.length > 0 && (

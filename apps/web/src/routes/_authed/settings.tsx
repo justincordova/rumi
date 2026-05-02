@@ -140,7 +140,71 @@ function AppearanceSection() {
   );
 }
 
+interface NotificationPrefs {
+  emailEnabled: boolean;
+  inviteReceivedEmail: boolean;
+  inviteAcceptedEmail: boolean;
+}
+
+const DEFAULT_PREFS: NotificationPrefs = {
+  emailEnabled: true,
+  inviteReceivedEmail: true,
+  inviteAcceptedEmail: true,
+};
+
+function ToggleRow({
+  label,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className={`text-sm ${disabled ? "text-muted-foreground" : ""}`}>{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${checked ? "bg-primary" : "bg-input"}`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${checked ? "translate-x-4" : "translate-x-0"}`}
+        />
+      </button>
+    </div>
+  );
+}
+
 function NotificationsSection() {
+  const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ preferences: NotificationPrefs }>("/api/notifications/preferences")
+      .then((r) => setPrefs(r.preferences))
+      .catch(() => setPrefs(DEFAULT_PREFS));
+  }, []);
+
+  async function update(patch: Partial<NotificationPrefs>) {
+    const optimistic = { ...(prefs ?? DEFAULT_PREFS), ...patch };
+    setPrefs(optimistic);
+    try {
+      const res = await apiFetch<{ preferences: NotificationPrefs }>(
+        "/api/notifications/preferences",
+        { method: "PATCH", body: patch },
+      );
+      setPrefs(res.preferences);
+    } catch {
+      toast.error("Couldn't update preferences");
+    }
+  }
+
   return (
     <section className="border rounded-xl p-5 space-y-4">
       <div>
@@ -149,9 +213,37 @@ function NotificationsSection() {
           Email and desktop notification preferences.
         </p>
       </div>
-      <div className="flex items-center justify-center py-5 rounded-lg border border-dashed border-border">
-        <span className="text-sm text-muted-foreground">Coming soon</span>
-      </div>
+      {!prefs ? (
+        <div className="flex items-center justify-center py-5 rounded-lg border border-dashed border-border">
+          <span className="text-sm text-muted-foreground">Loading…</span>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <ToggleRow
+            label="Email notifications"
+            checked={prefs.emailEnabled}
+            onChange={(v) => update({ emailEnabled: v })}
+          />
+          <div className="pl-4 space-y-2 border-l border-border">
+            <ToggleRow
+              label="When someone invites me to a room"
+              checked={prefs.inviteReceivedEmail}
+              disabled={!prefs.emailEnabled}
+              onChange={(v) => update({ inviteReceivedEmail: v })}
+            />
+            <ToggleRow
+              label="When someone accepts my invite"
+              checked={prefs.inviteAcceptedEmail}
+              disabled={!prefs.emailEnabled}
+              onChange={(v) => update({ inviteAcceptedEmail: v })}
+            />
+          </div>
+          <div className="pt-2 border-t border-border space-y-2">
+            <ToggleRow label="Desktop notifications" checked={false} disabled onChange={() => {}} />
+            <p className="text-[11px] text-muted-foreground">Coming soon</p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

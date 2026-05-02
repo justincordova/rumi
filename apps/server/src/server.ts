@@ -1,4 +1,5 @@
 import authPlugin from "@/auth/plugin";
+import { getUserProfile, lookupUserIdByEmail } from "@/auth/supabase-admin";
 import { billingRoutes } from "@/billing/routes";
 import { webhookRoutes } from "@/billing/webhook";
 import { closeDb, db } from "@/db/client";
@@ -6,6 +7,8 @@ import { tabs as tabsTable } from "@/db/schema";
 import { env } from "@/lib/env";
 import { AppError, envelope } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { notificationRoutes } from "@/notifications/routes";
+import { createNotificationsService } from "@/notifications/service";
 import { roomsRoutes } from "@/rooms/routes";
 import { createService } from "@/rooms/service";
 import { tabsRoutes } from "@/rooms/tabs.routes";
@@ -13,6 +16,7 @@ import { createTabsService } from "@/rooms/tabs.service";
 import { subscriptionRoutes } from "@/subscriptions/routes";
 import { buildHocuspocus } from "@/sync/hocuspocus";
 import cors from "@fastify/cors";
+import formbody from "@fastify/formbody";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import { eq } from "drizzle-orm";
@@ -50,13 +54,22 @@ export async function buildServer() {
   });
   await app.register(cors, { origin: env.WEB_ORIGIN, credentials: false });
   await app.register(rateLimit, { max: 200, timeWindow: "1 minute" });
+  await app.register(formbody);
 
   // Build Hocuspocus and decorate.
   const hocuspocus = buildHocuspocus();
   app.decorate("hocuspocus", hocuspocus);
 
   // Decorate with service factories.
-  app.decorate("service", createService(db));
+  app.decorate("notifications", createNotificationsService(db));
+  app.decorate(
+    "service",
+    createService(db, {
+      notifications: app.notifications,
+      lookupUserIdByEmail,
+      getUserProfile,
+    }),
+  );
   app.decorate("tabsService", createTabsService(db));
 
   // Real Hocuspocus-backed implementations.
@@ -113,6 +126,7 @@ export async function buildServer() {
   await app.register(subscriptionRoutes, { prefix: "/api/subscriptions" });
   await app.register(billingRoutes, { prefix: "/api/billing" });
   await app.register(webhookRoutes, { prefix: "/api/billing" });
+  await app.register(notificationRoutes, { prefix: "/api/notifications" });
 
   app.get("/health", async () => ({ status: "ok", uptime: process.uptime() }));
 

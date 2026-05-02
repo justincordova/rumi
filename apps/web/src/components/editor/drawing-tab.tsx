@@ -25,9 +25,7 @@ const uiOverrides: TLUiOverrides = {
 export default function DrawingTab({ tab }: { tab: TabSummary }) {
   const { ydoc, provider, readOnly } = useTabDoc({ tabId: tab.id });
   if (!ydoc || !provider) return <EditorSkeleton />;
-  return (
-    <DrawingTabInner ydoc={ydoc} provider={provider} readOnly={readOnly} />
-  );
+  return <DrawingTabInner ydoc={ydoc} provider={provider} readOnly={readOnly} />;
 }
 
 interface InnerProps {
@@ -84,10 +82,7 @@ function DrawingTabInner({ ydoc, provider, readOnly }: InnerProps) {
       DebugMenu: null,
       Minimap: null,
       Grid: (props: { size: number; x: number; y: number; z: number }) => (
-        <DrawingGrid
-          {...props}
-          style={gridState === "dots" ? "dots" : "lines"}
-        />
+        <DrawingGrid {...props} style={gridState === "dots" ? "dots" : "lines"} />
       ),
       InFrontOfTheCanvas: () => (
         <div
@@ -104,19 +99,21 @@ function DrawingTabInner({ ydoc, provider, readOnly }: InnerProps) {
             onClick={() => setGridState("off")}
             title="No grid"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              role="img"
+              aria-label="No grid"
+            >
               <path
                 d="M4.5 0v14M9.5 0v14M0 4.5h14M0 9.5h14"
                 stroke="currentColor"
                 strokeWidth="0.75"
                 opacity="0.35"
               />
-              <path
-                d="M2 12L12 2"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
+              <path d="M2 12L12 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </GridButton>
           <GridButton
@@ -124,7 +121,14 @@ function DrawingTabInner({ ydoc, provider, readOnly }: InnerProps) {
             onClick={() => setGridState("lines")}
             title="Line grid"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              role="img"
+              aria-label="Line grid"
+            >
               <path
                 d="M4.5 0v14M9.5 0v14M0 4.5h14M0 9.5h14"
                 stroke="currentColor"
@@ -142,6 +146,8 @@ function DrawingTabInner({ ydoc, provider, readOnly }: InnerProps) {
               height="14"
               viewBox="0 0 14 14"
               fill="currentColor"
+              role="img"
+              aria-label="Dot grid"
             >
               <circle cx="4.5" cy="4.5" r="1" />
               <circle cx="9.5" cy="4.5" r="1" />

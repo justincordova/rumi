@@ -13,16 +13,8 @@ interface DrawingGridProps {
 
 export function DrawingGrid({ size, x, y, z, style }: DrawingGridProps) {
   const editor = useEditor();
-  const screenBounds = useValue(
-    "screenBounds",
-    () => editor.getViewportScreenBounds(),
-    [editor],
-  );
-  const dpr = useValue(
-    "dpr",
-    () => editor.getInstanceState().devicePixelRatio,
-    [editor],
-  );
+  const screenBounds = useValue("screenBounds", () => editor.getViewportScreenBounds(), [editor]);
+  const dpr = useValue("dpr", () => editor.getInstanceState().devicePixelRatio, [editor]);
   const isDark = useIsDarkMode();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 

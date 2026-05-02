@@ -2,13 +2,21 @@ import type { DbClient } from "@/db/client";
 import { roomInvites, roomMembers, rooms, tabs } from "@/db/schema";
 import { AppError, AuthError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { sendInviteAcceptedEmail, sendInviteEmail } from "@/notifications/email";
+import type { NotificationsService } from "@/notifications/service";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { getUserPlan } from "./plan";
 import { fallbackSlug, generateSlug } from "./slug";
 
+interface ServiceDeps {
+  notifications: NotificationsService;
+  lookupUserIdByEmail: (email: string) => Promise<string | null>;
+  getUserProfile: (userId: string) => Promise<{ email: string; displayName: string | null } | null>;
+}
+
 export type Service = ReturnType<typeof createService>;
 
-export function createService(db: DbClient) {
+export function createService(db: DbClient, deps?: ServiceDeps) {
   return {
     async createRoom(opts: {
       ownerId: string;
@@ -158,16 +166,57 @@ export function createService(db: DbClient) {
       });
       if (!invite) throw new AuthError("forbidden", "No access to this room");
 
+      // Accept the invite inside a transaction; use RETURNING to detect whether
+      // this call actually consumed the invite (vs. a concurrent call that won the race).
+      let consumed = false;
       await db.transaction(async (tx) => {
         await tx
           .insert(roomMembers)
           .values({ roomId: room.id, userId, role: "member" })
           .onConflictDoNothing();
-        await tx
+        const result = await tx
           .update(roomInvites)
           .set({ acceptedAt: new Date() })
-          .where(and(eq(roomInvites.id, invite.id), isNull(roomInvites.acceptedAt)));
+          .where(and(eq(roomInvites.id, invite.id), isNull(roomInvites.acceptedAt)))
+          .returning({ id: roomInvites.id });
+        consumed = result.length > 0;
       });
+
+      // Fire side effects only when this call consumed the invite (not a re-visit).
+      if (consumed && deps) {
+        try {
+          const accepterProfile = await deps.getUserProfile(userId).catch(() => null);
+          const accepterName = accepterProfile?.displayName ?? accepterProfile?.email ?? null;
+
+          await deps.notifications.recordNotification(room.ownerId, {
+            type: "invite_accepted",
+            payload: {
+              inviteId: invite.id,
+              roomId: room.id,
+              roomSlug: room.slug,
+              roomName: room.name ?? null,
+              accepterName,
+            },
+          });
+
+          const ownerPrefs = await deps.notifications.getPreferences(room.ownerId);
+          if (ownerPrefs.emailEnabled && ownerPrefs.inviteAcceptedEmail) {
+            const ownerProfile = await deps.getUserProfile(room.ownerId).catch(() => null);
+            if (ownerProfile) {
+              void sendInviteAcceptedEmail({
+                toUserId: room.ownerId,
+                toEmail: ownerProfile.email,
+                accepterName: accepterName ?? "Someone",
+                roomName: room.name ?? room.slug,
+                roomSlug: room.slug,
+              });
+            }
+          }
+        } catch (err) {
+          logger.error({ err, roomId: room.id }, "invite-accepted side effects failed");
+        }
+      }
+
       const tabList = await fetchTabs();
       return { room, role: "member" as const, tabs: tabList };
     },
@@ -210,7 +259,7 @@ export function createService(db: DbClient) {
       return { roomId: room.id };
     },
 
-    async createInvite(slug: string, userId: string, email: string) {
+    async createInvite(slug: string, userId: string, email: string, inviterEmail?: string) {
       const room = await db.query.rooms.findFirst({
         where: and(eq(rooms.slug, slug), isNull(rooms.deletedAt)),
       });
@@ -218,6 +267,12 @@ export function createService(db: DbClient) {
       if (room.ownerId !== userId) throw new AuthError("forbidden", "Owner only");
 
       const lower = email.toLowerCase();
+
+      // Reject self-invites before any DB write or side effect.
+      if (inviterEmail && lower === inviterEmail.toLowerCase()) {
+        throw new AppError("invalid_state", "You can't invite yourself", 400);
+      }
+
       const existing = await db.query.roomInvites.findFirst({
         where: and(
           eq(roomInvites.roomId, room.id),
@@ -232,7 +287,53 @@ export function createService(db: DbClient) {
         .values({ roomId: room.id, invitedEmail: lower, invitedBy: userId })
         .returning();
       // biome-ignore lint/style/noNonNullAssertion: Drizzle .returning() guarantees a row on INSERT
-      return invite!;
+      const created = invite!;
+
+      // Fire side effects if deps are wired.
+      if (deps) {
+        try {
+          const inviterProfile = await deps.getUserProfile(userId).catch(() => null);
+          const inviterDisplayName =
+            inviterProfile?.displayName ?? inviterProfile?.email ?? "Someone";
+
+          const inviteeUserId = await deps.lookupUserIdByEmail(lower).catch(() => null);
+          if (inviteeUserId) {
+            await deps.notifications.recordNotification(inviteeUserId, {
+              type: "invite_received",
+              payload: {
+                inviteId: created.id,
+                roomId: room.id,
+                roomSlug: room.slug,
+                roomName: room.name ?? null,
+                invitedBy: { userId, displayName: inviterDisplayName },
+              },
+            });
+
+            const inviteePrefs = await deps.notifications.getPreferences(inviteeUserId);
+            if (inviteePrefs.emailEnabled && inviteePrefs.inviteReceivedEmail) {
+              void sendInviteEmail({
+                toUserId: inviteeUserId,
+                toEmail: lower,
+                inviterName: inviterDisplayName,
+                roomName: room.name ?? room.slug,
+                roomSlug: room.slug,
+              });
+            }
+          } else {
+            void sendInviteEmail({
+              toUserId: "anon",
+              toEmail: lower,
+              inviterName: inviterDisplayName,
+              roomName: room.name ?? room.slug,
+              roomSlug: room.slug,
+            });
+          }
+        } catch (err) {
+          logger.error({ err, roomId: room.id }, "create-invite side effects failed");
+        }
+      }
+
+      return created;
     },
 
     async listInvites(slug: string, userId: string) {
