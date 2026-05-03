@@ -1,5 +1,9 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import * as Y from "yjs";
+
+beforeAll(() => GlobalRegistrator.register());
+afterAll(async () => await GlobalRegistrator.unregister());
 
 // ── env mock ──────────────────────────────────────────────────────────────────
 mock.module("@/lib/env", () => ({

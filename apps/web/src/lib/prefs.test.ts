@@ -1,4 +1,9 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+
+beforeAll(() => GlobalRegistrator.register());
+afterAll(async () => await GlobalRegistrator.unregister());
+
 import { usePrefs } from "./prefs";
 
 describe("prefs store", () => {
