@@ -1,4 +1,4 @@
-import type { TabSummary } from "@rumi/protocol";
+import type { Role, TabSummary } from "@rumi/protocol";
 import { Suspense, lazy } from "react";
 import { CodeTab } from "./code-tab";
 import { EditorSkeleton } from "./editor-skeleton";
@@ -8,11 +8,15 @@ import { useTabDoc } from "./use-tab-doc";
 // Lazy-load the drawing tab — pulls tldraw's large bundle only when used.
 const DrawingTab = lazy(() => import("./drawing-tab"));
 
-export function TabEditor({ tab, roomSlug }: { tab: TabSummary; roomSlug: string }) {
+export function TabEditor({
+  tab,
+  roomSlug,
+  role,
+}: { tab: TabSummary; roomSlug: string; role?: Role | null }) {
   if (tab.type === "drawing") {
     return (
       <Suspense fallback={<EditorSkeleton />}>
-        <DrawingTab tab={tab} />
+        <DrawingTab tab={tab} role={role} />
       </Suspense>
     );
   }

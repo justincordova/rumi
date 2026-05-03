@@ -108,7 +108,9 @@ function RoomPage() {
         role={role}
       />
       <div className="flex-1 min-h-0">
-        {activeTab && <TabEditor tab={activeTab} roomSlug={room.slug} key={activeTab.id} />}
+        {activeTab && (
+          <TabEditor tab={activeTab} roomSlug={room.slug} role={role} key={activeTab.id} />
+        )}
       </div>
       <ConnectionStatus status={control.status} />
     </div>

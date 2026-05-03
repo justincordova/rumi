@@ -2,8 +2,8 @@ import { DrawingGrid, type GridStyle } from "@/lib/drawing/grid";
 import { useTldrawTheme } from "@/lib/drawing/theme";
 import { createYjsStore } from "@/lib/drawing/yjs-store";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
-import type { TabSummary } from "@rumi/protocol";
-import { useEffect, useMemo, useRef, useState } from "react";
+import type { Role, TabSummary } from "@rumi/protocol";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type Editor, type TLUiOverrides, Tldraw } from "tldraw";
 import "tldraw/tldraw.css";
 import type * as Y from "yjs";
@@ -12,6 +12,9 @@ import { ReadOnlyPill } from "./read-only-pill";
 import { useTabDoc } from "./use-tab-doc";
 
 type GridState = "off" | GridStyle;
+
+// Y.Map key used to persist the background/grid setting in the tab doc.
+const BACKGROUND_KEY = "background";
 
 const uiOverrides: TLUiOverrides = {
   actions(_editor, actions) {
@@ -22,22 +25,57 @@ const uiOverrides: TLUiOverrides = {
   },
 };
 
-export default function DrawingTab({ tab }: { tab: TabSummary }) {
+export default function DrawingTab({ tab, role }: { tab: TabSummary; role?: Role | null }) {
   const { ydoc, provider, readOnly } = useTabDoc({ tabId: tab.id });
   if (!ydoc || !provider) return <EditorSkeleton />;
-  return <DrawingTabInner ydoc={ydoc} provider={provider} readOnly={readOnly} />;
+  return <DrawingTabInner ydoc={ydoc} provider={provider} readOnly={readOnly} role={role} />;
 }
 
 interface InnerProps {
   ydoc: Y.Doc;
   provider: HocuspocusProvider;
   readOnly: boolean;
+  role?: Role | null;
 }
 
-function DrawingTabInner({ ydoc, provider, readOnly }: InnerProps) {
+function DrawingTabInner({ ydoc, provider, readOnly, role }: InnerProps) {
   const { theme } = useTldrawTheme();
   const editorRef = useRef<Editor | null>(null);
-  const [gridState, setGridState] = useState<GridState>("lines");
+  const canManageBackground = role === "owner" || role === "admin";
+
+  // Grid/background state is persisted in a Y.Map<string> on the tab doc so
+  // that all users see the same background and it survives page reloads.
+  const backgroundMap = useMemo(() => ydoc.getMap<string>(BACKGROUND_KEY), [ydoc]);
+
+  const [gridState, setGridStateLocal] = useState<GridState>(
+    () => (backgroundMap.get("grid") as GridState | undefined) ?? "lines",
+  );
+
+  // Subscribe to remote background changes so every client stays in sync.
+  useEffect(() => {
+    const observer = () => {
+      const next = (backgroundMap.get("grid") as GridState | undefined) ?? "lines";
+      setGridStateLocal(next);
+    };
+    backgroundMap.observe(observer);
+    // Read current value immediately in case it changed while we were mounting.
+    observer();
+    return () => backgroundMap.unobserve(observer);
+  }, [backgroundMap]);
+
+  // Propagate to the editor whenever gridState changes.
+  // (This also fires for remote changes via the observer above.)
+
+  const setGridState = useCallback(
+    (next: GridState) => {
+      if (!canManageBackground) return;
+      // Write to Yjs — the observer will update local state for all clients.
+      ydoc.transact(() => {
+        backgroundMap.set("grid", next);
+      });
+    },
+    [canManageBackground, ydoc, backgroundMap],
+  );
 
   const { store, bind } = useMemo(() => {
     return createYjsStore({ doc: ydoc });
@@ -84,81 +122,87 @@ function DrawingTabInner({ ydoc, provider, readOnly }: InnerProps) {
       Grid: (props: { size: number; x: number; y: number; z: number }) => (
         <DrawingGrid {...props} style={gridState === "dots" ? "dots" : "lines"} />
       ),
-      InFrontOfTheCanvas: () => (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 12,
-            right: 12,
-            pointerEvents: "auto",
-          }}
-          className="flex items-center gap-0.5 rounded-lg border border-border bg-surface/90 backdrop-blur-sm p-0.5"
-        >
-          <GridButton
-            active={gridState === "off"}
-            onClick={() => setGridState("off")}
-            title="No grid"
+      InFrontOfTheCanvas: () =>
+        canManageBackground ? (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 12,
+              right: 12,
+              pointerEvents: "auto",
+            }}
+            className="flex items-center gap-0.5 rounded-lg border border-border bg-surface/90 backdrop-blur-sm p-0.5"
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 14 14"
-              fill="none"
-              role="img"
-              aria-label="No grid"
+            <GridButton
+              active={gridState === "off"}
+              onClick={() => setGridState("off")}
+              title="No grid"
             >
-              <path
-                d="M4.5 0v14M9.5 0v14M0 4.5h14M0 9.5h14"
-                stroke="currentColor"
-                strokeWidth="0.75"
-                opacity="0.35"
-              />
-              <path d="M2 12L12 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </GridButton>
-          <GridButton
-            active={gridState === "lines"}
-            onClick={() => setGridState("lines")}
-            title="Line grid"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 14 14"
-              fill="none"
-              role="img"
-              aria-label="Line grid"
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                role="img"
+                aria-label="No grid"
+              >
+                <path
+                  d="M4.5 0v14M9.5 0v14M0 4.5h14M0 9.5h14"
+                  stroke="currentColor"
+                  strokeWidth="0.75"
+                  opacity="0.35"
+                />
+                <path
+                  d="M2 12L12 2"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </GridButton>
+            <GridButton
+              active={gridState === "lines"}
+              onClick={() => setGridState("lines")}
+              title="Line grid"
             >
-              <path
-                d="M4.5 0v14M9.5 0v14M0 4.5h14M0 9.5h14"
-                stroke="currentColor"
-                strokeWidth="0.75"
-              />
-            </svg>
-          </GridButton>
-          <GridButton
-            active={gridState === "dots"}
-            onClick={() => setGridState("dots")}
-            title="Dot grid"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 14 14"
-              fill="currentColor"
-              role="img"
-              aria-label="Dot grid"
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                role="img"
+                aria-label="Line grid"
+              >
+                <path
+                  d="M4.5 0v14M9.5 0v14M0 4.5h14M0 9.5h14"
+                  stroke="currentColor"
+                  strokeWidth="0.75"
+                />
+              </svg>
+            </GridButton>
+            <GridButton
+              active={gridState === "dots"}
+              onClick={() => setGridState("dots")}
+              title="Dot grid"
             >
-              <circle cx="4.5" cy="4.5" r="1" />
-              <circle cx="9.5" cy="4.5" r="1" />
-              <circle cx="4.5" cy="9.5" r="1" />
-              <circle cx="9.5" cy="9.5" r="1" />
-            </svg>
-          </GridButton>
-        </div>
-      ),
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="currentColor"
+                role="img"
+                aria-label="Dot grid"
+              >
+                <circle cx="4.5" cy="4.5" r="1" />
+                <circle cx="9.5" cy="4.5" r="1" />
+                <circle cx="4.5" cy="9.5" r="1" />
+                <circle cx="9.5" cy="9.5" r="1" />
+              </svg>
+            </GridButton>
+          </div>
+        ) : null,
     }),
-    [gridState],
+    [gridState, canManageBackground, setGridState],
   );
 
   if (!synced) return <EditorSkeleton />;
@@ -177,7 +221,7 @@ function DrawingTabInner({ ydoc, provider, readOnly }: InnerProps) {
           editor.user.updateUserPreferences({ colorScheme: theme });
           editor.updateInstanceState({
             isReadonly: readOnly,
-            isGridMode: true,
+            isGridMode: gridState !== "off",
           });
           editor.setCameraOptions({
             constraints: {
