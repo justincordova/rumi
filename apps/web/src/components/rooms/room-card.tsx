@@ -12,7 +12,7 @@ import { useRoomsStore } from "@/stores/rooms";
 import type { Room } from "@rumi/protocol";
 import type { UpdateRoomResponse } from "@rumi/protocol";
 import { useNavigate } from "@tanstack/react-router";
-import { Globe, Link2, Lock, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Check, Globe, Link2, Lock, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DeleteRoomDialog } from "./delete-room-dialog";
@@ -29,10 +29,14 @@ function relativeDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export function RoomCard({ room }: { room: Room & { pendingInvite?: boolean } }) {
+export function RoomCard({
+  room,
+}: { room: Room & { pendingAccess?: boolean; pendingWhitelistId?: string } }) {
   const { user } = useSession();
   const isOwner = user?.id === room.ownerId;
   const updateRoom = useRoomsStore((s) => s.updateRoom);
+  const removeRoom = useRoomsStore((s) => s.removeRoom);
+  const [declining, setDeclining] = useState(false);
   const [editing, setEditing] = useState(false);
   const title = room.name?.trim() || room.slug;
   const [draft, setDraft] = useState(title);
@@ -50,6 +54,22 @@ export function RoomCard({ room }: { room: Room & { pendingInvite?: boolean } })
       inputRef.current?.select();
     }
   }, [editing]);
+
+  async function declineInvite(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!room.pendingWhitelistId || declining) return;
+    setDeclining(true);
+    try {
+      await apiFetch(`/api/rooms/${room.slug}/whitelist/${room.pendingWhitelistId}`, {
+        method: "DELETE",
+      });
+      removeRoom(room.slug);
+      toast.success("Invitation declined");
+    } catch {
+      toast.error("Couldn't decline invitation");
+      setDeclining(false);
+    }
+  }
 
   async function commit() {
     const next = draft.trim();
@@ -182,13 +202,46 @@ export function RoomCard({ room }: { room: Room & { pendingInvite?: boolean } })
             Owner
           </span>
         )}
-        {room.pendingInvite && (
+        {room.pendingAccess ? (
           <span className="rounded-full bg-warning/15 text-warning px-2 py-0.5 text-[11px] font-medium">
-            Pending invite
+            Invited
           </span>
-        )}
+        ) : null}
         <span className="ml-auto">{relativeDate(room.updatedAt)}</span>
       </div>
+      {room.pendingAccess && (
+        <div
+          className="mt-3 flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Button
+            size="sm"
+            className="h-7 px-3 text-[12px] flex-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate({
+                to: "/r/$slug",
+                params: { slug: room.slug },
+                search: { tab: undefined },
+              });
+            }}
+          >
+            <Check className="h-3.5 w-3.5 mr-1" />
+            Accept
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-3 text-[12px] flex-1"
+            disabled={declining}
+            onClick={declineInvite}
+          >
+            <X className="h-3.5 w-3.5 mr-1" />
+            Decline
+          </Button>
+        </div>
+      )}
       <DeleteRoomDialog open={deleteOpen} onOpenChange={setDeleteOpen} slug={room.slug} />
     </div>
   );
