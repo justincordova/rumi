@@ -5,18 +5,20 @@ or plan that should be written before implementation starts (per the
 brainstorm → plan → execute workflow).
 
 Settings page, pricing-tier enforcement (room count, plan-aware tab cap,
-concurrent users, rooms-open), landing page, and Stripe billing are shipped.
+concurrent users, rooms-open), landing page, Stripe billing, notifications,
+whitelist/blacklist access model, admin role, member management (kick, leave,
+promote/demote, transfer ownership), drawing grid/background sync, tab
+drag-to-reorder, and subscription Zustand store are shipped.
 
 ---
 
-## 1. Notifications + email invites
+## 1. Privacy Policy + Terms of Service pages
 
-**Why next:** Users can collaborate in rooms but have no way to know when
-they've been invited or when something changes. Bell-icon feed for invite
-events (`invite_received`, `invite_accepted`) plus email delivery via Resend
-with RFC 8058 one-click unsubscribe.
+**Why next:** Required before the landing page ships publicly. Static content;
+no engineering blocker beyond the routes.
 
-**Design doc:** `docs/designs/notifications.md`
+**Scope:** Two new public routes (`/privacy`, `/terms`), footer links from
+landing page and cookie consent modal, cookie policy section inside Privacy.
 
 ---
 
@@ -25,13 +27,7 @@ with RFC 8058 one-click unsubscribe.
 Items below have lightweight design stubs in
 `docs/designs/misc-deferred.md`.
 
-- **Privacy Policy + Terms of Service pages** — required before the landing
-  page ships publicly.
 - **Cursor presence in editor**
-- **Drag-to-reorder tabs**
-- **Member management** — kick, leave, owner transfer, plus a third role
-  (`admin`). Cross-cutting role-model section at the top of
-  `docs/designs/misc-deferred.md`.
 - **Room restore + Trash + 30-day auto-purge**
 - **Horizontal scaling** — Redis from the start so the design is
   horizontally-ready.
@@ -55,13 +51,3 @@ Not in current scope. Evaluate after billing has been live for a while.
 - **AI generation** — Credits-based AI features (generate text, generate
   drawings, code completion). Pro gets a monthly credit pool, Max gets a
   larger pool, Free gets none.
-
-  **Ideas to explore:**
-  - "Generate" button in the markdown toolbar → prompt → inserts generated
-    text into the Y.Text at cursor (all collaborators see the insert in real
-    time)
-  - "Generate drawing" from a text prompt → inserts tldraw shapes
-  - AI-assisted code completion in code tabs (lower priority; CodeMirror has
-    extension hooks for this)
-
-  **Design doc:** `docs/designs/ai-generation.md` (write when ready)

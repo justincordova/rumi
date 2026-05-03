@@ -11,41 +11,48 @@ edits propagate continuously and converge automatically across all clients.
 
 - Multiple users edit shared content in real time with sub-200ms perceived
   remote-edit latency and instant local-edit feel
-- Per room, up to 3 tabs (free tier) of two kinds:
+- Per room, configurable tabs (plan-gated cap) of two kinds:
   - **Tab** — a unified text editor that can be set to plain text, any code
     language (syntax highlighted), or markdown (with a toolbar and a 3-way
     view-mode toggle: split, rendered-only, source-only)
-  - **Drawing** — a collaborative whiteboard powered by tldraw
+  - **Drawing** — a collaborative whiteboard powered by tldraw with sync'd
+    grid/background settings
 - Conflict-free, eventually-consistent collaboration with no manual merge UI,
   per tab
 - Authenticated, room-scoped access control via OAuth
 - Per-room visibility control (`open` vs `private`) and a guest access toggle
-  (`none | view | edit`) — no per-user roles beyond owner/member
-- Owner-managed invitations for private rooms (by Supabase email) before the
-  invitee has signed up
+  (`none | view | edit`)
+- Three-tier role model: owner, admin, member — admins can manage tabs and
+  members; members can edit content only
+- Whitelist/blacklist access model for private rooms: owner/admin adds emails
+  to the whitelist; blacklisted users are always denied
+- Owner-managed member management: promote/demote roles, kick members, leave
+  rooms, transfer ownership
 - Guest (unauthenticated) access: read-only or edit access via a persistent
   browser-local UUID identity; controlled per-room by the owner
+- In-app notification feed (bell popover) for access-granted and
+  invite-accepted events, with email delivery via Resend and RFC 8058 one-click
+  unsubscribe
+- Subscription billing via Stripe (embedded Checkout, Customer Portal, webhooks)
+  with three plans: Free, Pro ($8/mo), Max ($20/mo)
+- Plan-aware enforcement: room count, tab count, concurrent user limits
+- Landing page with hero, interactive sandbox, pricing, and cookie consent
 - User-changeable preferences for theme, UI font, and editor font (client-side
   persistence)
 - Durable persistence with at-most ~10 seconds of data-loss risk per tab
 - Developer-first aesthetic — plain-text editing surfaces with syntax
   highlighting, plus a markdown preview when the tab is set to markdown
 
-## Non-Goals (MVP)
+## Non-Goals
 
-- More than 3 tabs per room — the cap is the gate for a future paid tier;
-  pricing/subscription/upgrade plumbing is post-MVP
 - Cursor awareness in the editor (deferred)
 - Full version history / time-travel
-- Per-user roles beyond owner/member (no editor/viewer/admin distinction)
 - Public room directory / discovery — `visibility: "public"` is not a value
 - Server-synced user preferences — settings live in the browser only for MVP
 - Offline-first / local-first behavior
 - Email/password auth, magic links, account recovery flows
 - Hard delete of rooms — deletion is soft (`deleted_at`)
-- Owner transfer
 - Multi-region / multi-instance scaling (single-instance MVP)
-- Drag-to-reorder tabs (out of scope for MVP; tabs render in creation order)
 - Mobile-specific UI work — phone is best-effort via Tailwind responsive
   utilities; no mobile toolbar, no touch-optimized controls. Tablet/iPad gets
   sensible adaptive layout because the drawing tab is part of MVP.
@@ -87,10 +94,11 @@ rumi/
 │   ├── SPEC.md
 │   ├── TESTING.md
 │   ├── LOGGING.md
-│   └── designs/      # In-flight feature design docs (empty when all are merged)
+│   ├── STRIPE_SETUP.md
+│   └── designs/      # In-flight feature design docs
 ├── biome.json
-├── bunfig.toml       # Root: preloads test-setup.ts (env vars + happy-dom)
-├── test-setup.ts     # Preloaded by bunfig.toml — sets env vars + happy-dom for all tests
+├── bunfig.toml       # Root: preloads test-setup.ts (env vars only)
+├── test-setup.ts     # Preloaded by bunfig.toml — sets env vars for all tests
 ├── package.json      # Bun workspace root
 └── tsconfig.base.json
 ```
@@ -102,27 +110,50 @@ auth/
   plugin.ts       — Fastify auth decorator; injects verified user into request
   verify.ts       — JWT verification via jose + JWKS
   jwks.ts         — JWKS URL fetcher / cacher
+  supabase-admin.ts — getUserProfile, lookupUserIdByEmail via service role
+billing/
+  plans.ts        — Stripe price ID mapping
+  routes.ts       — POST /checkout/embedded, POST /portal
+  service.ts      — createBillingService (checkout, portal, upsert)
+  stripe.ts       — Stripe client init + isStripeConfigured guard
+  webhook.ts      — POST /billing/webhook (raw body, signature verify)
 db/
-  schema.ts       — Drizzle table definitions (rooms, room_members, room_invites, tabs, tab_documents)
+  schema.ts       — Drizzle table definitions (rooms, room_members, room_whitelist,
+                    room_blacklist, tabs, tab_documents, subscriptions,
+                    processed_webhook_events, notifications, notification_preferences)
   client.ts       — Drizzle db instance
   documents.ts    — fetchDocument / storeDocument (Yjs binary state)
 lib/
-  env.ts          — Zod-parsed env (PORT, DATABASE_URL, SUPABASE_*)
+  env.ts          — Zod-parsed env (PORT, DATABASE_URL, SUPABASE_*, STRIPE_*, RESEND_*, etc.)
   errors.ts       — AppError, AuthError, envelope() helper
   logger.ts       — Pino instance
+notifications/
+  service.ts      — recordNotification, listNotifications, markRead, get/updatePreferences
+  routes.ts       — GET /, POST /read, GET/POST /preferences, POST /unsubscribe
+  email.ts        — Resend email sender (graceful stub when API key missing)
+  templates.ts    — HTML email template (accessGranted)
+  unsubscribe.ts  — HMAC-SHA256 token sign/verify for one-click unsubscribe
 rooms/
-  service.ts      — createRoom, listRooms, getRoomBySlug, updateRoom, softDeleteRoom, createInvite, listInvites, revokeInvite
-  routes.ts       — HTTP routes for rooms + invites
-  tabs.service.ts — listTabs, createTab (3-tab cap), updateTab, deleteTab (ordinal re-pack)
+  service.ts      — createRoom, listRooms, getRoomBySlug, updateRoom, softDeleteRoom,
+                    restoreRoom, whitelist/blacklist CRUD, member management
+  routes.ts       — HTTP routes for rooms + whitelist/blacklist + members
+  serialize.ts    — serializeRoom, serializeTab, serializeWhitelistEntry, etc.
+  tabs.service.ts — listTabs, createTab (plan-gated cap), updateTab, deleteTab, reorderTabs
   tabs.routes.ts  — HTTP routes for tabs
   slug.ts         — Word-slug generator with collision retry
+  plan.ts         — PLAN_LIMITS, resolvePlan, getUserPlan
+  purge.ts        — Soft-delete purge scheduler
+subscriptions/
+  routes.ts       — GET /me (returns subscription state)
 sync/
-  hocuspocus.ts   — Server.configure: onAuthenticate, onAwarenessUpdate, onStoreDocument, connected (sendStateless), onDisconnect
-  authorize.ts    — onAuthenticate implementation (JWT + guest paths)
+  hocuspocus.ts   — Server.configure: onAuthenticate, onAwarenessUpdate, onStoreDocument,
+                    connected (sendStateless), onDisconnect
+  authorize.ts    — onAuthenticate implementation (JWT + guest + whitelist/blacklist checks)
   persistence.ts  — @hocuspocus/extension-database wired to fetchDocument/storeDocument
-  presence.ts     — colorFor(userId) deterministic color hash
-  control.ts      — broadcastTabsCreated/Updated/Deleted via openDirectConnection
-server.ts         — Fastify app wiring; HTTP upgrade → Hocuspocus /ws
+  presence.ts     — colorFor(userId), trustedIdentityFor (awareness identity stamping)
+  control.ts      — broadcastTabsCreated/Updated/Reordered/Deleted via openDirectConnection
+  connection-limits.ts — enforceConnectionLimits per plan
+server.ts         — Fastify app wiring; HTTP upgrade → Hocuspocus /ws; route registration
 ```
 
 ### Web module structure (`apps/web/src/`)
@@ -140,6 +171,9 @@ lib/
   shiki.ts        — Shiki singleton (lazy-loaded)
   guest.ts        — getGuestId() (localStorage UUID), useIsGuest()
   welcome-content.ts — Seed text injected into the first Welcome tab on empty Y.Text
+  plans.ts        — Plan definitions (Free/Pro/Max) + comparison rows
+  seo.ts          — useSeoMeta helpers
+  analytics.ts    — Consent-based analytics loading
   collab/
     awareness.ts  — buildLocalAwareness(user): LocalAwareness (display_name, avatar_url)
   markdown/
@@ -148,43 +182,58 @@ lib/
   drawing/
     yjs-store.ts  — createYjsStore: Y.Doc ↔ TLStore bi-directional binding
     theme.ts      — useTldrawTheme: maps prefs + next-themes to tldraw theme token
+    grid.tsx      — DrawingGrid: renders dots/lines overlay synced via Yjs
 stores/
-  rooms.ts        — Zustand rooms store (dashboard list, optimistic updates)
+  rooms.ts        — Zustand rooms store (dashboard list, optimistic updates, sort/view prefs)
+  subscription.ts — Subscription state + polling (fetch, pollUntilPlanChange)
 components/
-  topbar.tsx      — TopBar: room name, status, PresenceAvatars, settings dropdown (rename, copy link)
+  topbar/         — TopBar, RoomMenu, RoomTitle, ShareButton, PlanBadge, VisibilityBadge, etc.
   editor/
     use-tab-doc.ts         — HocuspocusProvider per tab; onStateless → setReadOnly
     use-room-control-doc.ts — HocuspocusProvider for "room:<id>"; same pattern
-    tab-editor.tsx         — Dispatches to MarkdownTab / CodeTab / DrawingTab by tab.type + tab.language
+    tab-editor.tsx         — Dispatches to MarkdownTab / CodeTab / DrawingTab by tab.type
     tab-cm.tsx             — CodeMirror 6 with Yjs binding + Compartments for hot-swap language
     markdown-tab.tsx       — Split/rendered/source modes; welcome seed on empty Y.Text
     code-tab.tsx           — tab-cm.tsx with language-specific extensions
-    drawing-tab.tsx        — tldraw + createYjsStore + readOnly via editor.updateInstanceState
-    markdown-toolbar.tsx   — 8 toolbar buttons + language picker + view-mode toggle
+    drawing-tab.tsx        — tldraw + createYjsStore + grid sync + readOnly via admin check
+    markdown-toolbar.tsx   — Toolbar buttons + language picker + view-mode toggle
     markdown-preview.tsx   — Debounced Y.Text observer → Shiki-enhanced HTML
-    presence-avatars.tsx   — Awareness states → overlapping avatar stack with +N overflow
+    presence-avatars.tsx   — Awareness states → overlapping avatar stack
     read-only-pill.tsx     — Badge shown when readOnly=true
     connection-status.tsx  — WS status indicator
     editor-skeleton.tsx    — Loading skeleton
-    guest-banner.tsx       — Dismissable banner for guest users: "Sign in to edit this room"
+    guest-banner.tsx       — Dismissable banner for guest users
     yjs-doc-cache.ts       — Shared Y.Doc / HocuspocusProvider cache keyed by document name
+  notifications/
+    bell-popover.tsx       — Bell icon + popover with notification feed
+    notification-item.tsx  — Per-row rendering (icon + text + time)
+    use-notifications.ts   — Hook: polls /api/notifications, exposes unreadCount + markRead
   rooms/
-    room-card.tsx, empty-state.tsx, create-room-dialog.tsx,
-    delete-room-dialog.tsx, invite-dialog.tsx
+    room-card.tsx, room-row.tsx, empty-state.tsx
+    create-room-dialog.tsx, delete-room-dialog.tsx, trash-dialog.tsx
+    members-dialog.tsx     — Members list, role management, whitelist/blacklist, kick/leave
   tabs/
-    tab-bar.tsx       — Tab strip with active highlight
+    tab-bar.tsx       — Tab strip with drag-to-reorder (dnd-kit) + active highlight
     add-tab-popover.tsx — Popover to pick tab type (text/drawing) then POST
     use-tabs.ts       — Y.Array<TabSummary> observer from the control doc
     tab-icons.ts      — Tab type → icon map
+  billing/
+    checkout-modal.tsx — Stripe embedded checkout modal
+  landing/
+    landing-page.tsx, hero.tsx, sandbox/, pricing-section.tsx, cookie-consent.tsx, etc.
   ui/               — shadcn/ui primitives (button, input, dialog, dropdown-menu, etc.)
 routes/
   __root.tsx            — ThemeProvider, Toaster, RouterProvider shell
+  index.tsx             — Landing page (redirects authed users to /dashboard)
   sign-in.tsx           — OAuth sign-in page (GitHub + Google)
+  pricing.tsx           — Standalone pricing page
   auth/callback.tsx     — PKCE callback handler
   _authed.tsx           — beforeLoad auth guard; redirects to /sign-in if anonymous
   _authed/
-    index.tsx           — Dashboard (room list, create, delete)
-  r.$slug.tsx           — Room page (no auth guard — supports guest access): TopBar + TabBar + TabEditor + ConnectionStatus + GuestBanner
+    dashboard.tsx       — Dashboard (room list, create, delete, trash)
+    settings.tsx        — Settings with General (appearance + notifications), Account, Billing tabs
+    upgrade.tsx         — Redirects to /pricing
+  r.$slug.tsx           — Room page (no auth guard — supports guest access)
 ```
 
 ### Key Components
@@ -199,29 +248,35 @@ routes/
     Code-block syntax highlighting (inside markdown and inside any non-
     markdown language tab) uses Shiki.
   - **Drawing** — tldraw, bound to a Yjs `Y.Map` per tab via a custom
-    bi-directional binding. Default tldraw chrome and toolset.
+    bi-directional binding. Grid/background settings (off/lines/dots)
+    synced via a shared `Y.Map` and restricted to owner/admin writes.
   - Connects to the server via `@hocuspocus/provider` over WebSocket
     (one provider per room, multiple Yjs sub-documents per tab). Auth
     via `@supabase/supabase-js`.
-- **Server** (`apps/server`) — Fastify HTTP for room/tab CRUD and
-  auth-protected endpoints; Hocuspocus for WebSocket sync. Validates
-  Supabase JWTs on both HTTP and WebSocket connection (`onAuthenticate`
-  hook). Guest connections (no JWT) are allowed when the room's
-  `guestAccess` is not `none`.
+- **Server** (`apps/server`) — Fastify HTTP for room/tab CRUD, billing,
+  notifications, and auth-protected endpoints; Hocuspocus for WebSocket sync.
+  Validates Supabase JWTs on both HTTP and WebSocket connection
+  (`onAuthenticate` hook). Guest connections (no JWT) are allowed when
+  the room's `guestAccess` is not `none`.
 - **Protocol** (`packages/protocol`) — Zod schemas for HTTP request/response
-  shapes, tab metadata (`type`, `language`, etc.), presence payload shape,
-  and any custom WS message types beyond Hocuspocus's protocol. Imported
-  by both web and server.
+  shapes, tab metadata, notification types, billing types, subscription
+  state, role enum, whitelist/blacklist types, and any custom WS message
+  types beyond Hocuspocus's protocol. Imported by both web and server.
 - **Postgres (Supabase)** — stores Yjs document binary state (one row per
   *tab*, via the `@hocuspocus/extension-database` extension wired to our
   Drizzle-managed `tab_documents` table) and application metadata (rooms,
-  tabs, memberships, invites) managed via Drizzle. **Cloud Supabase is the
-  only Postgres in MVP** — there is no local Docker Postgres. Each developer
-  uses their own Supabase project (free tier) for dev. This eliminates
-  the dual-DB mental split that arises when local app data lives separate
-  from cloud `auth.users`.
+  tabs, memberships, subscriptions, notifications, whitelist, blacklist).
+  **Cloud Supabase is the only Postgres in MVP** — there is no local Docker
+  Postgres. Each developer uses their own Supabase project (free tier) for
+  dev.
 - **Supabase Auth** — OAuth providers: GitHub, Google. Issues JWTs the server
   validates. No email/password; no magic links.
+- **Stripe** — embedded Checkout for new subscriptions, Customer Portal for
+  plan management (cancel, switch, update payment), webhooks for server-side
+  subscription state sync. Three plans: Free, Pro ($8/mo or $72/yr), Max
+  ($20/mo or $180/yr).
+- **Resend** — transactional email for notifications (access granted,
+  invite accepted). Graceful stub mode when `RESEND_API_KEY` is not set.
 
 ### Data Flow
 
@@ -238,21 +293,25 @@ routes/
 6. Hocuspocus's persistence extension debounces and writes the document state
    to Postgres (every 2s of idle, max 10s), per tab.
 
-**Room join:**
+**Room join (open room):**
 
-1. Client requests `GET /api/rooms/:slug` with Supabase JWT in `Authorization`
-   (omitted for guests; the endpoint returns room data for open rooms or
-   private rooms with `guestAccess != 'none'` without a token).
-2. Server validates JWT if present, checks membership, returns room metadata + the tab
-   list (id, name, type, language, ordinal) for that room.
-3. Client opens a WebSocket connection to Hocuspocus with the JWT (or the
-   guest UUID from localStorage when unauthenticated).
-4. Hocuspocus `onAuthenticate` hook validates the JWT (or guest UUID) and
-   authorizes the room. For guest UUIDs, it checks `guestAccess` on the room.
+1. Client requests `GET /api/rooms/:slug` with Supabase JWT.
+2. Server validates JWT, checks membership. If not a member, auto-joins as
+   `member` role.
+3. Client opens a WebSocket connection to Hocuspocus with the JWT.
+4. `onAuthenticate` validates the JWT, authorizes the room, checks blacklist.
 5. For each tab the user opens, the client subscribes to that tab's Yjs
-   sub-document; the server loads the latest state from Postgres (or
-   initializes empty) and syncs it to the client.
+   sub-document; the server loads the latest state from Postgres and syncs.
 6. Client begins broadcasting presence; server relays presence to the room.
+
+**Room join (private room via whitelist):**
+
+1. Owner/admin adds email to whitelist. If the email matches a registered
+   user, a `room_access_granted` notification is created and an email is sent.
+2. The invited user sees the room in their dashboard with `pendingAccess: true`.
+3. When they click into the room, `getRoomBySlug` detects the whitelist match
+   and auto-joins them as `member`.
+4. A `invite_accepted` notification is sent to the room owner.
 
 ## Key Decisions
 
@@ -260,7 +319,7 @@ routes/
 |---|---|---|
 | Repo layout | Bun workspaces monorepo (`apps/*`, `packages/*`) | Industry default for real-time collab projects; shared types between client and server are first-class |
 | Backend organization | Feature-scoped modules, not layered | Matches the shape of the problem (small domain, mostly sync + persistence). Layered/hexagonal is ceremony with no payoff here |
-| Runtime | Bun | Fast startup, native TS, native SQLite, native `.env`, zero-config test runner |
+| Runtime | Bun | Fast startup, native TS, native `.env`, zero-config test runner |
 | Backend framework | Fastify | Modern Express replacement; first-class TS, schema validation, plugin ecosystem, built-in Pino logging |
 | Realtime sync engine | Hocuspocus + Yjs | Production-grade Yjs server. Solves sync, awareness, persistence hooks, auth hooks out of the box |
 | Validation | Zod | Industry default for runtime TS schemas; reused for HTTP, WS protocol, env vars |
@@ -270,36 +329,44 @@ routes/
 | Guest access | `guestAccess` enum (`none \| view \| edit`) per room | No illegal states; self-documenting; safe default (`none`); orthogonal to visibility type |
 | Guest identity | `localStorage` UUID (`rumi_guest_id`); not stored in DB | Stateless; no schema complexity; good enough for ephemeral presence |
 | Room visibility | Two types only: `open \| private` | Matches user mental model; eliminates confusing `link`+`link_can_edit` combination |
-| Authenticated member permissions | Always edit (no read-only member role) | Keeps role model at owner/member only; per-user read-only adds UI complexity without MVP value |
+| Role model | Three roles: `owner \| admin \| member` | Admin manages tabs + members; member edits content only. Owner retains all powers including room deletion and visibility changes. |
+| Access model | Whitelist + blacklist for private rooms | Replaces traditional invites. Whitelist = invited emails. Blacklist = denied emails. Blacklist takes priority. Auto-join on match. |
+| Member management | Owner manages roles; owner/admin can kick; any non-owner can leave | Owner-only promotion/demotion. Kick auto-adds to blacklist. Owners must transfer before leaving. |
+| Billing | Stripe embedded Checkout + Customer Portal + webhooks | Standard SaaS billing; embedded checkout keeps users on-site; webhooks keep server authoritative |
+| Plans | Free / Pro ($8/mo) / Max ($20/mo) | Free tier is usable; Pro and Max unlock higher limits. Yearly discounts available. |
+| Plan enforcement | `getUserPlan` reads subscriptions table; enforced at WS auth and HTTP endpoints | Server-authoritative. On subscription change, `dropUserConnections` forces WS reconnect for re-evaluation. |
+| Notifications | In-app bell popover (30s polling) + email (Resend) | Two channels for the same events. Polling is simple and sufficient for MVP volume. |
+| Notification events | `room_access_granted`, `invite_accepted` | High-signal events only. Access granted fires when added to whitelist. Accepted fires when the invitee joins. |
+| Email delivery | Resend with graceful stub when API key missing | Clean DX; dev doesn't need a Resend account. RFC 8058 one-click unsubscribe for Gmail compliance. |
 | Frontend build | Vite + React + TypeScript | Modern default; fast HMR; good TS story |
-| Tab editor | CodeMirror 6 + `y-codemirror.next` for the unified Tab type (text/code/markdown) | One editor with per-tab language; markdown is just `language=markdown` with a toolbar + preview overlay; code is any non-markdown language with Shiki highlighting; plain text is no language. Avoids maintaining separate editor stacks. |
-| Code-block syntax highlighting | Shiki | VS Code's TextMate grammars; ~150 languages; same renderer used inside markdown fenced code blocks and inside non-markdown Tab languages, so highlighting is consistent across surfaces |
-| Drawing surface | tldraw + custom Yjs binding | Production-grade collaborative whiteboard; built-in toolbar/tools/undo/redo; custom Y.Map binding reuses Hocuspocus infrastructure instead of running a separate sync server |
-| Tabs per room (free tier) | Hard cap 3 | Free-tier gate; the cap is the seam where future paid plans unlock more. Pricing/upgrade plumbing is post-MVP. |
-| Tab type model | Discriminated by `type`: `tab` (text/code/markdown via language) or `drawing` | Two surfaces, one tab list. Adding a tab opens a popover that lets the user pick the type; type is immutable after creation, language is mutable for `tab`-type rows. |
-| Markdown view modes | Per-tab toggle: split (default) → rendered-only → source-only | Cycles via a single toolbar button. Setting is per-tab and per-session (does not persist across reloads or sync across users). |
-| Markdown rendering | CommonMark + GFM (tables, task lists, strikethrough); sanitized via `rehype-sanitize` | Free upgrade beyond hand-rolled renderers; tables and task lists ship by default. Sanitizer removes any HTML the user pastes. |
-| Markdown shortcuts | Cmd/Ctrl+B, Cmd/Ctrl+I, Cmd/Ctrl+K (link) wrap selection via custom CodeMirror commands | Standard editor expectation; the same actions are also exposed as toolbar buttons |
+| Tab editor | CodeMirror 6 + `y-codemirror.next` | One editor with per-tab language; markdown is just `language=markdown` with toolbar + preview |
+| Code-block syntax highlighting | Shiki | VS Code's TextMate grammars; ~150 languages; consistent across surfaces |
+| Drawing surface | tldraw + custom Yjs binding | Production-grade collaborative whiteboard; custom Y.Map binding reuses Hocuspocus infrastructure |
+| Drawing grid sync | Y.Map shared state, restricted to owner/admin writes | Grid setting (off/lines/dots) synced via CRDTs; only admins can change it |
+| Tab reorder | dnd-kit with server-side ordinal re-pack | Server is source of truth; drag is UX only. Last-writer-wins for concurrent reorders. |
+| Subscription store | Zustand store with `pollUntilPlanChange` | Replaces duplicated per-component polling. Used by topbar, settings, pricing page. |
+| Landing page | Static marketing page with interactive sandbox | Hero + animated word swap + live markdown/drawing preview. Cookie consent tied to analytics. |
+| Tabs per room | Plan-gated: Free=3, Pro=10, Max=50 | Cap is the monetization lever. Server-enforced at insert time. |
+| Tab type model | Discriminated by `type`: `tab` (text/code/markdown) or `drawing` | Two surfaces, one tab list. Type is immutable after creation. |
+| Markdown view modes | Per-tab toggle: split → rendered-only → source-only | Cycles via toolbar button. Per-tab and per-session (not persisted). |
+| Markdown rendering | CommonMark + GFM; sanitized via `rehype-sanitize` | Tables and task lists ship by default. Sanitizer removes pasted HTML. |
 | Yjs client transport | `@hocuspocus/provider` | Matches the server; handles reconnection and resync automatically |
-| Frontend state | Zustand | Right-sized for app-level UI state (most data lives in Yjs doc, not Zustand) |
+| Frontend state | Zustand (app-level UI); Yjs (document state) | Right-sized for app-level UI state |
 | Routing | TanStack Router | Fully type-safe routes; modern |
-| Styling | Tailwind v4 | 2026 default; native CSS engine; pairs well with shadcn/ui |
+| Styling | Tailwind v4 with Catppuccin theme tokens | Native CSS engine; pairs well with shadcn/ui. Catppuccin Latte (light) + Mocha (dark). |
 | Linting/formatting | Biome | Single tool replaces ESLint + Prettier; fast |
 | Testing | `bun test` | Built into the runtime; Jest-compatible API; zero config |
-| Logging | Pino (built-in to Fastify) + `pino-pretty` for dev | Modern structured logging; replaces winston |
-| Security | `@fastify/cors`, `@fastify/helmet`, `@fastify/rate-limit` | Fastify-native equivalents of the previous stack |
-| Dropped from prior starter | morgan, winston, compression, custom requestId middleware | Replaced by Fastify built-ins or unnecessary at MVP scale |
+| Logging | Pino (built-in to Fastify) + `pino-pretty` for dev | Modern structured logging |
+| Security | `@fastify/cors`, `@fastify/helmet`, `@fastify/rate-limit` | Fastify-native |
 | Room ID format | Short word-slug (e.g., `wispy-falcon-42`) | Shareable, human-readable, low collision at MVP scale |
 | Snapshot cadence | Hocuspocus defaults: 2s debounce, 10s max wait | Bounds data-loss to ~10s while minimizing DB writes |
-| Presence shape | `{ user_id, display_name, avatar_url, color }` | `user_id` and `color` stamped server-side from the verified JWT (clients can't spoof identity); `display_name` and `avatar_url` are client-supplied cosmetic fields; cursor position deferred. Guests get `user_id: "guest:<uuid>"` with server-hashed color. |
-| User preferences storage | Client-only (Zustand + `localStorage`) for MVP; no DB sync | Avoids a `user_preferences` table and a settings sync round-trip; revisit when multi-device pref sync is needed |
-| UI font | Lato via `@fontsource/lato` (default); user-changeable from a curated list | Warm, humanist sans; user can switch to Inter, system-ui, etc. via Settings |
-| Editor font | Geist Mono via the `geist` package (default); user-changeable from a curated list | Modern monospace; user can switch to JetBrains Mono, Fira Code, etc. via Settings |
-| Default theme | Dark mode default; toggle via `next-themes`; respects system preference on first visit | User preference; light remains a first-class option |
-| Soft delete | `rooms.deleted_at` timestamp; rooms are filtered out of queries when set | Preserves CRDT data and audit trail; hard delete is a separate post-MVP concern |
-| Invite identifier | Email-only; no username system | Email is universal, matches every OAuth provider's primary identifier, and avoids a `usernames` table + claim/transfer flows. Modern collab tools (Linear, Figma, Notion) invite by email even when they have usernames. |
-| Room model migrations | None planned for MVP | Document persistence is keyed on `tab_id` UUID, so slug renames and (future) owner transfers are pure metadata updates with no migration burden. Revisit if/when a real migration becomes necessary. |
-| Deployment | Deferred until deploy time | Server requires stateful Node-compatible host; web client is static SPA. Fly.io/Railway/VPS for server, Vercel/Netlify for web |
+| Presence shape | `{ user_id, display_name, avatar_url, color }` | `user_id` and `color` stamped server-side; `display_name` and `avatar_url` client-supplied |
+| User preferences storage | Client-only (Zustand + `localStorage`) | No DB sync for MVP |
+| UI font | Lato via `@fontsource/lato` (default); user-changeable | Warm, humanist sans |
+| Editor font | Geist Mono via `geist` package (default); user-changeable | Modern monospace |
+| Default theme | Dark mode default; toggle via `next-themes` | User preference; light is first-class |
+| Soft delete | `rooms.deleted_at` timestamp; filtered from queries | Preserves CRDT data and audit trail. Trash UI shows rooms with restore option. |
+| Invite identifier | Email-only; no username system | Universal; matches OAuth providers' primary identifier. |
 
 ## Data Model
 
@@ -311,184 +378,195 @@ routes/
 - `name` — text, optional display name
 - `owner_id` — UUID, references the Supabase user that created the room
 - `visibility` — text, one of `'open' | 'private'`, default `'open'`
-- `guest_access` — text, one of `'none' | 'view' | 'edit'`, default `'none'`.
-  Controls unauthenticated visitor access regardless of `visibility`.
+- `guest_access` — text, one of `'none' | 'view' | 'edit'`, default `'none'`
 - `created_at` — timestamp
 - `updated_at` — timestamp
-- `deleted_at` — timestamp, nullable. Set on soft delete; rooms with a non-null
-  value are filtered from all queries
+- `deleted_at` — timestamp, nullable. Set on soft delete.
 
 **`room_members`**
 - `room_id` — UUID, references `rooms.id`
 - `user_id` — UUID, Supabase user
-- `role` — text, one of `'owner' | 'member'`. Exactly one row per room has
-  `role='owner'`
+- `role` — text, one of `'owner' | 'admin' | 'member'`. Default `'member'`.
 - `joined_at` — timestamp
 - Primary key: `(room_id, user_id)`
 
-**`room_invites`**
+Owners get implicit admin powers. Admins can create/delete/reorder tabs, manage
+members (kick non-admins), manage whitelist/blacklist, and change guest access.
+Members can edit tab content only.
+
+**`room_whitelist`**
 - `id` — UUID, primary key
-- `room_id` — UUID, references `rooms.id`
-- `invited_email` — text. The email used to invite; matched against the
-  authenticated user's JWT email on every `GET /api/rooms` and
-  `GET /api/rooms/:slug` call. Resolution is on-fetch, not on-sign-in
-- `invited_by` — UUID, the inviting user
+- `room_id` — UUID, references `rooms.id` with `ON DELETE CASCADE`
+- `email` — text. The invited email. Matched case-insensitively on room join.
 - `created_at` — timestamp
-- `accepted_at` — timestamp, nullable. Set when the invitee is promoted to
-  `room_members`
-- Indexed on `(invited_email, room_id)` for lookup
+- Unique index on `(room_id, email)`
+
+Adding an email to the whitelist auto-removes it from the blacklist. If the
+email matches a registered user, a `room_access_granted` notification is created
+and an email is sent via Resend.
+
+**`room_blacklist`**
+- `id` — UUID, primary key
+- `room_id` — UUID, references `rooms.id` with `ON DELETE CASCADE`
+- `email` — text. The blocked email.
+- `created_at` — timestamp
+- Unique index on `(room_id, email)`
+
+Blacklisted users are always denied access, regardless of other factors. Adding
+an email to the blacklist auto-removes it from the whitelist and auto-kicks if
+the user is a current member. Kick actions auto-add the kicked user's email to
+the blacklist.
 
 **`tabs`**
 - `id` — UUID, primary key (the stable id used as the Hocuspocus document
   name and as the persistence key for `tab_documents`)
 - `room_id` — UUID, references `rooms.id` with `ON DELETE CASCADE`
-- `type` — text, one of `'tab' | 'drawing'`. Discriminator for which
-  editor renders the tab and which Yjs shape lives inside the document.
-- `language` — text, nullable. Only meaningful when `type='tab'`. Values
-  are short identifiers from a fixed registry (e.g. `markdown`, `typescript`,
-  `python`, `go`, `null` = plain text). Mutable; switching does not migrate
-  content.
-- `name` — text. User-editable display label; trimmed, max 100 chars; falls
-  back to `"Untitled"` when blank.
-- `ordinal` — integer. Position in the tab strip; the server keeps these
-  contiguous on insert/delete. Reorder is post-MVP.
+- `type` — text, one of `'tab' | 'drawing'`
+- `language` — text, nullable. Only meaningful when `type='tab'`.
+- `name` — text. User-editable display label; max 100 chars.
+- `ordinal` — integer. Position in the tab strip; kept contiguous on
+  insert/delete/reorder.
 - `created_at` — timestamp
 - `updated_at` — timestamp
 - Index on `(room_id, ordinal)`
 - A `CHECK` constraint enforces that `language IS NULL` when `type='drawing'`.
 
-Owners (and any member when `visibility='open'` or they are an invited member
-of a private room) can create/rename/delete tabs. The 3-tab cap is enforced
-server-side at insert time; any client that tries to exceed it gets a
-`tab_limit_reached` error.
+Tab CRUD (create, delete, reorder, rename, language change) is gated to
+owner + admin. Members can edit tab content. The tab cap is plan-gated
+(Free=3, Pro=10, Max=50) and enforced server-side at insert time.
+
+**`subscriptions`**
+- `id` — UUID, primary key
+- `user_id` — UUID, Supabase user
+- `plan` — text, one of `'free' | 'pro' | 'max'`. Default `'free'`.
+- `status` — text, one of `'active' | 'past_due' | 'canceled'`
+- `stripe_customer_id` — text, nullable
+- `stripe_subscription_id` — text, nullable. Cleared on cancellation.
+- `current_period_end` — timestamp, nullable
+- `cancel_at_period_end` — boolean, default false
+- `created_at` — timestamp
+- `updated_at` — timestamp
+- Unique index on `stripe_subscription_id`
+- Unique index on `user_id` (one subscription per user)
+
+`customer.subscription.deleted` sets `status='canceled'`, clears
+`stripeSubscriptionId`, but preserves `plan` and `currentPeriodEnd`.
+`resolvePlan` grants paid access until the period ends.
+
+**`processed_webhook_events`**
+- `id` — text, primary key (Stripe event ID)
+- `created_at` — timestamp
+- Used for idempotent webhook processing.
+
+**`notifications`**
+- `id` — UUID, primary key
+- `user_id` — UUID, the notification recipient
+- `type` — text, one of `'room_access_granted' | 'invite_accepted'`
+- `payload` — JSONB. Denormalized event data (room info, user info).
+- `read_at` — timestamp, nullable
+- `created_at` — timestamp
+- Index on `(user_id, created_at DESC)` for feed query
+- Partial index on `(user_id) WHERE read_at IS NULL` for unread count
+
+**`notification_preferences`**
+- `user_id` — UUID, primary key
+- `email_enabled` — boolean, default true
+- `invite_received_email` — boolean, default true (legacy; kept for compat)
+- `invite_accepted_email` — boolean, default true
+- `updated_at` — timestamp
+- No row = use defaults (all enabled)
 
 ### Document persistence
 
 A Drizzle-managed `tab_documents` table stores Yjs binary state, one row
-per tab (PK `tab_id`, `state` bytea, `updated_at`). The Hocuspocus
-`@hocuspocus/extension-database` extension is configured with our
-`fetchDocument(tabId)` and `storeDocument(tabId, state)` callbacks; the
-extension itself does not own the schema. Persistence keys on the stable
-`tab_id` UUID, not the room slug. Hocuspocus's `documentName` is the tab
-id; the server resolves `tab_id → room_id` once per connection in
+per tab (PK `tab_id`, `state` bytea, `updated_at`). Persistence keys on the
+stable `tab_id` UUID, not the room slug. Hocuspocus's `documentName` is the
+tab id; the server resolves `tab_id → room_id` once per connection in
 `onAuthenticate` so room-level permission checks still apply.
 
 ### Ephemeral state (not persisted)
 
 **Presence** — broadcast over WebSocket via Yjs awareness protocol; never
 written to Postgres:
-- `user_id` — stamped server-side from the verified JWT context (clients
-  cannot spoof identity); guests get `"guest:<uuid>"`
-- `color` — deterministic hash of `user_id`, also stamped server-side
-- `display_name` — client-supplied, cosmetic; guests default to `"Guest"`
-- `avatar_url` — client-supplied, cosmetic; null for guests
+- `user_id` — stamped server-side from the verified JWT context
+- `color` — deterministic hash of `user_id`, stamped server-side
+- `display_name` — client-supplied, cosmetic
+- `avatar_url` — client-supplied, cosmetic
 
 ### Client-only state
 
-**User preferences** — stored in `localStorage` via a Zustand store; never
-synced to the server in MVP:
+**User preferences** — stored in `localStorage` via a Zustand store:
 - `theme` — `'light' | 'dark' | 'system'`, default `'dark'`
 - `ui_font` — string identifier from a curated list (default: `'lato'`)
-- `editor_font` — string identifier from a curated list (default:
-  `'geist-mono'`)
+- `editor_font` — string identifier from a curated list (default: `'geist-mono'`)
 
 **Guest identity** — `rumi_guest_id` in `localStorage`. A UUID generated
 on first visit; passed as the WebSocket token when no Supabase JWT is present.
-Not stored in the database.
-
-A future `user_preferences` table would replace client-only prefs; explicitly
-out of scope for MVP.
 
 ## Edge Cases & Constraints
 
-- **Server is stateful.** Active Yjs documents live in the Hocuspocus instance's
-  memory. Restarting the server drops in-memory state but does not lose data —
-  clients reconnect and Hocuspocus reloads from Postgres. The window between
-  the last persisted snapshot and a crash is the data-loss boundary (~10s max).
+- **Server is stateful.** Active Yjs documents live in Hocuspocus's memory.
+  Restarting drops in-memory state but does not lose data — clients reconnect
+  and Hocuspocus reloads from Postgres. Data-loss window is ~10s max.
 - **Single-instance MVP.** Two server instances cannot share rooms without a
-  coordination layer (Redis pub/sub, or Hocuspocus's Redis extension). Out of
-  scope for MVP; documented as a known scaling boundary.
+  coordination layer. Out of scope for MVP.
 - **Reconnection.** `@hocuspocus/provider` handles automatic reconnection with
   exponential backoff. State resyncs via the Yjs sync protocol on reconnect.
 - **Auth token expiry.** Supabase JWTs expire (default 1 hour). The web client
-  refreshes via `@supabase/supabase-js`. On `TOKEN_REFRESHED`, the
-  `HocuspocusProvider` is destroyed and re-instantiated with the new JWT;
-  the in-memory Y.Doc survives the reconnect so unsaved local edits aren't
-  lost. Yjs sync protocol re-syncs in ~50ms with no visible state loss.
-- **Slug collisions.** Word-slug generation must check against existing slugs
-  and retry on collision. Deterministic; collision rate is low but nonzero.
-- **Yjs document size.** Persistence uses `Y.encodeStateAsUpdate`, a
-  compacted state-vector form (not an event log). Each save replaces the
-  row with a fresh compacted state, so document size in storage is bounded
-  by current content rather than edit history. The in-memory Y.Doc still
-  accumulates internal CRDT structure over its lifetime; Yjs's own GC
-  handles cleanup. Worth monitoring at scale, not a hot concern at MVP.
-- **Room membership semantics.**
-  - `visibility = 'open'`: any authenticated user who hits the room URL is
-    auto-added to `room_members` with `role='member'` on first connect.
-  - `visibility = 'private'`: only existing `room_members` and users with a
-    matching pending `room_invites.invited_email` can enter. Invitees are
-    promoted from `room_invites` to `room_members` on first successful join.
-  - Owners are bootstrapped at room creation: the creator's row is inserted
-    with `role='owner'` in the same transaction as the `rooms` row.
-- **Guest access semantics.** `guestAccess` is orthogonal to `visibility`:
-  - `guestAccess = 'none'` (default): unauthenticated visitors are rejected.
-  - `guestAccess = 'view'`: unauthenticated visitors get a read-only Yjs
-    connection. No `room_members` row is inserted.
-  - `guestAccess = 'edit'`: unauthenticated visitors get a writable Yjs
-    connection. No `room_members` row is inserted.
-  - Guest detection: `onAuthenticate` checks whether the token starts with
-    `eyJ` (JWT) or not. A non-JWT token is treated as a guest UUID.
-  - Guest → member upgrade: when a guest signs in, the page reloads with the
-    new session. The provider reconnects with the JWT; for `open` rooms the
-    user is auto-joined as a member and gains edit access.
-- **Guest banner.** `r.$slug.tsx` renders `<GuestBanner>` when the user is
-  not authenticated and `readOnly=true`. The banner offers a sign-in button
-  and a dismiss action (stored in sessionStorage, reappears on next visit).
-- **Permission revocation propagation.** PATCH `/api/rooms/:slug` (when
-  `visibility` or `guestAccess` change) and DELETE `/api/rooms/:slug`
-  call `dropRoomConnections(roomId)` after the DB write commits — a
-  helper that iterates every tab connection in the room and the room's
-  control-doc connection, calling `hocuspocus.closeConnections(name)` on
-  each. Live WS connections drop and reconnect; `onAuthenticate`
-  re-evaluates membership and `readOnly` against the fresh row, per
-  tab. Tab-level mutations (PATCH name/language, DELETE tab) call
-  `closeTabConnections(tabId)` for the single affected tab.
-- **Invite resolution.** `room_invites.invited_email` is matched
-  case-insensitively against the JWT's email claim. Mismatched cases or
-  changed emails won't auto-resolve; the invite stays pending. Resolution is
-  best-effort, not authoritative.
-- **Soft delete.** `rooms.deleted_at` is set on delete; CRDT state and member
-  rows remain. Restoration is a manual DB operation in MVP; a restore endpoint
-  is post-MVP.
+  refreshes via `@supabase/supabase-js`. On `TOKEN_REFRESHED`, the provider
+  reconnects with the new JWT; the in-memory Y.Doc survives.
+- **Slug collisions.** Word-slug generation checks against existing slugs and
+  retries on collision.
+- **Access resolution order.** When a user hits a room:
+  1. Check blacklist — blacklisted users always denied
+  2. Check existing membership — if member, allow with role
+  3. For open rooms: auto-join as member (with email dedup)
+  4. For private rooms: check whitelist — if whitelisted, auto-join as member; otherwise denied
+  5. Guest access checked for unauthenticated users
+- **Kick auto-blacklists.** When an owner/admin kicks a member, the user's
+  email is automatically added to the blacklist to prevent rejoining.
+  Adding to blacklist also auto-removes from whitelist.
+- **Whitelist/blacklist mutual exclusion.** Adding to one auto-removes from
+  the other. No email can be on both lists simultaneously.
+- **Ownership transfer.** Transfers ownership to another member. Old owner
+  becomes `admin` (not member). Checks new owner's plan limits. Drops room
+  connections so concurrent-user limit re-evaluates.
+- **Permission revocation propagation.** Room setting changes and member
+  management actions call `dropRoomConnections` or `dropConnectionForUserInRoom`
+  after the DB write. Live WS connections drop and reconnect; `onAuthenticate`
+  re-evaluates membership and role.
+- **Plan-aware tab cap.** Free=3, Pro=10, Max=50. Enforced server-side at
+  `POST /api/rooms/:slug/tabs` with plan lookup.
+- **Tab reorder.** `POST /api/rooms/:slug/tabs/reorder` with body
+  `{ tabIds: string[] }`. Two-phase ordinal update to avoid unique constraint
+  violations. Last-writer-wins for concurrent reorders.
+- **Drawing grid sync.** Grid setting (off/lines/dots) stored in a `Y.Map`
+  on the tab document. Only owners/admins can change it. All clients observe
+  and stay in sync via Yjs CRDTs.
+- **Billing webhook flow.** `POST /api/billing/webhook` is fully public (Stripe
+  signature replaces JWT). Raw body parser scoped via Fastify encapsulation.
+  Idempotent via `processed_webhook_events` table.
+- **`customer.subscription.deleted` preserves `plan`** — sets `status='canceled'`,
+  clears `stripeSubscriptionId`, leaves `plan` and `currentPeriodEnd` intact.
+  `resolvePlan` grants paid access until period end.
+- **Out-of-order webhook guard** — if row is `status='canceled'` with
+  `stripeSubscriptionId=null`, late `updated` with canceled/incomplete_expired
+  is ignored. `updated` with `status='active'` for a new subscription passes
+  through (re-subscribe case).
+- **Notification polling.** Bell popover polls every 30s while page is visible.
+  Skips polling when `document.hidden`. Exponential backoff on failures.
+- **Email graceful degradation.** When `RESEND_API_KEY` is not set, email sends
+  are stubbed to console logs. All other functionality works normally.
+- **RFC 8058 one-click unsubscribe.** Emails include `List-Unsubscribe` and
+  `List-Unsubscribe-Post` headers. The unsubscribe endpoint accepts both
+  browser clicks (returns HTML) and Gmail one-click (accepts form POST).
+- **Soft delete.** `rooms.deleted_at` is set; rows are never hard deleted by
+  users. A purge scheduler cleans up rooms deleted more than 30 days ago.
+  Trash UI shows soft-deleted rooms with restore option.
+- **First tab seed content.** Server inserts only the DB row. Client detects
+  empty `Y.Text` on a tab named `"Welcome"` and inserts the seed content.
 - **Performance target.** Local edits feel instant; remote edits propagate
-  within 200ms typical (network-bound; Hocuspocus's relay is sub-ms).
-- **Tab cap enforcement.** The 3-tab limit is enforced server-side at
-  `POST /api/rooms/:slug/tabs`. Concurrent inserts under the cap are
-  serialized via the Postgres unique index on `(room_id, ordinal)` plus
-  a `SELECT count(*) FROM tabs WHERE room_id = $1` inside the same
-  transaction; the loser retries or returns `tab_limit_reached`. The
-  client also disables the `+` button at 3 tabs and shows an upgrade
-  hint, but server enforcement is the source of truth.
-- **Tab language switch.** Setting `language` on a `type='tab'` row is a
-  cheap metadata update — the underlying Y.Text content is not migrated
-  or re-tokenized server-side. Clients reload the language extension and
-  Shiki highlighter for that tab. Markdown ↔ non-markdown switches also
-  show/hide the markdown toolbar and view-mode toggle.
-- **First tab seed content.** When a brand-new room is created, the server
-  inserts a single `type='tab'`, `language='markdown'` tab named
-  `"Welcome"` — but only the *row*, not the Yjs binary content. The
-  client recognizes a tab named `"Welcome"` with `language='markdown'`
-  and an empty `Y.Text` on first connect and inserts the welcome content
-  into the Y.Text locally; CRDT semantics make subsequent re-syncs
-  no-op (`Y.Text` is non-empty after the first insert wins). Keeping
-  the server out of Yjs encoding avoids binary-format coupling between
-  the API and the realtime layer. Subsequent user-created tabs start
-  empty — the seed is a one-time first-room gesture.
-- **Drawing tab persistence.** tldraw's custom Yjs binding writes its document
-  shape into a `Y.Map` inside the per-tab Y.Doc. The same
-  `tab_documents.state` bytea column stores the encoded Y.Doc; no
-  schema change between tab types.
+  within 200ms typical.
 
 ## Open Questions
 
@@ -501,6 +579,8 @@ None.
 - [Fastify](https://fastify.dev) — backend framework
 - [Drizzle ORM](https://orm.drizzle.team) — TypeScript ORM
 - [Supabase](https://supabase.com) — Postgres + Auth
+- [Stripe](https://stripe.com) — billing
+- [Resend](https://resend.com) — transactional email
 - [CodeMirror 6](https://codemirror.net) — editor
 - [TanStack Router](https://tanstack.com/router)
 - [Biome](https://biomejs.dev) — lint + format

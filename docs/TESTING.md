@@ -10,12 +10,10 @@ bun test apps/web        # Web tests only
 
 ## Test setup
 
-`bunfig.toml` preloads `test-setup.ts` for all test runs. It:
+`bunfig.toml` preloads `test-setup.ts` for all test runs. It sets default env
+vars for server tests (`DATABASE_URL`, `SUPABASE_JWKS_URL`, etc.). No DOM setup.
 
-- Sets default env vars for server tests (`DATABASE_URL`, `SUPABASE_JWKS_URL`, etc.)
-- Registers `happy-dom` as the global DOM environment for React component tests
-
-No per-file setup is needed — `bun test` handles it automatically.
+No per-file setup is needed for env vars — `bun test` handles it automatically.
 
 ## File conventions
 
@@ -43,7 +41,8 @@ No per-file setup is needed — `bun test` handles it automatically.
 
 ## Web tests
 
-- `happy-dom` provides `document`, `window`, etc.
+- `happy-dom` provides `document`, `window`, etc. Setup is done per-file with
+  `beforeAll`/`afterAll` (not in the global preload).
 - Zustand stores can be tested directly by importing and calling their methods.
 - React component tests use standard `bun:test` (`describe`, `it`, `expect`).
 
