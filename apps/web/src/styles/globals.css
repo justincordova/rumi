@@ -129,6 +129,17 @@
   --gradient-brand: linear-gradient(135deg, #cba6f7, #f5c2e7);
 }
 
+/*
+ * tldraw uses z-index values up to ~700 for its UI panels and cursor layer.
+ * Radix popper wrappers (dropdowns, popovers) sit inside a positioned
+ * div that Radix injects — override its z-index so it clears tldraw.
+ * Dialog / AlertDialog overlays and panels use Tailwind z-[1000] directly
+ * (see dialog.tsx, alert-dialog.tsx). This rule handles the popper case.
+ */
+[data-radix-popper-content-wrapper] {
+  z-index: 1000 !important;
+}
+
 /* Base resets + body */
 @layer base {
   *,
