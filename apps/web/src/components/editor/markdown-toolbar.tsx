@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
+import { exportTextTab } from "@/lib/export-tab";
 import type { EditorView } from "@codemirror/view";
 import type { TabSummary } from "@rumi/protocol";
 import { Bold, Code, Heading1, Heading2, Italic, Link, List, Quote } from "lucide-react";
 import type React from "react";
+import type * as Y from "yjs";
+import { ExportMenu } from "./export-menu";
 import { prefixLine, wrapSelection } from "./extensions";
 import { LanguagePicker } from "./language-picker";
 import { ViewModeToggle } from "./view-mode-toggle";
@@ -12,9 +15,10 @@ interface Props {
   readOnly: boolean;
   viewRef?: React.RefObject<EditorView | null>;
   roomSlug: string;
+  ytext: Y.Text;
 }
 
-export function MarkdownToolbar({ tab, readOnly, viewRef, roomSlug }: Props) {
+export function MarkdownToolbar({ tab, readOnly, viewRef, roomSlug, ytext }: Props) {
   function dispatch(fn: (view: EditorView) => boolean) {
     if (viewRef?.current) fn(viewRef.current);
   }
@@ -54,6 +58,14 @@ export function MarkdownToolbar({ tab, readOnly, viewRef, roomSlug }: Props) {
       <div className="ml-auto flex items-center gap-1">
         <LanguagePicker roomSlug={roomSlug} tabId={tab.id} value={tab.language} />
         <ViewModeToggle tabId={tab.id} />
+        <ExportMenu
+          options={[
+            {
+              label: "Download as .md",
+              onSelect: () => exportTextTab(tab, ytext.toString()),
+            },
+          ]}
+        />
       </div>
     </div>
   );

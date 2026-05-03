@@ -1,4 +1,5 @@
 import { initAuth } from "@/lib/auth";
+import { initSentry } from "@/lib/sentry";
 import { supabase } from "@/lib/supabase";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
@@ -6,6 +7,9 @@ import { createRoot } from "react-dom/client";
 import { routeTree } from "./routeTree.gen";
 import "./styles/fonts.css";
 import "./styles/globals.css";
+
+// Initialize Sentry as early as possible. No-op when VITE_SENTRY_DSN is unset.
+initSentry();
 
 const router = createRouter({ routeTree });
 

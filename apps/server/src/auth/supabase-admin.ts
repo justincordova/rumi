@@ -1,12 +1,20 @@
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
+// The global `Response` type drifts between bun-types and @types/node depending
+// on the dep resolution order. We only need .ok and .json() — assert minimal
+// shape locally.
+interface MinimalResponse {
+  ok: boolean;
+  json(): Promise<unknown>;
+}
+
 export async function lookupUserIdByEmail(email: string): Promise<string | null> {
   if (!env.SUPABASE_SERVICE_ROLE_KEY) return null;
   try {
     const origin = new URL(env.SUPABASE_JWT_ISSUER).origin;
     const lower = email.toLowerCase();
-    const res = await fetch(
+    const res = (await fetch(
       `${origin}/auth/v1/admin/users?per_page=100&filter=email.eq.${encodeURIComponent(lower)}`,
       {
         headers: {
@@ -14,7 +22,7 @@ export async function lookupUserIdByEmail(email: string): Promise<string | null>
           Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
         },
       },
-    );
+    )) as unknown as MinimalResponse;
     if (!res.ok) return null;
     const data = (await res.json()) as {
       users: Array<{ id: string; email?: string }>;
@@ -33,12 +41,12 @@ export async function getUserProfile(
   if (!env.SUPABASE_SERVICE_ROLE_KEY) return null;
   try {
     const origin = new URL(env.SUPABASE_JWT_ISSUER).origin;
-    const res = await fetch(`${origin}/auth/v1/admin/users/${userId}`, {
+    const res = (await fetch(`${origin}/auth/v1/admin/users/${userId}`, {
       headers: {
         apikey: env.SUPABASE_SERVICE_ROLE_KEY,
         Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
       },
-    });
+    })) as unknown as MinimalResponse;
     if (!res.ok) return null;
     const data = (await res.json()) as {
       email: string;

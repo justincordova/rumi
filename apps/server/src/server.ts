@@ -7,6 +7,7 @@ import { tabs as tabsTable } from "@/db/schema";
 import { env } from "@/lib/env";
 import { AppError, envelope } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { Sentry, initSentry } from "@/lib/sentry";
 import { notificationRoutes } from "@/notifications/routes";
 import { createNotificationsService } from "@/notifications/service";
 import { startPurgeScheduler } from "@/rooms/purge";
@@ -30,6 +31,9 @@ import {
 import { WebSocketServer } from "ws";
 
 export async function buildServer() {
+  // Initialize Sentry as early as possible. No-op when SENTRY_DSN is unset.
+  initSentry();
+
   const app = Fastify({
     // biome-ignore lint/suspicious/noExplicitAny: Fastify's loggerInstance type is overly strict; pino's Logger is compatible at runtime
     loggerInstance: logger as any,
@@ -162,6 +166,11 @@ export async function buildServer() {
       return reply.code(err.statusCode).send(envelope(err));
     }
     logger.error({ err, reqId: req.id, url: req.url, method: req.method }, "unhandled error");
+    if (env.SENTRY_DSN) {
+      Sentry.captureException(err, {
+        extra: { reqId: req.id, url: req.url, method: req.method },
+      });
+    }
     return reply.code(500).send(envelope(new AppError("server_error", "Internal error", 500)));
   });
 

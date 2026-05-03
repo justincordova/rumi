@@ -42,7 +42,13 @@ export function MarkdownTab({ ydoc, provider, tab, readOnly, roomSlug }: Props) 
 
   return (
     <div className="flex h-full flex-col">
-      <MarkdownToolbar tab={tab} readOnly={readOnly} viewRef={viewRef} roomSlug={roomSlug} />
+      <MarkdownToolbar
+        tab={tab}
+        readOnly={readOnly}
+        viewRef={viewRef}
+        roomSlug={roomSlug}
+        ytext={ytext}
+      />
       <div
         className={
           mode === "split"

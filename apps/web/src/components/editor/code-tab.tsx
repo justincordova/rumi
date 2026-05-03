@@ -1,7 +1,9 @@
+import { exportTextTab } from "@/lib/export-tab";
 import { LANGUAGES } from "@/lib/markdown/languages";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import type { TabSummary } from "@rumi/protocol";
 import type * as Y from "yjs";
+import { ExportMenu } from "./export-menu";
 import { LanguagePicker } from "./language-picker";
 import { TabCm } from "./tab-cm";
 
@@ -18,6 +20,7 @@ export function CodeTab({ ydoc, provider, tab, readOnly, roomSlug }: Props) {
   // Observe line count reactively via a simple state-derived calculation
   const lineCount = ytext.toString().split("\n").length;
   const langName = tab.language ? (LANGUAGES[tab.language]?.name ?? "Plain text") : "Plain text";
+  const ext = tab.language ? (LANGUAGES[tab.language]?.fileExtension ?? "txt") : "txt";
 
   return (
     <div className="flex h-full flex-col">
@@ -27,6 +30,14 @@ export function CodeTab({ ydoc, provider, tab, readOnly, roomSlug }: Props) {
         <span className="ml-auto text-[11px] text-muted-foreground tabular-nums">
           {lineCount} line{lineCount === 1 ? "" : "s"} · {langName}
         </span>
+        <ExportMenu
+          options={[
+            {
+              label: `Download as .${ext}`,
+              onSelect: () => exportTextTab(tab, ytext.toString()),
+            },
+          ]}
+        />
       </div>
       <div className="flex-1 min-h-0">
         <TabCm ydoc={ydoc} provider={provider} language={tab.language} readOnly={readOnly} />

@@ -1,13 +1,16 @@
 import { DrawingGrid, type GridStyle } from "@/lib/drawing/grid";
 import { useTldrawTheme } from "@/lib/drawing/theme";
 import { createYjsStore } from "@/lib/drawing/yjs-store";
+import { exportDrawingTab } from "@/lib/export-tab";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import type { Role, TabSummary } from "@rumi/protocol";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { type Editor, type TLUiOverrides, Tldraw } from "tldraw";
 import "tldraw/tldraw.css";
 import type * as Y from "yjs";
 import { EditorSkeleton } from "./editor-skeleton";
+import { ExportMenu } from "./export-menu";
 import { ReadOnlyPill } from "./read-only-pill";
 import { useTabDoc } from "./use-tab-doc";
 
@@ -28,17 +31,20 @@ const uiOverrides: TLUiOverrides = {
 export default function DrawingTab({ tab, role }: { tab: TabSummary; role?: Role | null }) {
   const { ydoc, provider, readOnly } = useTabDoc({ tabId: tab.id });
   if (!ydoc || !provider) return <EditorSkeleton />;
-  return <DrawingTabInner ydoc={ydoc} provider={provider} readOnly={readOnly} role={role} />;
+  return (
+    <DrawingTabInner tab={tab} ydoc={ydoc} provider={provider} readOnly={readOnly} role={role} />
+  );
 }
 
 interface InnerProps {
+  tab: TabSummary;
   ydoc: Y.Doc;
   provider: HocuspocusProvider;
   readOnly: boolean;
   role?: Role | null;
 }
 
-function DrawingTabInner({ ydoc, provider, readOnly, role }: InnerProps) {
+function DrawingTabInner({ tab, ydoc, provider, readOnly, role }: InnerProps) {
   const { theme } = useTldrawTheme();
   const editorRef = useRef<Editor | null>(null);
   const canManageBackground = role === "owner" || role === "admin";
@@ -114,6 +120,24 @@ function DrawingTabInner({ ydoc, provider, readOnly, role }: InnerProps) {
     });
   }, [gridState]);
 
+  const exportPng = useCallback(async () => {
+    if (!editorRef.current) return;
+    try {
+      await exportDrawingTab(editorRef.current, tab, "png");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't export drawing");
+    }
+  }, [tab]);
+
+  const exportSvg = useCallback(async () => {
+    if (!editorRef.current) return;
+    try {
+      await exportDrawingTab(editorRef.current, tab, "svg");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't export drawing");
+    }
+  }, [tab]);
+
   const tldrawComponents = useMemo(
     () => ({
       DebugPanel: null,
@@ -122,87 +146,98 @@ function DrawingTabInner({ ydoc, provider, readOnly, role }: InnerProps) {
       Grid: (props: { size: number; x: number; y: number; z: number }) => (
         <DrawingGrid {...props} style={gridState === "dots" ? "dots" : "lines"} />
       ),
-      InFrontOfTheCanvas: () =>
-        canManageBackground ? (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 12,
-              right: 12,
-              pointerEvents: "auto",
-            }}
-            className="flex items-center gap-0.5 rounded-lg border border-border bg-surface/90 backdrop-blur-sm p-0.5"
-          >
-            <GridButton
-              active={gridState === "off"}
-              onClick={() => setGridState("off")}
-              title="No grid"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
-                fill="none"
-                role="img"
-                aria-label="No grid"
-              >
-                <path
-                  d="M4.5 0v14M9.5 0v14M0 4.5h14M0 9.5h14"
-                  stroke="currentColor"
-                  strokeWidth="0.75"
-                  opacity="0.35"
-                />
-                <path
-                  d="M2 12L12 2"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </GridButton>
-            <GridButton
-              active={gridState === "lines"}
-              onClick={() => setGridState("lines")}
-              title="Line grid"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
-                fill="none"
-                role="img"
-                aria-label="Line grid"
-              >
-                <path
-                  d="M4.5 0v14M9.5 0v14M0 4.5h14M0 9.5h14"
-                  stroke="currentColor"
-                  strokeWidth="0.75"
-                />
-              </svg>
-            </GridButton>
-            <GridButton
-              active={gridState === "dots"}
-              onClick={() => setGridState("dots")}
-              title="Dot grid"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
-                fill="currentColor"
-                role="img"
-                aria-label="Dot grid"
-              >
-                <circle cx="4.5" cy="4.5" r="1" />
-                <circle cx="9.5" cy="4.5" r="1" />
-                <circle cx="4.5" cy="9.5" r="1" />
-                <circle cx="9.5" cy="9.5" r="1" />
-              </svg>
-            </GridButton>
+      InFrontOfTheCanvas: () => (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 12,
+            right: 12,
+            pointerEvents: "auto",
+          }}
+          className="flex items-center gap-2"
+        >
+          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface/90 backdrop-blur-sm p-0.5">
+            <ExportMenu
+              options={[
+                { label: "Export as PNG", onSelect: exportPng },
+                { label: "Export as SVG", onSelect: exportSvg },
+              ]}
+            />
           </div>
-        ) : null,
+          {canManageBackground ? (
+            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface/90 backdrop-blur-sm p-0.5">
+              <GridButton
+                active={gridState === "off"}
+                onClick={() => setGridState("off")}
+                title="No grid"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  role="img"
+                  aria-label="No grid"
+                >
+                  <path
+                    d="M4.5 0v14M9.5 0v14M0 4.5h14M0 9.5h14"
+                    stroke="currentColor"
+                    strokeWidth="0.75"
+                    opacity="0.35"
+                  />
+                  <path
+                    d="M2 12L12 2"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </GridButton>
+              <GridButton
+                active={gridState === "lines"}
+                onClick={() => setGridState("lines")}
+                title="Line grid"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  role="img"
+                  aria-label="Line grid"
+                >
+                  <path
+                    d="M4.5 0v14M9.5 0v14M0 4.5h14M0 9.5h14"
+                    stroke="currentColor"
+                    strokeWidth="0.75"
+                  />
+                </svg>
+              </GridButton>
+              <GridButton
+                active={gridState === "dots"}
+                onClick={() => setGridState("dots")}
+                title="Dot grid"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  fill="currentColor"
+                  role="img"
+                  aria-label="Dot grid"
+                >
+                  <circle cx="4.5" cy="4.5" r="1" />
+                  <circle cx="9.5" cy="4.5" r="1" />
+                  <circle cx="4.5" cy="9.5" r="1" />
+                  <circle cx="9.5" cy="9.5" r="1" />
+                </svg>
+              </GridButton>
+            </div>
+          ) : null}
+        </div>
+      ),
     }),
-    [gridState, canManageBackground, setGridState],
+    [gridState, canManageBackground, setGridState, exportPng, exportSvg],
   );
 
   if (!synced) return <EditorSkeleton />;

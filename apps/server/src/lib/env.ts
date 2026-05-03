@@ -23,10 +23,16 @@ const envSchema = z
     EMAIL_FROM: z.string().default("Rumi <noreply@mail.rumi.app>"),
     UNSUBSCRIBE_HMAC_SECRET: z.string().min(32).optional(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+    SENTRY_DSN: z.string().url().optional(),
   })
   .refine((d) => !d.RESEND_API_KEY || d.UNSUBSCRIBE_HMAC_SECRET, {
     message: "UNSUBSCRIBE_HMAC_SECRET is required when RESEND_API_KEY is set",
     path: ["UNSUBSCRIBE_HMAC_SECRET"],
+  })
+  .refine((d) => d.NODE_ENV !== "production" || d.SUPABASE_SERVICE_ROLE_KEY, {
+    message:
+      "SUPABASE_SERVICE_ROLE_KEY is required in production (whitelist invitee notifications, kick auto-blacklist, member email lookups all silently no-op without it)",
+    path: ["SUPABASE_SERVICE_ROLE_KEY"],
   });
 
 const parsed = envSchema.safeParse(process.env);
@@ -46,5 +52,23 @@ export type Env = typeof env;
 if (env.NODE_ENV === "production" && env.WEB_URL.includes("localhost")) {
   console.warn(
     "WARNING: WEB_URL contains 'localhost' in production — emails will contain broken links.",
+  );
+}
+
+// Dev-only: warn if features that depend on the service role key will silently
+// no-op. In production this is enforced as a hard requirement above.
+if (env.NODE_ENV !== "production" && !env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn(
+    "WARNING: SUPABASE_SERVICE_ROLE_KEY is not set. The following features will silently no-op:\n" +
+      "  - whitelist invitee in-app notifications\n" +
+      "  - member email lookup for kick auto-blacklist\n" +
+      "  - member dedup by email when adding to whitelist\n" +
+      "  - user profile lookups for transfer ownership and member list",
+  );
+}
+
+if (env.NODE_ENV === "production" && !env.RESEND_API_KEY) {
+  console.warn(
+    "WARNING: RESEND_API_KEY is not set in production. Transactional emails (access granted, invite accepted) will be logged to stdout instead of delivered.",
   );
 }

@@ -33,15 +33,21 @@ function PrefsBridge({ children }: { children: ReactNode }) {
   return children;
 }
 
+// next-themes' `ThemeProviderProps extends React.PropsWithChildren` but the
+// type-resolution chain in this monorepo (mixed @types/react versions in the
+// dep tree) loses the children prop. Cast around it.
+// biome-ignore lint/suspicious/noExplicitAny: cross-package type drift workaround
+const TypedNextThemesProvider = NextThemesProvider as any;
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
-    <NextThemesProvider
+    <TypedNextThemesProvider
       attribute="data-theme"
       defaultTheme="dark"
       enableSystem
       disableTransitionOnChange
     >
       <PrefsBridge>{children}</PrefsBridge>
-    </NextThemesProvider>
+    </TypedNextThemesProvider>
   );
 }

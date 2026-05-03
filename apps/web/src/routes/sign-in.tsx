@@ -2,8 +2,17 @@ import logoT from "@/assets/logos/logo-t.png";
 import { Button } from "@/components/ui/button";
 import { signInWithProvider } from "@/lib/auth";
 import { createFileRoute } from "@tanstack/react-router";
-import { FaGithub } from "react-icons/fa6";
-import { FcGoogle } from "react-icons/fc";
+import { FaGithub as FaGithubRaw } from "react-icons/fa6";
+import { FcGoogle as FcGoogleRaw } from "react-icons/fc";
+
+// react-icons' IconBaseProps extends React.SVGAttributes<SVGElement> but the
+// type-resolution chain in this monorepo (mixed @types/react versions) loses
+// the className prop. Re-type with a simple SVG-attributes shape.
+type IconProps = { className?: string };
+// biome-ignore lint/suspicious/noExplicitAny: cross-package type drift workaround
+const FaGithub = FaGithubRaw as unknown as (props: IconProps) => any;
+// biome-ignore lint/suspicious/noExplicitAny: cross-package type drift workaround
+const FcGoogle = FcGoogleRaw as unknown as (props: IconProps) => any;
 
 export const Route = createFileRoute("/sign-in")({
   component: SignInPage,
