@@ -125,7 +125,10 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => setVisibility(opt.value)}
+                    onClick={() => {
+                      setVisibility(opt.value);
+                      if (opt.value === "private") setGuestAccess("none");
+                    }}
                     className={`flex flex-1 items-center justify-center gap-1.5 rounded-md text-[13px] font-medium transition-all duration-150 ${
                       active
                         ? "bg-surface text-foreground shadow-xs"
@@ -140,39 +143,43 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
             </div>
             <p className="text-[12px] text-muted-foreground/60 leading-snug">{activeDesc}</p>
 
-            <div className="pt-1">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-[12px] font-medium text-muted-foreground">Guest access</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                {GUEST_ACCESS_OPTIONS.map((opt) => {
-                  const active = guestAccess === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setGuestAccess(opt.value)}
-                      className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      <span
-                        className={`h-3.5 w-3.5 shrink-0 rounded-full border flex items-center justify-center ${
-                          active ? "border-primary" : "border-muted-foreground/40"
+            {visibility === "open" && (
+              <div className="pt-1">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-[12px] font-medium text-muted-foreground">
+                    Guest access
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  {GUEST_ACCESS_OPTIONS.map((opt) => {
+                    const active = guestAccess === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setGuestAccess(opt.value)}
+                        className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors ${
+                          active
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
                         }`}
                       >
-                        {active && <span className="h-1.5 w-1.5 rounded-full bg-primary block" />}
-                      </span>
-                      <span className="font-medium">{opt.label}</span>
-                      <span className="ml-auto text-[11px] opacity-60">{opt.desc}</span>
-                    </button>
-                  );
-                })}
+                        <span
+                          className={`h-3.5 w-3.5 shrink-0 rounded-full border flex items-center justify-center ${
+                            active ? "border-primary" : "border-muted-foreground/40"
+                          }`}
+                        >
+                          {active && <span className="h-1.5 w-1.5 rounded-full bg-primary block" />}
+                        </span>
+                        <span className="font-medium">{opt.label}</span>
+                        <span className="ml-auto text-[11px] opacity-60">{opt.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="border-t border-border px-5 py-3 flex justify-end">
