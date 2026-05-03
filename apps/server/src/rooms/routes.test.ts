@@ -3,12 +3,26 @@ import { beforeAll, describe, expect, it, mock } from "bun:test";
 // Mock DB client before loading server to avoid real DB connection
 mock.module("@/db/client", () => ({ db: {}, closeDb: async () => {} }));
 
-// Mock JWKS before auth modules load
 mock.module("jose", () => ({
   createRemoteJWKSet: mock(() => "mock-jwks"),
   jwtVerify: mock(async () => ({
     payload: { sub: "user-id", email: "user@example.com" },
   })),
+}));
+
+mock.module("@/lib/env", () => ({
+  env: {
+    NODE_ENV: "test",
+    LOG_LEVEL: "info",
+    PORT: 3000,
+    DATABASE_URL: "postgresql://test:test@localhost:5432/test",
+    SUPABASE_JWKS_URL: "https://test.supabase.co/auth/v1/.well-known/jwks.json",
+    SUPABASE_JWT_ISSUER: "https://test.supabase.co/auth/v1",
+    SUPABASE_JWT_AUDIENCE: "authenticated",
+    WEB_ORIGIN: "http://localhost:5173",
+    WEB_URL: "http://localhost:5173",
+    PUBLIC_API_URL: "http://localhost:3000",
+  },
 }));
 
 const { buildServer } = await import("@/server");

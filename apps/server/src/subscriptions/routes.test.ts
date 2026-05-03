@@ -18,6 +18,21 @@ mock.module("jose", () => ({
   })),
 }));
 
+mock.module("@/lib/env", () => ({
+  env: {
+    NODE_ENV: "test",
+    LOG_LEVEL: "info",
+    PORT: 3000,
+    DATABASE_URL: "postgresql://test:test@localhost:5432/test",
+    SUPABASE_JWKS_URL: "https://test.supabase.co/auth/v1/.well-known/jwks.json",
+    SUPABASE_JWT_ISSUER: "https://test.supabase.co/auth/v1",
+    SUPABASE_JWT_AUDIENCE: "authenticated",
+    WEB_ORIGIN: "http://localhost:5173",
+    WEB_URL: "http://localhost:5173",
+    PUBLIC_API_URL: "http://localhost:3000",
+  },
+}));
+
 const { buildServer } = await import("@/server");
 
 let app: Awaited<ReturnType<typeof buildServer>>;
