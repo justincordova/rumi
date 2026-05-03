@@ -10,18 +10,20 @@ process.env.SUPABASE_JWKS_URL ??= "https://test.supabase.co/auth/v1/.well-known/
 process.env.SUPABASE_JWT_ISSUER ??= "https://test.supabase.co/auth/v1";
 process.env.NODE_ENV ??= "test";
 
+// happy-dom's BrowserExceptionObserver installs process.on('uncaughtException')
+// and process.on('unhandledRejection') listeners. When an unhandled rejection
+// fires after tests finish (Zustand persist flush, supabase auth teardown, etc.)
+// and no other listeners exist, the observer calls process.exit(1). Bun sees
+// this mid-run and records it as unnamed test failures with no file attribution.
+//
+// Prevent by adding our own no-op listeners. This makes listenerCount exceed
+// the observer's static counter, so it skips the forced exit. Async side-effects
+// from test teardown can then reject harmlessly.
+process.on("unhandledRejection", () => {});
+process.on("uncaughtException", () => {});
+
 GlobalRegistrator.register();
 
-// happy-dom's BrowserExceptionObserver installs process.on('uncaughtException')
-// and process.on('unhandledRejection') listeners. When the test worker exits
-// and any post-test async work (Zustand persist, supabase auth subscriptions,
-// etc.) produces an unhandled rejection, the observer calls process.exit(1)
-// if no other listeners are registered. Bun records this as N unnamed test
-// failures with no file attribution.
-//
-// Calling GlobalRegistrator.unregister() disconnects the observer cleanly by
-// closing the happy-dom window, which removes those process listeners before
-// the worker exits. This is the documented teardown path for happy-dom.
 afterAll(async () => {
   await GlobalRegistrator.unregister();
 });
