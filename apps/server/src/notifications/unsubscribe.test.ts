@@ -1,10 +1,24 @@
 import { describe, expect, it, mock } from "bun:test";
 
+// Bun's `mock.module` replaces the module globally and persists across test
+// files in the same process. ESM live bindings mean any later read of `env`
+// from `@/lib/env` (e.g. inside cached `@/server`) sees this mock object.
+// So the env mock here MUST contain every field that any other module reads
+// at runtime — otherwise downstream tests that import `@/server` will see
+// `env.SUPABASE_JWT_ISSUER === undefined` and crash when constructing URLs.
 mock.module("@/lib/env", () => ({
   env: {
-    UNSUBSCRIBE_HMAC_SECRET: "test-secret-that-is-at-least-32-chars!!",
+    NODE_ENV: "test",
+    LOG_LEVEL: "info",
+    PORT: 3000,
+    DATABASE_URL: "postgresql://test:test@localhost:5432/test",
+    SUPABASE_JWKS_URL: "https://test.supabase.co/auth/v1/.well-known/jwks.json",
+    SUPABASE_JWT_ISSUER: "https://test.supabase.co/auth/v1",
+    SUPABASE_JWT_AUDIENCE: "authenticated",
+    WEB_ORIGIN: "http://localhost:5173",
     WEB_URL: "http://localhost:5173",
     PUBLIC_API_URL: "http://localhost:3000",
+    UNSUBSCRIBE_HMAC_SECRET: "test-secret-that-is-at-least-32-chars!!",
   },
 }));
 

@@ -33,6 +33,9 @@ mock.module("@/billing/stripe", () => ({
   isStripeConfigured: () => true,
 }));
 
+// `mock.module` replaces the module globally and persists across test files.
+// Must include every env field read elsewhere — otherwise later tests
+// importing the cached server module see undefined values via ESM live bindings.
 mock.module("@/lib/env", () => ({
   env: {
     NODE_ENV: "test",
@@ -44,6 +47,7 @@ mock.module("@/lib/env", () => ({
     SUPABASE_JWT_AUDIENCE: "authenticated",
     WEB_ORIGIN: "http://localhost:5173",
     WEB_URL: "http://localhost:5173",
+    PUBLIC_API_URL: "http://localhost:3000",
     STRIPE_WEBHOOK_SECRET: "whsec_test",
   },
 }));

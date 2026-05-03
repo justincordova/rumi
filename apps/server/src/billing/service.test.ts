@@ -48,11 +48,22 @@ mock.module("@/billing/stripe", () => ({
   isStripeConfigured: () => true,
 }));
 
+// `mock.module` replaces the module globally and persists across test files.
+// Must include every env field read elsewhere (e.g. SUPABASE_JWT_ISSUER read
+// by `@/server`) — otherwise later tests importing the cached server module
+// see undefined values via ESM live bindings.
 mock.module("@/lib/env", () => ({
   env: {
     NODE_ENV: "test",
     LOG_LEVEL: "info",
+    PORT: 3000,
+    DATABASE_URL: "postgresql://test:test@localhost:5432/test",
+    SUPABASE_JWKS_URL: "https://test.supabase.co/auth/v1/.well-known/jwks.json",
+    SUPABASE_JWT_ISSUER: "https://test.supabase.co/auth/v1",
+    SUPABASE_JWT_AUDIENCE: "authenticated",
+    WEB_ORIGIN: "http://localhost:5173",
     WEB_URL: "http://localhost:5173",
+    PUBLIC_API_URL: "http://localhost:3000",
     STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
     STRIPE_PRICE_PRO_YEARLY: "price_pro_yearly",
     STRIPE_PRICE_MAX_MONTHLY: "price_max_monthly",
