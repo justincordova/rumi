@@ -7,6 +7,11 @@ import { type CacheEntry, type Status, acquireDoc, releaseDoc } from "./yjs-doc-
 export function useTabDoc({ tabId }: { tabId: string }) {
   const token = useSession((s) => s.token) ?? getGuestId();
   const user = useSession((s) => s.user);
+  // Keep a stable ref to the latest user so the acquire effect can read it
+  // without re-running when user changes.
+  const userRef = useRef(user);
+  userRef.current = user;
+
   const [status, setStatus] = useState<Status>("connecting");
   const [readOnly, setReadOnly] = useState(false);
   const entryRef = useRef<CacheEntry | null>(null);
@@ -20,6 +25,9 @@ export function useTabDoc({ tabId }: { tabId: string }) {
     const onReadOnly = (r: boolean) => setReadOnly(r);
     const entry = acquireDoc({ key, documentName: tabId, token, onStatus, onReadOnly });
     entryRef.current = entry;
+    // Set awareness immediately on provider creation so it's available before
+    // the first awareness broadcast.
+    entry.provider.awareness?.setLocalState(buildLocalAwareness(userRef.current, getGuestId()));
     setNonce((n) => n + 1);
     return () => {
       releaseDoc({ key, onStatus, onReadOnly });

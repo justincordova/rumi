@@ -6,6 +6,11 @@ import { type CacheEntry, type Status, acquireDoc, releaseDoc } from "./yjs-doc-
 
 export function useRoomControlDoc({ roomId, token: tokenProp }: { roomId: string; token: string }) {
   const user = useSession((s) => s.user);
+  // Keep a stable ref to the latest user so the acquire effect can read it
+  // without re-running when user changes.
+  const userRef = useRef(user);
+  userRef.current = user;
+
   const [status, setStatus] = useState<Status>("connecting");
   const [readOnly, setReadOnly] = useState(false);
   const entryRef = useRef<CacheEntry | null>(null);
@@ -24,6 +29,8 @@ export function useRoomControlDoc({ roomId, token: tokenProp }: { roomId: string
       onReadOnly,
     });
     entryRef.current = entry;
+    // Set awareness immediately so it's available as soon as the provider connects.
+    entry.provider.awareness?.setLocalState(buildLocalAwareness(userRef.current, getGuestId()));
     setNonce((n) => n + 1);
     return () => {
       releaseDoc({ key, onStatus, onReadOnly });
@@ -31,6 +38,7 @@ export function useRoomControlDoc({ roomId, token: tokenProp }: { roomId: string
     };
   }, [roomId, tokenProp]);
 
+  // Also update awareness when the user identity changes (e.g. after sign-in).
   useEffect(() => {
     entryRef.current?.provider.awareness?.setLocalState(buildLocalAwareness(user, getGuestId()));
   }, [user]);
