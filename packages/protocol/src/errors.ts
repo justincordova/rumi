@@ -17,6 +17,8 @@ export const ErrorCode = z.enum([
   "webhook_signature_invalid",
   "invalid_plan",
   "invalid_state",
+  "supabase_admin_unavailable",
+  "ownership_transfer_required",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

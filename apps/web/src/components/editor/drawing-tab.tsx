@@ -1,3 +1,4 @@
+import { bindCursorPresence } from "@/lib/drawing/cursor-presence";
 import { DrawingGrid, type GridStyle } from "@/lib/drawing/grid";
 import { useTldrawTheme } from "@/lib/drawing/theme";
 import { createYjsStore } from "@/lib/drawing/yjs-store";
@@ -269,7 +270,12 @@ function DrawingTabInner({ tab, ydoc, provider, readOnly, role }: InnerProps) {
             },
             zoomSteps: [0.25, 0.5, 1, 2, 4],
           });
-          return bind(editor);
+          const unbindStore = bind(editor);
+          const unbindCursors = bindCursorPresence({ editor, provider, readOnly });
+          return () => {
+            unbindCursors();
+            unbindStore();
+          };
         }}
       />
       {readOnly && <ReadOnlyPill />}

@@ -8,6 +8,8 @@ export class ApiError extends Error {
     public code: string,
     message: string,
     public status: number,
+    /** Full parsed response body (envelope + any extra fields the server returned). */
+    public body?: unknown,
   ) {
     super(message);
   }
@@ -44,7 +46,7 @@ export async function apiFetch<T>(path: string, opts: FetchOpts = {}): Promise<T
   const json = await res.json();
   if (!res.ok) {
     const body = json as ErrorEnvelope;
-    throw new ApiError(body.error.code, body.error.message, res.status);
+    throw new ApiError(body.error.code, body.error.message, res.status, json);
   }
   return json as T;
 }

@@ -18,7 +18,12 @@ import { linkProvider, signOut, useSession } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { usePrefs } from "@/lib/prefs";
 import { useSubscriptionStore } from "@/stores/subscription";
-import type { PortalResponse } from "@rumi/protocol";
+import type {
+  DeleteAccountBlockedResponse,
+  DeleteAccountResponse,
+  PortalResponse,
+  UpdateAccountResponse,
+} from "@rumi/protocol";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Check,
@@ -238,10 +243,6 @@ function NotificationsSection() {
               onChange={(v) => update({ inviteAcceptedEmail: v })}
             />
           </div>
-          <div className="pt-2 border-t border-border space-y-2">
-            <ToggleRow label="Desktop notifications" checked={false} disabled onChange={() => {}} />
-            <p className="text-[11px] text-muted-foreground">Coming soon</p>
-          </div>
         </div>
       )}
     </section>
@@ -270,12 +271,33 @@ function AccountTab() {
 
 function ProfileSection() {
   const { user } = useSession();
+  const setSession = useSession((s) => s._set);
   const [name, setName] = useState(user?.displayName ?? "");
+  const [saving, setSaving] = useState(false);
 
-  function commit() {
+  async function commit() {
     const trimmed = name.trim();
-    if (trimmed && trimmed !== user?.displayName) {
-      toast.info("Coming soon");
+    if (!trimmed || trimmed === user?.displayName) return;
+    if (trimmed.length > 80) {
+      toast.error("Display name must be 80 characters or fewer");
+      setName(user?.displayName ?? "");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await apiFetch<UpdateAccountResponse>("/api/account", {
+        method: "PATCH",
+        body: { displayName: trimmed },
+      });
+      if (user) {
+        setSession({ user: { ...user, displayName: res.user.displayName } });
+      }
+      toast.success("Display name updated");
+    } catch {
+      toast.error("Couldn't update display name");
+      setName(user?.displayName ?? "");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -295,9 +317,11 @@ function ProfileSection() {
             onChange={(e) => setName(e.target.value)}
             onBlur={commit}
             onKeyDown={(e) => {
-              if (e.key === "Enter") commit();
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             }}
+            disabled={saving}
             className="max-w-sm"
+            maxLength={80}
           />
         </div>
         <div>
@@ -417,6 +441,34 @@ function LinkedAccountsSection() {
 function DangerZoneSection() {
   const [confirmText, setConfirmText] = useState("");
   const [open, setOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [blockingRooms, setBlockingRooms] = useState<
+    DeleteAccountBlockedResponse["error"]["rooms"] | null
+  >(null);
+  const navigate = useNavigate();
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await apiFetch<DeleteAccountResponse>("/api/account", { method: "DELETE" });
+      toast.success("Account deleted");
+      await signOut();
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "ownership_transfer_required") {
+        const body = err.body as DeleteAccountBlockedResponse | undefined;
+        const list = body?.error.rooms ?? [];
+        setBlockingRooms(list);
+        toast.error(
+          `Transfer ownership of ${list.length} ${
+            list.length === 1 ? "room" : "rooms"
+          } before deleting your account.`,
+        );
+      } else {
+        toast.error("Couldn't delete account. Try again or contact support.");
+      }
+      setDeleting(false);
+    }
+  }
 
   return (
     <section className="border border-destructive/30 rounded-xl p-5 space-y-3">
@@ -425,8 +477,36 @@ function DangerZoneSection() {
         <h2 className="text-[15px] font-semibold text-destructive">Delete account</h2>
       </div>
       <p className="text-[13px] text-muted-foreground">
-        Permanently delete your account and all associated data. This cannot be undone.
+        Permanently delete your account and all associated data. Rooms with other members require
+        ownership transfer first. Solo-owned rooms move to trash and are purged after 30 days.
       </p>
+      {blockingRooms && blockingRooms.length > 0 && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+          <p className="text-[13px] font-medium text-destructive">
+            Transfer ownership before deleting:
+          </p>
+          <ul className="space-y-1">
+            {blockingRooms.map((r) => (
+              <li key={r.slug} className="text-[13px]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    void navigate({
+                      to: "/r/$slug",
+                      params: { slug: r.slug },
+                      search: { tab: undefined },
+                    });
+                  }}
+                  className="text-primary hover:underline underline-offset-2"
+                >
+                  {r.name ?? r.slug}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogTrigger asChild>
           <Button variant="destructive" size="sm">
@@ -437,8 +517,9 @@ function DangerZoneSection() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete account</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. All your rooms, tabs, and data will be permanently
-              deleted.
+              This action cannot be undone. Your account, notification preferences, and membership
+              in shared rooms will be removed. Rooms you solely own will be moved to trash and
+              purged after 30 days.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
@@ -453,17 +534,22 @@ function DangerZoneSection() {
             />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmText("")}>Cancel</AlertDialogCancel>
-            <Button
-              variant="destructive"
-              disabled={confirmText !== "DELETE"}
+            <AlertDialogCancel
               onClick={() => {
-                toast.info("Coming soon");
                 setConfirmText("");
-                setOpen(false);
+                setBlockingRooms(null);
               }}
             >
-              Delete account
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={confirmText !== "DELETE" || deleting}
+              onClick={() => {
+                void handleDelete();
+              }}
+            >
+              {deleting ? "Deleting…" : "Delete account"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

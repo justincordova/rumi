@@ -1,6 +1,8 @@
 export interface AwarenessPayloadClient {
   display_name?: string;
   avatar_url?: string | null;
+  /** Drawing-tab pointer position. Omitted on non-drawing tabs and when read-only. */
+  cursor?: { x: number; y: number; pageId: string };
 }
 
 export interface AwarenessPayloadServer extends AwarenessPayloadClient {

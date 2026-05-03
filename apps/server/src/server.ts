@@ -1,3 +1,4 @@
+import { accountRoutes } from "@/account/routes";
 import authPlugin from "@/auth/plugin";
 import { getUserProfile, lookupUserIdByEmail } from "@/auth/supabase-admin";
 import { billingRoutes } from "@/billing/routes";
@@ -158,6 +159,7 @@ export async function buildServer() {
   await app.register(billingRoutes, { prefix: "/api/billing" });
   await app.register(webhookRoutes, { prefix: "/api/billing" });
   await app.register(notificationRoutes, { prefix: "/api/notifications" });
+  await app.register(accountRoutes, { prefix: "/api/account" });
 
   app.get("/health", async () => ({ status: "ok", uptime: process.uptime() }));
 

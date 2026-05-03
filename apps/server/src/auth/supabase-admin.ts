@@ -65,3 +65,54 @@ export async function getUserProfile(
     return null;
   }
 }
+
+/**
+ * Update a Supabase user's `user_metadata`. Returns true on success, false if
+ * the service-role key isn't configured or the update fails.
+ */
+export async function updateUserMetadata(
+  userId: string,
+  metadata: Record<string, unknown>,
+): Promise<boolean> {
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) return false;
+  try {
+    const origin = new URL(env.SUPABASE_JWT_ISSUER).origin;
+    const res = (await fetch(`${origin}/auth/v1/admin/users/${userId}`, {
+      method: "PUT",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ user_metadata: metadata }),
+      // biome-ignore lint/suspicious/noExplicitAny: see MinimalResponse comment above
+    } as any)) as unknown as MinimalResponse;
+    return res.ok;
+  } catch (err) {
+    logger.warn({ err, userId }, "supabase admin metadata update failed");
+    return false;
+  }
+}
+
+/**
+ * Delete a Supabase user. Returns true on success or if the user is already
+ * gone, false if the service-role key isn't configured or the delete fails.
+ */
+export async function deleteUser(userId: string): Promise<boolean> {
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) return false;
+  try {
+    const origin = new URL(env.SUPABASE_JWT_ISSUER).origin;
+    const res = (await fetch(`${origin}/auth/v1/admin/users/${userId}`, {
+      method: "DELETE",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      // biome-ignore lint/suspicious/noExplicitAny: see MinimalResponse comment above
+    } as any)) as unknown as MinimalResponse;
+    return res.ok;
+  } catch (err) {
+    logger.warn({ err, userId }, "supabase admin delete failed");
+    return false;
+  }
+}
