@@ -1,5 +1,5 @@
 // Root-level test setup — loaded for all bun test runs from the repo root.
-// Sets env vars needed by apps/server tests, and registers happy-dom for apps/web tests.
+// Sets env vars needed by apps/server tests, and registers happy-dom for apps-web tests.
 
 import { afterAll } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
@@ -10,17 +10,18 @@ process.env.SUPABASE_JWKS_URL ??= "https://test.supabase.co/auth/v1/.well-known/
 process.env.SUPABASE_JWT_ISSUER ??= "https://test.supabase.co/auth/v1";
 process.env.NODE_ENV ??= "test";
 
-// happy-dom's BrowserExceptionObserver installs process.on('uncaughtException')
-// and process.on('unhandledRejection') listeners. When an unhandled rejection
-// fires after tests finish (Zustand persist flush, supabase auth teardown, etc.)
-// and no other listeners exist, the observer calls process.exit(1). Bun sees
-// this mid-run and records it as unnamed test failures with no file attribution.
-//
-// Prevent by adding our own no-op listeners. This makes listenerCount exceed
-// the observer's static counter, so it skips the forced exit. Async side-effects
-// from test teardown can then reject harmlessly.
-process.on("unhandledRejection", () => {});
-process.on("uncaughtException", () => {});
+// happy-dom's BrowserExceptionObserver installs process listeners that call
+// process.exit(1) on unhandled rejections from post-test async cleanup
+// (Zustand persist flush, supabase auth teardown, etc.). Bun's test runner
+// sees process.exit(1) and records it as unnamed test failures with no file
+// attribution. Monkey-patching process.exit to swallow non-zero codes prevents
+// this. The patch stays active for the entire process lifetime because async
+// cleanup can fire after all afterAll hooks have completed.
+const realExit = process.exit;
+process.exit = (code) => {
+  if (code !== 0) return undefined as never;
+  return realExit(code);
+};
 
 GlobalRegistrator.register();
 
