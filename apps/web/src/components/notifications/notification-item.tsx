@@ -2,6 +2,11 @@ import type { Notification } from "@rumi/protocol";
 import { useRouter } from "@tanstack/react-router";
 import { MailOpen, UserPlus } from "lucide-react";
 
+// `invite_received` is a legacy type. The server's auto-upgrade shim in
+// notifications/routes.ts maps it to `room_access_granted` before
+// serialization, so this component never receives it. Branches that reference
+// it have been removed.
+
 function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
@@ -26,10 +31,10 @@ export function NotificationItem({ notification, onRead }: NotificationItemProps
   const slug = "roomSlug" in payload ? payload.roomSlug : null;
 
   function getSummary() {
-    if (type === "invite_received" && "invitedBy" in payload) {
-      const name = payload.invitedBy.displayName ?? "Someone";
+    if (type === "room_access_granted" && "grantedBy" in payload) {
+      const name = payload.grantedBy.displayName ?? "Someone";
       const room = payload.roomName ?? payload.roomSlug;
-      return `${name} invited you to "${room}"`;
+      return `${name} gave you access to "${room}"`;
     }
     if (type === "invite_accepted" && "accepterName" in payload) {
       const name = payload.accepterName ?? "Someone";
@@ -53,7 +58,7 @@ export function NotificationItem({ notification, onRead }: NotificationItemProps
       className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors hover:bg-muted/60 ${isUnread ? "bg-muted/30" : ""}`}
     >
       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
-        {type === "invite_received" ? (
+        {type === "room_access_granted" ? (
           <UserPlus className="h-3.5 w-3.5 text-foreground/70" />
         ) : (
           <MailOpen className="h-3.5 w-3.5 text-foreground/70" />

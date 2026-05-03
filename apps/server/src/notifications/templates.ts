@@ -11,6 +11,13 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+/** Strip everything that breaks an HTML attribute. URLs go straight into
+ *  href="..." so an unescaped quote could end the attribute and inject
+ *  arbitrary HTML. Defense-in-depth — current inputs are server-controlled. */
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
 function sanitizeSubject(s: string): string {
   return s.replace(/[\r\n]/g, "");
 }
@@ -29,8 +36,9 @@ function renderHtml(opts: {
   ctaLabel: string;
   unsubChanUrl: string | null;
 }) {
+  const ctaUrl = escapeAttr(opts.ctaUrl);
   const unsubSection = opts.unsubChanUrl
-    ? `<a href="${opts.unsubChanUrl}" style="color:#6b7280">Unsubscribe from these emails</a>.`
+    ? `<a href="${escapeAttr(opts.unsubChanUrl)}" style="color:#6b7280">Unsubscribe from these emails</a>.`
     : "";
   return `<!doctype html>
 <html lang="en">
@@ -40,7 +48,7 @@ function renderHtml(opts: {
     <tr><td style="padding:32px 40px">
       <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#111827">${opts.heading}</h1>
       <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#374151">${opts.body}</p>
-      <a href="${opts.ctaUrl}" style="display:inline-block;padding:12px 24px;background:#111827;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500">${opts.ctaLabel}</a>
+      <a href="${ctaUrl}" style="display:inline-block;padding:12px 24px;background:#111827;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500">${opts.ctaLabel}</a>
       <hr style="margin:32px 0;border:none;border-top:1px solid #e5e7eb">
       <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.5">
         You received this because you have email notifications enabled.

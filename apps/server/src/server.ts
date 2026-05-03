@@ -46,19 +46,12 @@ export async function buildServer() {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  const supabaseOrigin = new URL(env.SUPABASE_JWT_ISSUER).origin;
-  const wsOrigins = env.WS_PUBLIC_ORIGIN ? [env.WS_PUBLIC_ORIGIN] : [];
-
-  await app.register(helmet, {
-    contentSecurityPolicy: {
-      directives: {
-        "default-src": ["'self'"],
-        "script-src": ["'self'", "'unsafe-inline'"], // anti-flash inline script
-        "connect-src": ["'self'", supabaseOrigin, ...wsOrigins],
-        "img-src": ["'self'", "data:", "https:"],
-      },
-    },
-  });
+  // The API serves JSON only — no HTML response that would benefit from a
+  // script-src/style-src policy. Helmet's other defaults (X-Frame-Options,
+  // Strict-Transport-Security, X-Content-Type-Options, Referrer-Policy) are
+  // useful here, but a CSP on a JSON API is just visual noise that requires
+  // 'unsafe-inline' anyway. CSP belongs on the web app.
+  await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: env.WEB_ORIGIN, credentials: false });
   await app.register(rateLimit, { max: 200, timeWindow: "1 minute" });
   await app.register(formbody);

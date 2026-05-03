@@ -41,7 +41,13 @@ async function resolveSubscriptionFromEvent(
     const invoice = event.data.object as Stripe.Invoice;
     // In Stripe SDK v22 (API dahlia), subscription info is nested under invoice.parent.subscription_details
     const subRef = invoice.parent?.subscription_details?.subscription;
-    if (!subRef) return null;
+    if (!subRef) {
+      // The nested path is correct for Stripe SDK v22; surfacing this lets us
+      // detect SDK drift early. If you see this log after upgrading the SDK,
+      // re-check the invoice→subscription path.
+      logger.warn({ eventId: event.id }, "invoice.paid: subscription path not found, skipping");
+      return null;
+    }
     const subId = typeof subRef === "string" ? subRef : subRef.id;
     return stripe.subscriptions.retrieve(subId);
   }
