@@ -32,8 +32,12 @@ const envSchema = z
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error("Invalid environment variables:", parsed.error.flatten().fieldErrors);
-  process.exit(1);
+  const errors = parsed.error.flatten().fieldErrors;
+  console.error("Invalid environment variables:", errors);
+  // process.exit kills the Bun test worker and produces unnamed test failures
+  // with no source attribution. Throw instead so the error is reported
+  // against the actual file that triggered the import.
+  throw new Error(`Invalid environment variables: ${JSON.stringify(errors)}`);
 }
 
 export const env = parsed.data;
