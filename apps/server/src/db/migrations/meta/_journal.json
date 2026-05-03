@@ -57,6 +57,13 @@
       "when": 1777531715927,
       "tag": "0007_room_whitelist_blacklist",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1777618115928,
+      "tag": "0008_pre_launch_hardening",
+      "breakpoints": true
     }
   ]
 }

@@ -7,38 +7,50 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const rooms = pgTable("rooms", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  slug: text("slug").notNull().unique(),
-  name: text("name"),
-  ownerId: uuid("owner_id").notNull(),
-  visibility: text("visibility", { enum: ["open", "private"] })
-    .notNull()
-    .default("open"),
-  guestAccess: text("guest_access", { enum: ["none", "view", "edit"] })
-    .notNull()
-    .default("none"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  deletedAt: timestamp("deleted_at", { withTimezone: true }),
-});
+export const rooms = pgTable(
+  "rooms",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull().unique(),
+    name: text("name"),
+    ownerId: uuid("owner_id").notNull(),
+    visibility: text("visibility", { enum: ["open", "private"] })
+      .notNull()
+      .default("open"),
+    guestAccess: text("guest_access", { enum: ["none", "view", "edit"] })
+      .notNull()
+      .default("none"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [index("rooms_owner_id_idx").on(t.ownerId)],
+);
 
-export const roomMembers = pgTable("room_members", {
-  roomId: uuid("room_id")
-    .notNull()
-    .references(() => rooms.id, { onDelete: "cascade" }),
-  userId: uuid("user_id").notNull(),
-  role: text("role", { enum: ["owner", "admin", "member"] })
-    .notNull()
-    .default("member"),
-  joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const roomMembers = pgTable(
+  "room_members",
+  {
+    roomId: uuid("room_id")
+      .notNull()
+      .references(() => rooms.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    role: text("role", { enum: ["owner", "admin", "member"] })
+      .notNull()
+      .default("member"),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: "room_members_pkey", columns: [t.roomId, t.userId] }),
+    index("room_members_user_id_idx").on(t.userId),
+  ],
+);
 
 export const roomWhitelist = pgTable(
   "room_whitelist",
@@ -90,22 +102,26 @@ const bytea = customType<{ data: Uint8Array; default: false }>({
   dataType: () => "bytea",
 });
 
-export const subscriptions = pgTable("subscriptions", {
-  userId: uuid("user_id").primaryKey(),
-  plan: text("plan", { enum: ["free", "pro", "max"] })
-    .notNull()
-    .default("free"),
-  status: text("status", { enum: ["active", "past_due", "canceled"] })
-    .notNull()
-    .default("active"),
-  cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
-  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
-  stripeCustomerId: text("stripe_customer_id"),
-  stripeSubscriptionId: text("stripe_subscription_id").unique(),
-  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    userId: uuid("user_id").primaryKey(),
+    plan: text("plan", { enum: ["free", "pro", "max"] })
+      .notNull()
+      .default("free"),
+    status: text("status", { enum: ["active", "past_due", "canceled"] })
+      .notNull()
+      .default("active"),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+    trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id").unique(),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("subscriptions_stripe_customer_id_idx").on(t.stripeCustomerId)],
+);
 
 export const processedWebhookEvents = pgTable("processed_webhook_events", {
   eventId: text("event_id").primaryKey(),
@@ -142,7 +158,7 @@ export const notifications = pgTable(
 export const notificationPreferences = pgTable("notification_preferences", {
   userId: uuid("user_id").primaryKey(),
   emailEnabled: boolean("email_enabled").notNull().default(true),
-  inviteReceivedEmail: boolean("invite_received_email").notNull().default(true),
+  accessGrantedEmail: boolean("access_granted_email").notNull().default(true),
   inviteAcceptedEmail: boolean("invite_accepted_email").notNull().default(true),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

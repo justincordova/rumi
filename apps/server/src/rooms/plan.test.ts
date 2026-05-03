@@ -67,4 +67,38 @@ describe("resolvePlan", () => {
     });
     expect(result.plan).toBe("pro");
   });
+
+  it("preserves paid plan when status='canceled' but period not yet ended", () => {
+    const result = resolvePlan({
+      plan: "pro",
+      status: "canceled",
+      cancelAtPeriodEnd: false,
+      trialEndsAt: null,
+      currentPeriodEnd: futureDate,
+    });
+    expect(result.plan).toBe("pro");
+    expect(result.maxRooms).toBe(PLAN_LIMITS.pro.maxRooms);
+  });
+
+  it("drops to free when status='canceled' and period has ended", () => {
+    const result = resolvePlan({
+      plan: "pro",
+      status: "canceled",
+      cancelAtPeriodEnd: false,
+      trialEndsAt: null,
+      currentPeriodEnd: pastDate,
+    });
+    expect(result.plan).toBe("free");
+  });
+
+  it("preserves max plan on canceled status until period end", () => {
+    const result = resolvePlan({
+      plan: "max",
+      status: "canceled",
+      cancelAtPeriodEnd: false,
+      trialEndsAt: null,
+      currentPeriodEnd: futureDate,
+    });
+    expect(result.plan).toBe("max");
+  });
 });

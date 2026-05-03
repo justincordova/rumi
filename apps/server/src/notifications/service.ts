@@ -80,33 +80,23 @@ export function createNotificationsService(db: DbClient) {
       return row
         ? {
             emailEnabled: row.emailEnabled,
-            accessGrantedEmail: row.inviteReceivedEmail,
+            accessGrantedEmail: row.accessGrantedEmail,
             inviteAcceptedEmail: row.inviteAcceptedEmail,
           }
         : DEFAULT_PREFS;
     },
 
     async updatePreferences(userId: string, patch: Partial<NotificationPreferences>) {
-      const dbPatch: Record<string, unknown> = { ...patch, updatedAt: new Date() };
-      if (patch.accessGrantedEmail !== undefined) {
-        dbPatch.inviteReceivedEmail = patch.accessGrantedEmail;
-      }
-      // Setting to undefined rather than delete — Drizzle ignores keys not
-      // present on the table schema, so this is safe and avoids the noDelete lint.
-      dbPatch.accessGrantedEmail = undefined;
-
       await db
         .insert(notificationPreferences)
         .values({
           userId,
           ...DEFAULT_PREFS,
-          inviteReceivedEmail: true,
-          inviteAcceptedEmail: true,
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
           target: notificationPreferences.userId,
-          set: dbPatch,
+          set: { ...patch, updatedAt: new Date() },
         });
       return this.getPreferences(userId);
     },

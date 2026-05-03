@@ -319,30 +319,35 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
         throw new AppError("invalid_state", "You can't add yourself", 400);
       }
 
-      // Remove from blacklist if present (mutual exclusion)
-      await db
-        .delete(roomBlacklist)
-        .where(
-          and(
-            eq(roomBlacklist.roomId, room.id),
-            sql`lower(${roomBlacklist.email}) = lower(${lower})`,
+      // Mutate state in a single transaction so a crash mid-flow can't
+      // leave the email on both lists. Side-effects (notifications,
+      // emails) run after commit.
+      const created = await db.transaction(async (tx) => {
+        // Remove from blacklist if present (mutual exclusion)
+        await tx
+          .delete(roomBlacklist)
+          .where(
+            and(
+              eq(roomBlacklist.roomId, room.id),
+              sql`lower(${roomBlacklist.email}) = lower(${lower})`,
+            ),
+          );
+
+        const existingRow = await tx.query.roomWhitelist.findFirst({
+          where: and(
+            eq(roomWhitelist.roomId, room.id),
+            sql`lower(${roomWhitelist.email}) = lower(${lower})`,
           ),
-        );
+        });
+        if (existingRow) return existingRow;
 
-      const existing = await db.query.roomWhitelist.findFirst({
-        where: and(
-          eq(roomWhitelist.roomId, room.id),
-          sql`lower(${roomWhitelist.email}) = lower(${lower})`,
-        ),
+        const [entry] = await tx
+          .insert(roomWhitelist)
+          .values({ roomId: room.id, email: lower })
+          .returning();
+        // biome-ignore lint/style/noNonNullAssertion: Drizzle .returning() guarantees a row on INSERT
+        return entry!;
       });
-      if (existing) return existing;
-
-      const [entry] = await db
-        .insert(roomWhitelist)
-        .values({ roomId: room.id, email: lower })
-        .returning();
-      // biome-ignore lint/style/noNonNullAssertion: Drizzle .returning() guarantees a row on INSERT
-      const created = entry!;
 
       if (deps) {
         try {
@@ -455,17 +460,9 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
         }
       }
 
-      // Remove from whitelist if present (mutual exclusion)
-      await db
-        .delete(roomWhitelist)
-        .where(
-          and(
-            eq(roomWhitelist.roomId, room.id),
-            sql`lower(${roomWhitelist.email}) = lower(${lower})`,
-          ),
-        );
-
-      // Auto-kick if currently a member
+      // Resolve member-to-kick (if any) before opening the tx — getUserProfile
+      // is an external (Supabase admin API) call.
+      let kickeeUserId: string | null = null;
       if (deps) {
         const allMembers = await db.query.roomMembers.findMany({
           where: eq(roomMembers.roomId, room.id),
@@ -474,28 +471,47 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
         for (const m of allMembers) {
           const profile = await deps.getUserProfile(m.userId).catch(() => null);
           if (profile?.email?.toLowerCase() === lower) {
-            await db
-              .delete(roomMembers)
-              .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, m.userId)));
+            kickeeUserId = m.userId;
             break;
           }
         }
       }
 
-      const existing = await db.query.roomBlacklist.findFirst({
-        where: and(
-          eq(roomBlacklist.roomId, room.id),
-          sql`lower(${roomBlacklist.email}) = lower(${lower})`,
-        ),
-      });
-      if (existing) return existing;
+      // All mutations in one tx so a crash mid-flow can't leave the user
+      // on the whitelist, in room_members, AND off the blacklist.
+      return await db.transaction(async (tx) => {
+        // Remove from whitelist if present (mutual exclusion)
+        await tx
+          .delete(roomWhitelist)
+          .where(
+            and(
+              eq(roomWhitelist.roomId, room.id),
+              sql`lower(${roomWhitelist.email}) = lower(${lower})`,
+            ),
+          );
 
-      const [entry] = await db
-        .insert(roomBlacklist)
-        .values({ roomId: room.id, email: lower })
-        .returning();
-      // biome-ignore lint/style/noNonNullAssertion: Drizzle .returning() guarantees a row on INSERT
-      return entry!;
+        // Auto-kick the matching member, if any.
+        if (kickeeUserId) {
+          await tx
+            .delete(roomMembers)
+            .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, kickeeUserId)));
+        }
+
+        const existing = await tx.query.roomBlacklist.findFirst({
+          where: and(
+            eq(roomBlacklist.roomId, room.id),
+            sql`lower(${roomBlacklist.email}) = lower(${lower})`,
+          ),
+        });
+        if (existing) return existing;
+
+        const [entry] = await tx
+          .insert(roomBlacklist)
+          .values({ roomId: room.id, email: lower })
+          .returning();
+        // biome-ignore lint/style/noNonNullAssertion: Drizzle .returning() guarantees a row on INSERT
+        return entry!;
+      });
     },
 
     async listBlacklist(slug: string, userId: string) {

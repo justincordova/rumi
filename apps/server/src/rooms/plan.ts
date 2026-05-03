@@ -34,9 +34,17 @@ export function resolvePlan(row: SubscriptionRow | null): PlanLimits {
   const inTrial = row.trialEndsAt && row.trialEndsAt > now;
   const periodValid = row.currentPeriodEnd && row.currentPeriodEnd > now;
   const isActive = row.status === "active" || row.status === "past_due";
-  const canceledButValid = row.cancelAtPeriodEnd && periodValid;
 
-  if (isActive && (inTrial || periodValid || canceledButValid)) {
+  // A subscription that's been canceled (status='canceled') keeps paid
+  // access until the end of the already-paid-for billing period. The
+  // billing webhook leaves `plan` and `currentPeriodEnd` intact when
+  // cancellation fires; we just need to respect that here. Without this
+  // branch, status='canceled' immediately drops the user to free and
+  // contradicts the documented behavior in AGENTS.md.
+  const canceledButValid = row.status === "canceled" && periodValid;
+
+  const stillEntitled = (isActive && (inTrial || periodValid)) || canceledButValid;
+  if (stillEntitled) {
     const limits = PLAN_LIMITS[row.plan as PlanType] ?? PLAN_LIMITS.free;
     return { plan: row.plan as PlanType, ...limits };
   }

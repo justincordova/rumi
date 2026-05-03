@@ -142,13 +142,13 @@ function AppearanceSection() {
 
 interface NotificationPrefs {
   emailEnabled: boolean;
-  inviteReceivedEmail: boolean;
+  accessGrantedEmail: boolean;
   inviteAcceptedEmail: boolean;
 }
 
 const DEFAULT_PREFS: NotificationPrefs = {
   emailEnabled: true,
-  inviteReceivedEmail: true,
+  accessGrantedEmail: true,
   inviteAcceptedEmail: true,
 };
 
@@ -226,10 +226,10 @@ function NotificationsSection() {
           />
           <div className="pl-4 space-y-2 border-l border-border">
             <ToggleRow
-              label="When someone invites me to a room"
-              checked={prefs.inviteReceivedEmail}
+              label="When someone gives me access to a room"
+              checked={prefs.accessGrantedEmail}
               disabled={!prefs.emailEnabled}
-              onChange={(v) => update({ inviteReceivedEmail: v })}
+              onChange={(v) => update({ accessGrantedEmail: v })}
             />
             <ToggleRow
               label="When someone accepts my invite"

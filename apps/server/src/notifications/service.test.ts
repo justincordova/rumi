@@ -201,7 +201,7 @@ describe("createNotificationsService", () => {
             findFirst: async () => ({
               userId: "user-1",
               emailEnabled: false,
-              inviteReceivedEmail: true,
+              accessGrantedEmail: true,
               inviteAcceptedEmail: false,
             }),
           },
@@ -229,7 +229,7 @@ describe("createNotificationsService", () => {
             findFirst: async () => ({
               userId: "user-1",
               emailEnabled: false,
-              inviteReceivedEmail: true,
+              accessGrantedEmail: true,
               inviteAcceptedEmail: true,
             }),
           },
@@ -247,16 +247,15 @@ describe("createNotificationsService", () => {
       });
       // biome-ignore lint/suspicious/noExplicitAny: test stub
       const svc = createNotificationsService(db as any);
-      await svc.updatePreferences("user-1", { emailEnabled: false });
+      await svc.updatePreferences("user-1", { accessGrantedEmail: false });
       expect(conflictSet).toEqual({
-        emailEnabled: false,
-        inviteReceivedEmail: undefined,
+        accessGrantedEmail: false,
         updatedAt: expect.any(Date),
       });
       // biome-ignore lint/suspicious/noExplicitAny: test stub
       expect((insertValues as any).emailEnabled).toBe(true);
       // biome-ignore lint/suspicious/noExplicitAny: test stub
-      expect((insertValues as any).inviteReceivedEmail).toBe(true);
+      expect((insertValues as any).accessGrantedEmail).toBe(true);
     });
 
     it("re-reads preferences after upsert", async () => {
@@ -268,7 +267,7 @@ describe("createNotificationsService", () => {
             findFirst: async () => ({
               userId: "user-1",
               emailEnabled: false,
-              inviteReceivedEmail: true,
+              accessGrantedEmail: true,
               inviteAcceptedEmail: true,
             }),
           },
