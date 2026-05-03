@@ -2,8 +2,7 @@ import { beforeAll, describe, expect, it, mock } from "bun:test";
 
 // Mock email module so tests don't need UNSUBSCRIBE_HMAC_SECRET or RESEND_API_KEY
 mock.module("@/notifications/email", () => ({
-  sendInviteEmail: mock(async () => {}),
-  sendInviteAcceptedEmail: mock(async () => {}),
+  sendAccessGrantedEmail: mock(async () => {}),
 }));
 
 import { AppError, AuthError } from "@/lib/errors";
@@ -96,7 +95,11 @@ function makeDb(overrides: Record<string, unknown> = {}) {
         }),
       },
       roomMembers: { findFirst: async () => null },
-      roomInvites: {
+      roomWhitelist: {
+        findFirst: async () => null,
+        findMany: async () => [],
+      },
+      roomBlacklist: {
         findFirst: async () => null,
         findMany: async () => [],
       },
@@ -187,7 +190,8 @@ describe("createService", () => {
             }),
           },
           roomMembers: { findFirst: async () => null }, // not a member
-          roomInvites: { findFirst: async () => null, findMany: async () => [] },
+          roomWhitelist: { findFirst: async () => null, findMany: async () => [] },
+          roomBlacklist: { findFirst: async () => null, findMany: async () => [] },
           tabs: { findMany: async () => [] },
         },
         insert: () => ({
@@ -209,7 +213,7 @@ describe("createService", () => {
       expect(result.role).toBe("member");
     });
 
-    it("throws forbidden for private room with no invite", async () => {
+    it("throws forbidden for private room with no access", async () => {
       const db = makeDb({
         query: {
           rooms: {
@@ -223,7 +227,8 @@ describe("createService", () => {
             }),
           },
           roomMembers: { findFirst: async () => null },
-          roomInvites: { findFirst: async () => null, findMany: async () => [] },
+          roomWhitelist: { findFirst: async () => null, findMany: async () => [] },
+          roomBlacklist: { findFirst: async () => null, findMany: async () => [] },
           tabs: { findMany: async () => [] },
         },
         insert: () => ({
@@ -410,64 +415,13 @@ describe("createService", () => {
     });
   });
 
-  describe("createInvite", () => {
-    it("is idempotent — returns existing pending invite on duplicate", async () => {
-      const existingInvite = { id: "invite-id", roomId: "room-id", invitedEmail: "a@b.com" };
-      const db = makeDb({
-        query: {
-          ...makeDb().query,
-          rooms: {
-            findFirst: async () => ({
-              id: "room-id",
-              slug: "test",
-              ownerId: "user-id",
-              visibility: "open",
-              guestAccess: "none",
-              deletedAt: null,
-            }),
-          },
-          roomInvites: {
-            findFirst: async () => existingInvite,
-            findMany: async () => [],
-          },
-        },
-      });
-      // biome-ignore lint/suspicious/noExplicitAny: test stub
-      const svc = createService(db as any);
-      const result = await svc.createInvite("test", "user-id", "A@B.com");
-      expect(result).toEqual(existingInvite);
-    });
-
-    it("rejects self-invite with invalid_state", async () => {
-      // biome-ignore lint/suspicious/noExplicitAny: test stub
-      const svc = createService(makeDb() as any);
-      await expect(
-        svc.createInvite("test", "user-id", "owner@example.com", "owner@example.com"),
-      ).rejects.toMatchObject({ code: "invalid_state" });
-    });
-
-    it("rejects self-invite case-insensitively", async () => {
-      // biome-ignore lint/suspicious/noExplicitAny: test stub
-      const svc = createService(makeDb() as any);
-      await expect(
-        svc.createInvite("test", "user-id", "OWNER@Example.com", "owner@example.com"),
-      ).rejects.toMatchObject({ code: "invalid_state" });
-    });
-
-    it("fires notification + email side effects when deps wired", async () => {
-      let notifRecorded = false;
+  describe("addToWhitelist", () => {
+    it("adds email to whitelist", async () => {
       const db = makeDb({
         insert: () => ({
           values: () => ({
             returning: async () => [
-              {
-                id: "invite-id",
-                roomId: "room-id",
-                invitedEmail: "invitee@example.com",
-                invitedBy: "user-id",
-                createdAt: new Date(),
-                acceptedAt: null,
-              },
+              { id: "whitelist-id", roomId: "room-id", email: "a@b.com", createdAt: new Date() },
             ],
           }),
         }),
@@ -477,63 +431,683 @@ describe("createService", () => {
             findFirst: async () => ({
               id: "room-id",
               slug: "test",
-              name: "Test",
               ownerId: "user-id",
               visibility: "private",
               guestAccess: "none",
               deletedAt: null,
             }),
           },
-          roomInvites: { findFirst: async () => null, findMany: async () => [] },
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "owner" as const,
+            }),
+          },
+          roomWhitelist: { findFirst: async () => null, findMany: async () => [] },
+          roomBlacklist: { findFirst: async () => null, findMany: async () => [] },
         },
       });
-
       const mockDeps = {
         notifications: {
-          recordNotification: async () => {
-            notifRecorded = true;
-            // biome-ignore lint/suspicious/noExplicitAny: test stub return value
-            return {} as any;
-          },
+          recordNotification: async () => ({}),
           getPreferences: async () => ({
             emailEnabled: true,
-            inviteReceivedEmail: true,
+            accessGrantedEmail: true,
             inviteAcceptedEmail: true,
           }),
           listNotifications: async () => ({ notifications: [], unreadCount: 0 }),
           markRead: async () => {},
-          updatePreferences: async () => ({
-            emailEnabled: true,
-            inviteReceivedEmail: true,
-            inviteAcceptedEmail: true,
-          }),
+          updatePreferences: async () => ({}),
         },
-        lookupUserIdByEmail: async () => "invitee-user-id",
-        getUserProfile: async () => ({ email: "inviter@example.com", displayName: "Alice" }),
+        lookupUserIdByEmail: async () => null,
+        getUserProfile: async () => ({ email: "owner@test.com", displayName: "Owner" }),
       };
-
       // biome-ignore lint/suspicious/noExplicitAny: test stub
       const svc = createService(db as any, mockDeps as any);
-      await svc.createInvite("test", "user-id", "invitee@example.com", "inviter@example.com");
-      expect(notifRecorded).toBe(true);
+      const result = await svc.addToWhitelist("test", "user-id", "a@b.com");
+      expect(result.email).toBe("a@b.com");
     });
 
-    it("no DB row, no notification, no email on self-invite rejection", async () => {
-      let insertCalled = false;
+    it("returns existing whitelist entry on duplicate", async () => {
+      const existing = {
+        id: "whitelist-id",
+        roomId: "room-id",
+        email: "a@b.com",
+        createdAt: new Date(),
+      };
       const db = makeDb({
-        insert: () => ({
-          values: () => {
-            insertCalled = true;
-            return { returning: async () => [] };
+        query: {
+          ...makeDb().query,
+          rooms: {
+            findFirst: async () => ({
+              id: "room-id",
+              slug: "test",
+              ownerId: "user-id",
+              visibility: "private",
+              guestAccess: "none",
+              deletedAt: null,
+            }),
           },
-        }),
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "owner" as const,
+            }),
+          },
+          roomWhitelist: {
+            findFirst: async () => existing,
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      const result = await svc.addToWhitelist("test", "user-id", "A@B.com");
+      expect(result).toEqual(existing);
+    });
+
+    it("rejects non-admin/non-owner", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "member" as const,
+            }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await expect(svc.addToWhitelist("test", "user-id", "a@b.com")).rejects.toBeInstanceOf(
+        AuthError,
+      );
+    });
+
+    it("rejects self-add", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "owner" as const,
+            }),
+          },
+        },
       });
       // biome-ignore lint/suspicious/noExplicitAny: test stub
       const svc = createService(db as any);
       await expect(
-        svc.createInvite("test", "user-id", "owner@example.com", "owner@example.com"),
-      ).rejects.toMatchObject({ code: "invalid_state" });
-      expect(insertCalled).toBe(false);
+        svc.addToWhitelist("test", "user-id", "owner@test.com", "owner@test.com"),
+      ).rejects.toBeInstanceOf(AppError);
+    });
+  });
+
+  describe("removeFromWhitelist", () => {
+    it("removes entry for admin", async () => {
+      const deleted: unknown[] = [];
+      const db = makeDb({
+        delete: () => ({
+          where: (...args: unknown[]) => ({
+            returning: async () => {
+              deleted.push(args);
+              return [{ id: "entry-id" }];
+            },
+          }),
+        }),
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "admin" as const,
+            }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await svc.removeFromWhitelist("test", "entry-id", "user-id");
+      expect(deleted).toHaveLength(1);
+    });
+
+    it("rejects for regular member", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "member" as const,
+            }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await expect(svc.removeFromWhitelist("test", "entry-id", "user-id")).rejects.toBeInstanceOf(
+        AuthError,
+      );
+    });
+  });
+
+  describe("addToBlacklist", () => {
+    it("adds email to blacklist and removes from whitelist", async () => {
+      const whitelistDeleted: unknown[] = [];
+      const db = makeDb({
+        delete: () => ({
+          where: () => ({
+            returning: async () => {
+              whitelistDeleted.push(true);
+              return [];
+            },
+          }),
+        }),
+        insert: () => ({
+          values: () => ({
+            returning: async () => [
+              { id: "bl-id", roomId: "room-id", email: "a@b.com", createdAt: new Date() },
+            ],
+          }),
+        }),
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "owner" as const,
+            }),
+          },
+          roomBlacklist: { findFirst: async () => null, findMany: async () => [] },
+          roomWhitelist: { findFirst: async () => null, findMany: async () => [] },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      const result = await svc.addToBlacklist("test", "user-id", "a@b.com");
+      expect(result.email).toBe("a@b.com");
+    });
+
+    it("rejects regular member", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "member" as const,
+            }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await expect(svc.addToBlacklist("test", "user-id", "a@b.com")).rejects.toBeInstanceOf(
+        AuthError,
+      );
+    });
+
+    it("auto-kicks existing member matching blacklisted email", async () => {
+      let deleteWhereCalls = 0;
+      const db = makeDb({
+        // Override delete so where() increments a counter and returns a resolved
+        // promise (Drizzle delete queries are directly awaitable).
+        delete: () => ({
+          where: async () => {
+            deleteWhereCalls++;
+            return [];
+          },
+        }),
+        insert: () => ({
+          values: () => ({
+            returning: async () => [
+              { id: "bl-id", roomId: "room-id", email: "target@test.com", createdAt: new Date() },
+            ],
+          }),
+        }),
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "owner" as const,
+            }),
+            // findMany is used by the auto-kick email scan
+            findMany: async () => [{ userId: "target-user-id" }],
+          },
+          roomBlacklist: { findFirst: async () => null, findMany: async () => [] },
+          roomWhitelist: { findFirst: async () => null, findMany: async () => [] },
+        },
+      });
+      const mockDeps = {
+        getUserProfile: async (id: string) => {
+          if (id === "target-user-id")
+            return { email: "target@test.com", displayName: "Target", avatarUrl: null };
+          return { email: "owner@test.com", displayName: "Owner", avatarUrl: null };
+        },
+      };
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any, mockDeps as any);
+      await svc.addToBlacklist("test", "user-id", "target@test.com");
+      // Whitelist mutual-exclusion delete + member auto-kick delete = at least 2
+      expect(deleteWhereCalls).toBeGreaterThanOrEqual(2);
+    });
+
+    it("rejects self-blacklist by owner", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "owner" as const,
+            }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await expect(
+        svc.addToBlacklist("test", "user-id", "owner@test.com", "owner@test.com"),
+      ).rejects.toBeInstanceOf(AppError);
+    });
+  });
+
+  describe("removeFromBlacklist", () => {
+    it("removes entry for admin", async () => {
+      const deleted: unknown[] = [];
+      const db = makeDb({
+        delete: () => ({
+          where: () => ({
+            returning: async () => {
+              deleted.push(true);
+              return [{ id: "entry-id" }];
+            },
+          }),
+        }),
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "admin" as const,
+            }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await svc.removeFromBlacklist("test", "entry-id", "user-id");
+      expect(deleted).toHaveLength(1);
+    });
+  });
+
+  describe("kickMember", () => {
+    it("kicks member and adds to blacklist", async () => {
+      let memberCalls = 0;
+      const db = makeDb({
+        transaction: async (fn: (tx: unknown) => unknown) => {
+          const tx = {
+            delete: () => ({
+              where: () => ({
+                returning: async () => [{ id: "bl-id" }],
+              }),
+            }),
+            insert: () => ({
+              values: () => ({
+                onConflictDoNothing: async () => [],
+              }),
+            }),
+          };
+          return fn(tx);
+        },
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => {
+              memberCalls++;
+              if (memberCalls === 1)
+                return { roomId: "room-id", userId: "kicker-id", role: "owner" };
+              if (memberCalls === 2)
+                return { roomId: "room-id", userId: "kickee-id", role: "member" };
+              return null;
+            },
+            findMany: async () => [],
+          },
+        },
+      });
+      const mockDeps = {
+        getUserProfile: async (id: string) => {
+          if (id === "kickee-id") return { email: "kickee@test.com", displayName: "Kickee" };
+          return { email: "owner@test.com", displayName: "Owner" };
+        },
+      };
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any, mockDeps as any);
+      const result = await svc.kickMember("test", "kicker-id", "kickee-id");
+      expect(result.kickeeId).toBe("kickee-id");
+      expect(result.roomId).toBe("room-id");
+    });
+
+    it("rejects kicking owner", async () => {
+      let memberCalls = 0;
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => {
+              memberCalls++;
+              if (memberCalls === 1)
+                return { roomId: "room-id", userId: "kicker-id", role: "admin" };
+              if (memberCalls === 2)
+                return { roomId: "room-id", userId: "kickee-id", role: "owner" };
+              return null;
+            },
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await expect(svc.kickMember("test", "kicker-id", "kickee-id")).rejects.toBeInstanceOf(
+        AuthError,
+      );
+    });
+
+    it("rejects self-kick", async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(makeDb() as any);
+      await expect(svc.kickMember("test", "same-id", "same-id")).rejects.toBeInstanceOf(AppError);
+    });
+  });
+
+  describe("leaveRoom", () => {
+    it("removes member from room", async () => {
+      const db = makeDb({
+        delete: () => ({
+          where: () => ({
+            returning: async () => [{ roomId: "room-id" }],
+          }),
+        }),
+        query: {
+          ...makeDb().query,
+          rooms: {
+            findFirst: async () => ({
+              id: "room-id",
+              slug: "test",
+              ownerId: "owner-id",
+              visibility: "open",
+              guestAccess: "none",
+              deletedAt: null,
+            }),
+          },
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "member-id",
+              role: "member",
+            }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      const result = await svc.leaveRoom("test", "member-id");
+      expect(result.roomId).toBe("room-id");
+    });
+
+    it("rejects owner trying to leave", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          rooms: {
+            findFirst: async () => ({
+              id: "room-id",
+              slug: "test",
+              ownerId: "owner-id",
+              visibility: "open",
+              guestAccess: "none",
+              deletedAt: null,
+            }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await expect(svc.leaveRoom("test", "owner-id")).rejects.toBeInstanceOf(AppError);
+    });
+  });
+
+  describe("transferOwnership", () => {
+    it("transfers ownership and old owner becomes admin", async () => {
+      const db = makeDb({
+        transaction: async (fn: (tx: unknown) => unknown) => {
+          const tx = {
+            select: () => ({
+              from: () => ({
+                where: async () => [
+                  {
+                    id: "room-id",
+                    slug: "test",
+                    ownerId: "new-owner",
+                    visibility: "open",
+                    guestAccess: "none",
+                    deletedAt: null,
+                  },
+                ],
+              }),
+            }),
+            update: () => ({
+              set: () => ({
+                where: async () => {},
+              }),
+            }),
+            execute: async () => {},
+          };
+          return fn(tx);
+        },
+        query: {
+          ...makeDb().query,
+          rooms: {
+            findFirst: async () => ({
+              id: "room-id",
+              slug: "test",
+              ownerId: "old-owner",
+              visibility: "open",
+              guestAccess: "none",
+              deletedAt: null,
+            }),
+          },
+          roomMembers: {
+            findFirst: async () => ({ roomId: "room-id", userId: "new-owner", role: "admin" }),
+          },
+          roomBlacklist: { findFirst: async () => null },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      const result = await svc.transferOwnership("test", "old-owner", "new-owner");
+      expect(result.roomId).toBe("room-id");
+    });
+
+    it("rejects non-owner", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          rooms: {
+            findFirst: async () => ({
+              id: "room-id",
+              slug: "test",
+              ownerId: "actual-owner",
+              visibility: "open",
+              guestAccess: "none",
+              deletedAt: null,
+            }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await expect(svc.transferOwnership("test", "not-owner", "new-owner")).rejects.toBeInstanceOf(
+        AuthError,
+      );
+    });
+
+    it("rejects self-transfer", async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(makeDb() as any);
+      await expect(svc.transferOwnership("test", "owner-id", "owner-id")).rejects.toBeInstanceOf(
+        AppError,
+      );
+    });
+  });
+
+  describe("updateMemberRole", () => {
+    it("updates role from member to admin", async () => {
+      const updated: unknown[] = [];
+      const db = makeDb({
+        update: () => ({
+          set: (data: unknown) => ({
+            where: () => {
+              updated.push(data);
+              return { returning: async () => [] };
+            },
+          }),
+        }),
+        query: {
+          ...makeDb().query,
+          rooms: {
+            findFirst: async () => ({
+              id: "room-id",
+              slug: "test",
+              ownerId: "owner-id",
+              visibility: "open",
+              guestAccess: "none",
+              deletedAt: null,
+            }),
+          },
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "target-id",
+              role: "member",
+            }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await svc.updateMemberRole("test", "owner-id", "target-id", "admin");
+      expect(updated).toHaveLength(1);
+      expect((updated[0] as Record<string, unknown>).role).toBe("admin");
+    });
+
+    it("rejects non-owner", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          rooms: {
+            findFirst: async () => ({
+              id: "room-id",
+              slug: "test",
+              ownerId: "owner-id",
+              visibility: "open",
+              guestAccess: "none",
+              deletedAt: null,
+            }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await expect(
+        svc.updateMemberRole("test", "admin-id", "target-id", "admin"),
+      ).rejects.toBeInstanceOf(AuthError);
+    });
+  });
+
+  describe("getRoomBySlug — blacklist", () => {
+    it("rejects blacklisted user", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          rooms: {
+            findFirst: async () => ({
+              id: "room-id",
+              slug: "test",
+              ownerId: "other-user",
+              visibility: "open",
+              guestAccess: "none",
+              deletedAt: null,
+            }),
+          },
+          roomBlacklist: {
+            findFirst: async () => ({ id: "bl-id", roomId: "room-id", email: "bad@test.com" }),
+          },
+        },
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await expect(svc.getRoomBySlug("test", "user-id", "bad@test.com")).rejects.toBeInstanceOf(
+        AuthError,
+      );
+    });
+  });
+
+  describe("getRoomBySlug — private room whitelist", () => {
+    it("admits whitelisted user to private room", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          rooms: {
+            findFirst: async () => ({
+              id: "room-id",
+              slug: "test",
+              ownerId: "other-user",
+              visibility: "private",
+              guestAccess: "none",
+              deletedAt: null,
+            }),
+          },
+          roomMembers: { findFirst: async () => null },
+          roomWhitelist: {
+            findFirst: async () => ({
+              id: "wl-id",
+              roomId: "room-id",
+              email: "invited@test.com",
+            }),
+          },
+          roomBlacklist: { findFirst: async () => null },
+          tabs: { findMany: async () => [] },
+        },
+        insert: () => ({
+          values: () => ({
+            onConflictDoNothing: async () => [],
+            returning: async () => [],
+          }),
+        }),
+        select: () => ({
+          from: () => ({
+            innerJoin: () => ({ where: async () => [] }),
+            where: async () => [],
+          }),
+        }),
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      const result = await svc.getRoomBySlug("test", "new-user", "invited@test.com");
+      expect(result.role).toBe("member");
     });
   });
 });

@@ -1,11 +1,11 @@
 import { verifyUnsubscribeToken } from "@/notifications/unsubscribe";
 import {
   type InviteAcceptedPayload,
-  type InviteReceivedPayload,
   ListNotificationsResponse,
   MarkReadBody,
   type NotificationPreferences,
   type NotificationType,
+  type RoomAccessGrantedPayload,
   UpdateNotificationPreferencesBody,
 } from "@rumi/protocol";
 import type { FastifyPluginAsync } from "fastify";
@@ -20,10 +20,13 @@ function serializeNotification(row: {
   readAt: Date | null;
   createdAt: Date;
 }) {
+  let type = row.type;
+  if (type === "invite_received") type = "room_access_granted";
+  const typedNotifType = type as NotificationType;
   return {
     id: row.id,
-    type: row.type as NotificationType,
-    payload: row.payload as InviteReceivedPayload | InviteAcceptedPayload,
+    type: typedNotifType,
+    payload: row.payload as RoomAccessGrantedPayload | InviteAcceptedPayload,
     readAt: row.readAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };
@@ -42,8 +45,8 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
     const patch: Partial<NotificationPreferences> =
       decoded.channel === "all"
         ? { emailEnabled: false }
-        : decoded.channel === "invite_received"
-          ? { inviteReceivedEmail: false }
+        : decoded.channel === "invite_received" || decoded.channel === "room_access_granted"
+          ? { accessGrantedEmail: false }
           : { inviteAcceptedEmail: false };
     await app.notifications.updatePreferences(decoded.userId, patch);
     if (req.headers.accept?.includes("text/html")) {

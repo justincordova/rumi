@@ -43,6 +43,20 @@
       "when": 1777445315925,
       "tag": "0005_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777445315926,
+      "tag": "0006_room_admin_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777531715927,
+      "tag": "0007_room_whitelist_blacklist",
+      "breakpoints": true
     }
   ]
 }

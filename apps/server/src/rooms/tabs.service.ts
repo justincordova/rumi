@@ -8,6 +8,9 @@ export type TabsService = ReturnType<typeof createTabsService>;
 
 export function createTabsService(db: DbClient) {
   // Helper: returns the room + member rows; throws not_found / forbidden.
+  // `canEditContent`: any member can mutate the document content of a tab.
+  // `canManageTabs`: structural mutations (create / delete / rename / reorder /
+  // language change) are owner+admin only.
   async function authorize(slug: string, userId: string) {
     const room = await db.query.rooms.findFirst({
       where: and(eq(rooms.slug, slug), sql`${rooms.deletedAt} IS NULL`),
@@ -17,7 +20,8 @@ export function createTabsService(db: DbClient) {
       where: and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, userId)),
     });
     if (!member) throw new AuthError("forbidden", "Not a member");
-    return { room, member, canEdit: true, userId };
+    const canManageTabs = member.role === "owner" || member.role === "admin";
+    return { room, member, canEditContent: true, canManageTabs, userId };
   }
 
   return {
@@ -34,8 +38,8 @@ export function createTabsService(db: DbClient) {
       userId: string,
       body: { type: "tab" | "drawing"; language?: string | null; name?: string },
     ) {
-      const { room, canEdit } = await authorize(slug, userId);
-      if (!canEdit) throw new AuthError("forbidden", "Read-only access");
+      const { room, canManageTabs } = await authorize(slug, userId);
+      if (!canManageTabs) throw new AuthError("forbidden", "Only admins can add tabs");
 
       if (body.type === "drawing" && body.language) {
         throw new AppError("validation_failed", "Drawing tabs cannot have a language", 422);
@@ -78,8 +82,10 @@ export function createTabsService(db: DbClient) {
       tabId: string,
       body: { name?: string; language?: string | null },
     ) {
-      const { room, canEdit } = await authorize(slug, userId);
-      if (!canEdit) throw new AuthError("forbidden", "Read-only access");
+      const { room, canManageTabs } = await authorize(slug, userId);
+      // updateTab covers rename + language change — both are structural and
+      // require admin+ per the role design.
+      if (!canManageTabs) throw new AuthError("forbidden", "Only admins can rename tabs");
 
       const tab = await db.query.tabs.findFirst({
         where: and(eq(tabs.id, tabId), eq(tabs.roomId, room.id)),
@@ -109,9 +115,57 @@ export function createTabsService(db: DbClient) {
       return updated!;
     },
 
+    async reorderTabs(slug: string, userId: string, tabIds: string[]) {
+      const { room, canManageTabs } = await authorize(slug, userId);
+      if (!canManageTabs) throw new AuthError("forbidden", "Only admins can reorder tabs");
+
+      return db.transaction(async (tx) => {
+        const existing = await tx.query.tabs.findMany({
+          where: eq(tabs.roomId, room.id),
+          orderBy: (t, { asc }) => [asc(t.ordinal)],
+        });
+        if (existing.length !== tabIds.length) {
+          throw new AppError("invalid_state", "Tab list mismatch", 400);
+        }
+        const existingIds = new Set(existing.map((t) => t.id));
+        const seen = new Set<string>();
+        for (const id of tabIds) {
+          if (!existingIds.has(id) || seen.has(id)) {
+            throw new AppError("invalid_state", "Unknown or duplicate tab id", 400);
+          }
+          seen.add(id);
+        }
+
+        // Two-step ordinal swap. Phase 1 moves every target row to a
+        // temporary band well above any expected legitimate ordinal so the
+        // unique (room_id, ordinal) index can't collide mid-update. Phase 2
+        // settles each row to its final 0..N-1 ordinal. Postgres unique
+        // indexes are checked per-row at statement end, so as long as
+        // neither phase repeats an ordinal across rows of the same room,
+        // the swap succeeds.
+        const TEMP_BASE = 1_000_000;
+        for (let i = 0; i < tabIds.length; i++) {
+          await tx
+            .update(tabs)
+            .set({ ordinal: TEMP_BASE + i })
+            .where(eq(tabs.id, tabIds[i] as string));
+        }
+        for (let i = 0; i < tabIds.length; i++) {
+          await tx
+            .update(tabs)
+            .set({ ordinal: i })
+            .where(eq(tabs.id, tabIds[i] as string));
+        }
+        return tx.query.tabs.findMany({
+          where: eq(tabs.roomId, room.id),
+          orderBy: (t, { asc }) => [asc(t.ordinal)],
+        });
+      });
+    },
+
     async deleteTab(slug: string, userId: string, tabId: string) {
-      const { room, canEdit } = await authorize(slug, userId);
-      if (!canEdit) throw new AuthError("forbidden", "Read-only access");
+      const { room, canManageTabs } = await authorize(slug, userId);
+      if (!canManageTabs) throw new AuthError("forbidden", "Only admins can delete tabs");
 
       return db.transaction(async (tx) => {
         const target = await tx.query.tabs.findFirst({

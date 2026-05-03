@@ -3,12 +3,12 @@ import { createNotificationsService } from "./service";
 
 const now = new Date();
 
-const sampleInviteReceivedPayload = {
-  inviteId: "00000000-0000-0000-0000-000000000001",
+const sampleRoomAccessGrantedPayload = {
+  whitelistId: "00000000-0000-0000-0000-000000000004",
   roomId: "00000000-0000-0000-0000-000000000002",
   roomSlug: "test-room",
   roomName: "Test Room",
-  invitedBy: {
+  grantedBy: {
     userId: "00000000-0000-0000-0000-000000000003",
     displayName: "Alice",
   },
@@ -23,7 +23,6 @@ const sampleInviteAcceptedPayload = {
 };
 
 function makeDb(overrides: Record<string, unknown> = {}) {
-  const insertedRows: unknown[] = [];
   const base = {
     insert: () => ({
       values: () => ({
@@ -31,8 +30,8 @@ function makeDb(overrides: Record<string, unknown> = {}) {
           {
             id: "notif-id",
             userId: "user-1",
-            type: "invite_received",
-            payload: sampleInviteReceivedPayload,
+            type: "room_access_granted",
+            payload: sampleRoomAccessGrantedPayload,
             readAt: null,
             createdAt: now,
           },
@@ -56,8 +55,8 @@ function makeDb(overrides: Record<string, unknown> = {}) {
           {
             id: "notif-1",
             userId: "user-1",
-            type: "invite_received",
-            payload: sampleInviteReceivedPayload,
+            type: "room_access_granted",
+            payload: sampleRoomAccessGrantedPayload,
             readAt: null,
             createdAt: now,
           },
@@ -75,7 +74,6 @@ function makeDb(overrides: Record<string, unknown> = {}) {
         findFirst: async () => null,
       },
     },
-    insertedRows,
     ...overrides,
   };
   return base;
@@ -107,11 +105,11 @@ describe("createNotificationsService", () => {
       // biome-ignore lint/suspicious/noExplicitAny: test stub
       const svc = createNotificationsService(db as any);
       const row = await svc.recordNotification("user-1", {
-        type: "invite_received",
-        payload: sampleInviteReceivedPayload,
+        type: "room_access_granted",
+        payload: sampleRoomAccessGrantedPayload,
       });
       expect(row.userId).toBe("user-1");
-      expect(row.type).toBe("invite_received");
+      expect(row.type).toBe("room_access_granted");
       expect(insertedValues).toBeDefined();
     });
 
@@ -120,7 +118,7 @@ describe("createNotificationsService", () => {
       const svc = createNotificationsService(makeDb() as any);
       await expect(
         svc.recordNotification("user-1", {
-          type: "invite_received",
+          type: "room_access_granted",
           // biome-ignore lint/suspicious/noExplicitAny: intentionally malformed
           payload: { bad: true } as any,
         }),
@@ -190,7 +188,7 @@ describe("createNotificationsService", () => {
       const prefs = await svc.getPreferences("user-1");
       expect(prefs).toEqual({
         emailEnabled: true,
-        inviteReceivedEmail: true,
+        accessGrantedEmail: true,
         inviteAcceptedEmail: true,
       });
     });
@@ -214,7 +212,7 @@ describe("createNotificationsService", () => {
       const prefs = await svc.getPreferences("user-1");
       expect(prefs).toEqual({
         emailEnabled: false,
-        inviteReceivedEmail: true,
+        accessGrantedEmail: true,
         inviteAcceptedEmail: false,
       });
     });
@@ -252,10 +250,11 @@ describe("createNotificationsService", () => {
       await svc.updatePreferences("user-1", { emailEnabled: false });
       expect(conflictSet).toEqual({
         emailEnabled: false,
+        inviteReceivedEmail: undefined,
         updatedAt: expect.any(Date),
       });
       // biome-ignore lint/suspicious/noExplicitAny: test stub
-      expect((insertValues as any).emailEnabled).toBe(false);
+      expect((insertValues as any).emailEnabled).toBe(true);
       // biome-ignore lint/suspicious/noExplicitAny: test stub
       expect((insertValues as any).inviteReceivedEmail).toBe(true);
     });
@@ -288,7 +287,7 @@ describe("createNotificationsService", () => {
       expect(insertCalled).toBe(true);
       expect(result).toEqual({
         emailEnabled: false,
-        inviteReceivedEmail: true,
+        accessGrantedEmail: true,
         inviteAcceptedEmail: true,
       });
     });

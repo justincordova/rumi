@@ -9,6 +9,7 @@ import { AppError, envelope } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { notificationRoutes } from "@/notifications/routes";
 import { createNotificationsService } from "@/notifications/service";
+import { startPurgeScheduler } from "@/rooms/purge";
 import { roomsRoutes } from "@/rooms/routes";
 import { createService } from "@/rooms/service";
 import { tabsRoutes } from "@/rooms/tabs.routes";
@@ -103,6 +104,32 @@ export async function buildServer() {
       logger.warn({ userId, closed, failed }, "dropUserConnections completed with failures");
     }
   });
+  app.decorate("dropConnectionForUserInRoom", (roomId: string, userId: string) => {
+    logger.debug({ roomId, userId }, "dropping user ws connections in room");
+    for (const doc of hocuspocus.documents.values()) {
+      for (const conn of doc.getConnections()) {
+        // biome-ignore lint/suspicious/noExplicitAny: Hocuspocus context is typed as unknown
+        const ctx = conn.context as any;
+        const match =
+          (ctx?.user?.id === userId || ctx?.guestId === userId) && ctx?.roomId === roomId;
+        if (match) {
+          try {
+            conn.sendStateless(JSON.stringify({ type: "kicked" }));
+          } catch {
+            // best-effort; connection may already be closing
+          }
+          try {
+            conn.close();
+          } catch (err) {
+            logger.warn(
+              { err, userId, roomId, documentName: doc.name },
+              "failed to close ws connection during scoped user drop",
+            );
+          }
+        }
+      }
+    }
+  });
   app.decorate("dropRoomConnections", async (roomId: string) => {
     logger.debug({ roomId }, "dropping room ws connections");
     const tabIds = await db
@@ -170,8 +197,13 @@ if (import.meta.main) {
   await app.listen({ port: env.PORT, host: "0.0.0.0" });
   logger.info({ port: env.PORT }, "listening");
 
+  // Background tasks. The purge job is opt-in for non-production via env to
+  // avoid noisy local dev runs; production always runs it.
+  const stopPurge = env.NODE_ENV === "production" ? startPurgeScheduler() : () => {};
+
   const shutdown = async () => {
     try {
+      stopPurge();
       await app.hocuspocus.destroy();
       await app.close();
       await closeDb();

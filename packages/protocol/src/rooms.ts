@@ -4,7 +4,8 @@ export const Visibility = z.enum(["open", "private"]);
 export type Visibility = z.infer<typeof Visibility>;
 export const GuestAccess = z.enum(["none", "view", "edit"]);
 export type GuestAccess = z.infer<typeof GuestAccess>;
-export const Role = z.enum(["owner", "member"]);
+export const Role = z.enum(["owner", "admin", "member"]);
+export type Role = z.infer<typeof Role>;
 
 export const Room = z.object({
   id: z.string().uuid(),
@@ -18,15 +19,31 @@ export const Room = z.object({
 });
 export type Room = z.infer<typeof Room>;
 
-export const RoomInvite = z.object({
+export const TrashedRoom = Room.extend({
+  deletedAt: z.string().nullable(),
+});
+export type TrashedRoom = z.infer<typeof TrashedRoom>;
+export const ListTrashedRoomsResponse = z.object({
+  rooms: z.array(TrashedRoom),
+});
+export type ListTrashedRoomsResponse = z.infer<typeof ListTrashedRoomsResponse>;
+
+// Whitelist / Blacklist types
+export const RoomWhitelistEntry = z.object({
   id: z.string().uuid(),
   roomId: z.string().uuid(),
-  invitedEmail: z.string().email(),
-  invitedBy: z.string().uuid(),
+  email: z.string().email(),
   createdAt: z.string(),
-  acceptedAt: z.string().nullable(),
 });
-export type RoomInvite = z.infer<typeof RoomInvite>;
+export type RoomWhitelistEntry = z.infer<typeof RoomWhitelistEntry>;
+
+export const RoomBlacklistEntry = z.object({
+  id: z.string().uuid(),
+  roomId: z.string().uuid(),
+  email: z.string().email(),
+  createdAt: z.string(),
+});
+export type RoomBlacklistEntry = z.infer<typeof RoomBlacklistEntry>;
 
 // Tabs — declared here so GetRoomResponse can return the room's tab list.
 export const TabType = z.enum(["tab", "drawing"]);
@@ -55,7 +72,10 @@ export const UpdateRoomBody = z.object({
   visibility: Visibility.optional(),
   guestAccess: GuestAccess.optional(),
 });
-export const CreateInviteBody = z.object({
+export const AddToWhitelistBody = z.object({
+  email: z.string().email().toLowerCase().max(254),
+});
+export const AddToBlacklistBody = z.object({
   email: z.string().email().toLowerCase().max(254),
 });
 
@@ -69,6 +89,20 @@ export const UpdateTabBody = z.object({
   name: z.string().trim().max(100).optional(),
   language: z.string().nullable().optional(),
 });
+export const ReorderTabsBody = z.object({
+  tabIds: z
+    .array(z.string().uuid())
+    .min(1)
+    .max(50)
+    .refine((arr) => new Set(arr).size === arr.length, {
+      message: "tabIds must be unique",
+    }),
+});
+export type ReorderTabsBody = z.infer<typeof ReorderTabsBody>;
+export const ReorderTabsResponse = z.object({
+  tabs: z.array(TabSummary),
+});
+export type ReorderTabsResponse = z.infer<typeof ReorderTabsResponse>;
 export const TabIdParams = z.object({
   slug: z
     .string()
@@ -85,7 +119,9 @@ export type UpdateTabResponse = z.infer<typeof UpdateTabResponse>;
 export const CreateRoomResponse = z.object({ room: Room });
 export type CreateRoomResponse = z.infer<typeof CreateRoomResponse>;
 export const ListRoomsResponse = z.object({
-  rooms: z.array(Room.extend({ pendingInvite: z.boolean() })),
+  rooms: z.array(
+    Room.extend({ pendingAccess: z.boolean(), pendingWhitelistId: z.string().uuid().optional() }),
+  ),
 });
 export type ListRoomsResponse = z.infer<typeof ListRoomsResponse>;
 export const GetRoomResponse = z.object({
@@ -96,10 +132,12 @@ export const GetRoomResponse = z.object({
 export type GetRoomResponse = z.infer<typeof GetRoomResponse>;
 export const UpdateRoomResponse = z.object({ room: Room });
 export type UpdateRoomResponse = z.infer<typeof UpdateRoomResponse>;
-export const CreateInviteResponse = z.object({ invite: RoomInvite });
-export type CreateInviteResponse = z.infer<typeof CreateInviteResponse>;
-export const ListInvitesResponse = z.object({ invites: z.array(RoomInvite) });
-export type ListInvitesResponse = z.infer<typeof ListInvitesResponse>;
+export const AddToWhitelistResponse = z.object({ entry: RoomWhitelistEntry });
+export type AddToWhitelistResponse = z.infer<typeof AddToWhitelistResponse>;
+export const ListWhitelistResponse = z.object({ entries: z.array(RoomWhitelistEntry) });
+export type ListWhitelistResponse = z.infer<typeof ListWhitelistResponse>;
+export const ListBlacklistResponse = z.object({ entries: z.array(RoomBlacklistEntry) });
+export type ListBlacklistResponse = z.infer<typeof ListBlacklistResponse>;
 
 // Path params
 export const SlugParam = z.object({
@@ -108,10 +146,45 @@ export const SlugParam = z.object({
     .regex(/^[a-z0-9-]+$/)
     .max(64),
 });
-export const InviteIdParams = z.object({
+export const WhitelistIdParams = z.object({
   slug: z
     .string()
     .regex(/^[a-z0-9-]+$/)
     .max(64),
   id: z.string().uuid(),
+});
+export const BlacklistIdParams = z.object({
+  slug: z
+    .string()
+    .regex(/^[a-z0-9-]+$/)
+    .max(64),
+  id: z.string().uuid(),
+});
+
+// Members
+export const RoomMember = z.object({
+  userId: z.string().uuid(),
+  role: Role,
+  displayName: z.string().nullable(),
+  email: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+  joinedAt: z.string(),
+});
+export type RoomMember = z.infer<typeof RoomMember>;
+export const ListMembersResponse = z.object({ members: z.array(RoomMember) });
+export type ListMembersResponse = z.infer<typeof ListMembersResponse>;
+export const UpdateMemberRoleBody = z.object({
+  role: z.enum(["admin", "member"]),
+});
+export type UpdateMemberRoleBody = z.infer<typeof UpdateMemberRoleBody>;
+export const TransferOwnershipBody = z.object({
+  newOwnerId: z.string().uuid(),
+});
+export type TransferOwnershipBody = z.infer<typeof TransferOwnershipBody>;
+export const MemberIdParams = z.object({
+  slug: z
+    .string()
+    .regex(/^[a-z0-9-]+$/)
+    .max(64),
+  userId: z.string().uuid(),
 });

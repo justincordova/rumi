@@ -43,19 +43,6 @@ export function RenameRoomItem({ room }: { room: Room }) {
   return <DropdownMenuItem onSelect={handleRename}>Rename room…</DropdownMenuItem>;
 }
 
-export function CopyLinkItem() {
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      toast.success("Link copied to clipboard");
-    } catch {
-      toast.error("Could not copy link");
-    }
-  }
-
-  return <DropdownMenuItem onSelect={handleCopy}>Copy invite link</DropdownMenuItem>;
-}
-
 export function VisibilitySelector({ room }: { room: Room }) {
   const updateRoom = useRoomsStore((s) => s.updateRoom);
 
@@ -100,21 +87,25 @@ export function VisibilitySelector({ room }: { room: Room }) {
           ))}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger>Guest access</DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
-          {GUEST_ACCESS_OPTIONS.map((opt) => (
-            <DropdownMenuItem
-              key={opt.value}
-              onSelect={() => setGuestAccess(opt.value)}
-              className="flex items-center gap-2"
-            >
-              {room.guestAccess === opt.value && <Check className="h-3.5 w-3.5" />}
-              <span className={room.guestAccess === opt.value ? "" : "ml-[20px]"}>{opt.label}</span>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
+      {room.visibility === "open" && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Guest access</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {GUEST_ACCESS_OPTIONS.map((opt) => (
+              <DropdownMenuItem
+                key={opt.value}
+                onSelect={() => setGuestAccess(opt.value)}
+                className="flex items-center gap-2"
+              >
+                {room.guestAccess === opt.value && <Check className="h-3.5 w-3.5" />}
+                <span className={room.guestAccess === opt.value ? "" : "ml-[20px]"}>
+                  {opt.label}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
     </>
   );
 }

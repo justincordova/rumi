@@ -1,8 +1,26 @@
 import { z } from "zod";
 
-export const NotificationType = z.enum(["invite_received", "invite_accepted"]);
+export const NotificationType = z.enum([
+  "room_access_granted",
+  "invite_received",
+  "invite_accepted",
+]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
+// New payload (whitelist-based access)
+export const RoomAccessGrantedPayload = z.object({
+  whitelistId: z.string().uuid().optional(),
+  roomId: z.string().uuid(),
+  roomSlug: z.string(),
+  roomName: z.string().nullable(),
+  grantedBy: z.object({
+    userId: z.string().uuid(),
+    displayName: z.string().nullable(),
+  }),
+});
+export type RoomAccessGrantedPayload = z.infer<typeof RoomAccessGrantedPayload>;
+
+// Legacy payload (invite-based, still used for backward compatibility)
 export const InviteReceivedPayload = z.object({
   inviteId: z.string().uuid(),
   roomId: z.string().uuid(),
@@ -27,7 +45,7 @@ export type InviteAcceptedPayload = z.infer<typeof InviteAcceptedPayload>;
 export const Notification = z.object({
   id: z.string().uuid(),
   type: NotificationType,
-  payload: z.union([InviteReceivedPayload, InviteAcceptedPayload]),
+  payload: z.union([RoomAccessGrantedPayload, InviteReceivedPayload, InviteAcceptedPayload]),
   readAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
 });
@@ -47,7 +65,7 @@ export type MarkReadBody = z.infer<typeof MarkReadBody>;
 
 export const NotificationPreferences = z.object({
   emailEnabled: z.boolean(),
-  inviteReceivedEmail: z.boolean(),
+  accessGrantedEmail: z.boolean(),
   inviteAcceptedEmail: z.boolean(),
 });
 export type NotificationPreferences = z.infer<typeof NotificationPreferences>;

@@ -34,22 +34,37 @@ export const roomMembers = pgTable("room_members", {
     .notNull()
     .references(() => rooms.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull(),
-  role: text("role", { enum: ["owner", "member"] })
+  role: text("role", { enum: ["owner", "admin", "member"] })
     .notNull()
     .default("member"),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const roomInvites = pgTable("room_invites", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  roomId: uuid("room_id")
-    .notNull()
-    .references(() => rooms.id, { onDelete: "cascade" }),
-  invitedEmail: text("invited_email").notNull(),
-  invitedBy: uuid("invited_by").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
-});
+export const roomWhitelist = pgTable(
+  "room_whitelist",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    roomId: uuid("room_id")
+      .notNull()
+      .references(() => rooms.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("room_whitelist_room_email_unique").on(t.roomId, t.email)],
+);
+
+export const roomBlacklist = pgTable(
+  "room_blacklist",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    roomId: uuid("room_id")
+      .notNull()
+      .references(() => rooms.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("room_blacklist_room_email_unique").on(t.roomId, t.email)],
+);
 
 export const tabs = pgTable(
   "tabs",
@@ -112,7 +127,7 @@ export const notifications = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").notNull(),
     type: text("type", {
-      enum: ["invite_received", "invite_accepted"],
+      enum: ["invite_received", "room_access_granted", "invite_accepted"],
     }).notNull(),
     payload: jsonb("payload").notNull(),
     readAt: timestamp("read_at", { withTimezone: true }),

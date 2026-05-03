@@ -8,6 +8,7 @@ import { TopBar } from "@/components/topbar";
 import { ApiError, apiFetch } from "@/lib/api";
 import { useSession } from "@/lib/auth";
 import { getGuestId } from "@/lib/guest";
+import { useRoomsStore } from "@/stores/rooms";
 import type { GetRoomResponse as GetRoomResponseType } from "@rumi/protocol";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect } from "react";
@@ -61,7 +62,9 @@ export const Route = createFileRoute("/r/$slug")({
 });
 
 function RoomPage() {
-  const { room, tabs: initialTabs } = Route.useLoaderData();
+  const { room: loaderRoom, tabs: initialTabs, role } = Route.useLoaderData();
+  const storeRoom = useRoomsStore((s) => s.rooms.find((r) => r.slug === loaderRoom.slug));
+  const room = storeRoom ? { ...loaderRoom, ...storeRoom } : loaderRoom;
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const isGuest = useSession((s) => s.status !== "authenticated");
@@ -94,13 +97,7 @@ function RoomPage() {
 
   return (
     <div className="flex h-screen flex-col">
-      <TopBar
-        room={room}
-        status={control.status}
-        provider={control.provider}
-        isGuest={isGuest}
-        activeTabName={activeTab?.name}
-      />
+      <TopBar room={room} status={control.status} provider={control.provider} isGuest={isGuest} />
       {isGuest && <GuestBanner slug={room.slug} readOnly={control.readOnly} />}
       <TabBar
         tabs={tabs}
@@ -108,6 +105,7 @@ function RoomPage() {
         roomSlug={room.slug}
         onSelect={onSelect}
         isGuest={isGuest}
+        role={role}
       />
       <div className="flex-1 min-h-0">
         {activeTab && <TabEditor tab={activeTab} roomSlug={room.slug} key={activeTab.id} />}

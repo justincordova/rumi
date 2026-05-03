@@ -2,18 +2,18 @@ import type { DbClient } from "@/db/client";
 import { notificationPreferences, notifications } from "@/db/schema";
 import {
   InviteAcceptedPayload,
-  InviteReceivedPayload,
   type NotificationPreferences,
+  RoomAccessGrantedPayload,
 } from "@rumi/protocol";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 type NotificationInput =
-  | { type: "invite_received"; payload: InviteReceivedPayload }
+  | { type: "room_access_granted"; payload: RoomAccessGrantedPayload }
   | { type: "invite_accepted"; payload: InviteAcceptedPayload };
 
 const DEFAULT_PREFS: NotificationPreferences = {
   emailEnabled: true,
-  inviteReceivedEmail: true,
+  accessGrantedEmail: true,
   inviteAcceptedEmail: true,
 };
 
@@ -22,8 +22,8 @@ export type NotificationsService = ReturnType<typeof createNotificationsService>
 export function createNotificationsService(db: DbClient) {
   return {
     async recordNotification(userId: string, input: NotificationInput) {
-      if (input.type === "invite_received") {
-        InviteReceivedPayload.parse(input.payload);
+      if (input.type === "room_access_granted") {
+        RoomAccessGrantedPayload.parse(input.payload);
       } else {
         InviteAcceptedPayload.parse(input.payload);
       }
@@ -80,19 +80,33 @@ export function createNotificationsService(db: DbClient) {
       return row
         ? {
             emailEnabled: row.emailEnabled,
-            inviteReceivedEmail: row.inviteReceivedEmail,
+            accessGrantedEmail: row.inviteReceivedEmail,
             inviteAcceptedEmail: row.inviteAcceptedEmail,
           }
         : DEFAULT_PREFS;
     },
 
     async updatePreferences(userId: string, patch: Partial<NotificationPreferences>) {
+      const dbPatch: Record<string, unknown> = { ...patch, updatedAt: new Date() };
+      if (patch.accessGrantedEmail !== undefined) {
+        dbPatch.inviteReceivedEmail = patch.accessGrantedEmail;
+      }
+      // Setting to undefined rather than delete — Drizzle ignores keys not
+      // present on the table schema, so this is safe and avoids the noDelete lint.
+      dbPatch.accessGrantedEmail = undefined;
+
       await db
         .insert(notificationPreferences)
-        .values({ userId, ...DEFAULT_PREFS, ...patch, updatedAt: new Date() })
+        .values({
+          userId,
+          ...DEFAULT_PREFS,
+          inviteReceivedEmail: true,
+          inviteAcceptedEmail: true,
+          updatedAt: new Date(),
+        })
         .onConflictDoUpdate({
           target: notificationPreferences.userId,
-          set: { ...patch, updatedAt: new Date() },
+          set: dbPatch,
         });
       return this.getPreferences(userId);
     },

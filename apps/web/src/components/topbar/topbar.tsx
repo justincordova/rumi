@@ -1,6 +1,7 @@
 import logoT from "@/assets/logos/logo-t.png";
 import { PresenceAvatars } from "@/components/editor/presence-avatars";
 import { BellPopover } from "@/components/notifications/bell-popover";
+import { MembersDialog } from "@/components/rooms/members-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,26 +19,25 @@ import { usePrefs } from "@/lib/prefs";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import type { Room } from "@rumi/protocol";
 import { Link } from "@tanstack/react-router";
-import { Check, LogIn, Settings2 } from "lucide-react";
+import { Check, LogIn, Settings2, Users } from "lucide-react";
+import { useState } from "react";
 import { AppearanceItems } from "./appearance-items";
 import { DashboardDropdown } from "./dashboard-dropdown";
 import { PlanBadge } from "./plan-badge";
-import { CopyLinkItem, RenameRoomItem, VisibilitySelector } from "./room-menu";
-import { RoomTitle } from "./room-title";
+import { RenameRoomItem, VisibilitySelector } from "./room-menu";
 import { ShareButton } from "./share-button";
-import { VisibilityBadge } from "./visibility-badge";
 
 interface TopBarProps {
   room?: Room;
   status?: "connecting" | "connected" | "disconnected";
   provider?: HocuspocusProvider | null;
   isGuest?: boolean;
-  activeTabName?: string;
 }
 
-export function TopBar({ room, status, provider, isGuest, activeTabName }: TopBarProps) {
+export function TopBar({ room, status, provider, isGuest }: TopBarProps) {
   const theme = usePrefs((s) => s.theme);
   const setTheme = usePrefs((s) => s.setTheme);
+  const [membersOpen, setMembersOpen] = useState(false);
 
   return (
     <header className="h-14 border-b border-border bg-surface/80 backdrop-blur-md sticky top-0 z-10">
@@ -49,30 +49,7 @@ export function TopBar({ room, status, provider, isGuest, activeTabName }: TopBa
           <span className="font-display text-[15px] font-semibold tracking-tight">Rumi</span>
         </Link>
 
-        {room && (
-          <>
-            <div className="h-4 w-px bg-border shrink-0" />
-            <RoomTitle room={room} />
-            <VisibilityBadge room={room} />
-            {activeTabName && (
-              <>
-                <div className="h-4 w-px bg-border shrink-0" />
-                <span className="text-[13px] text-muted-foreground truncate max-w-[160px]">
-                  {activeTabName}
-                </span>
-              </>
-            )}
-          </>
-        )}
-
-        <div className="ml-auto flex items-center gap-3">
-          {!room && (
-            <>
-              <PlanBadge />
-              <BellPopover />
-            </>
-          )}
-
+        <div className="ml-auto flex items-center gap-2">
           {room && status === "connected" && (
             <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1">
               <span className="relative flex h-1.5 w-1.5">
@@ -87,22 +64,24 @@ export function TopBar({ room, status, provider, isGuest, activeTabName }: TopBa
             <PresenceAvatars provider={provider} max={5} />
           )}
 
-          {room && !isGuest && <BellPopover />}
+          {room && !isGuest && (
+            <>
+              <ShareButton room={room} />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setMembersOpen(true)}
+              >
+                <Users className="h-4 w-4" />
+              </Button>
+            </>
+          )}
 
-          {room && <ShareButton room={room} />}
-
-          {isGuest && room ? (
-            <Button
-              onClick={() => signInWithProvider("github", window.location.pathname)}
-              className="bg-foreground text-background hover:bg-foreground/90 shadow-sm hover:shadow-md transition-all h-8 px-3"
-            >
-              <LogIn className="h-3.5 w-3.5 mr-1.5" />
-              Sign in
-            </Button>
-          ) : room ? (
+          {room && !isGuest && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
                   <Settings2 className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -111,7 +90,6 @@ export function TopBar({ room, status, provider, isGuest, activeTabName }: TopBa
                   Room
                 </DropdownMenuLabel>
                 <RenameRoomItem room={room} />
-                <CopyLinkItem />
                 <VisibilitySelector room={room} />
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -137,11 +115,30 @@ export function TopBar({ room, status, provider, isGuest, activeTabName }: TopBa
                 <AppearanceItems />
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
-            <DashboardDropdown />
           )}
+
+          {!isGuest && (
+            <>
+              <BellPopover />
+              <PlanBadge />
+            </>
+          )}
+
+          {isGuest && room && (
+            <Button
+              onClick={() => signInWithProvider("github", window.location.pathname)}
+              className="bg-foreground text-background hover:bg-foreground/90 shadow-sm hover:shadow-md transition-all h-8 px-3"
+            >
+              <LogIn className="h-3.5 w-3.5 mr-1.5" />
+              Sign in
+            </Button>
+          )}
+
+          {!isGuest && <DashboardDropdown />}
         </div>
       </div>
+
+      {room && <MembersDialog open={membersOpen} onOpenChange={setMembersOpen} room={room} />}
     </header>
   );
 }

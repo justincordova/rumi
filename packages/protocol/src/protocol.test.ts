@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
-  CreateInviteBody,
+  AddToBlacklistBody,
+  AddToWhitelistBody,
   CreateRoomBody,
   CreateTabBody,
   ErrorCode,
@@ -8,12 +9,10 @@ import {
   GetRoomResponse,
   GetSubscriptionResponse,
   GuestAccess,
-  InviteIdParams,
   ListRoomsResponse,
   PlanType,
   Role,
   Room,
-  RoomInvite,
   SlugParam,
   Subscription,
   SubscriptionStatus,
@@ -68,23 +67,6 @@ describe("Room", () => {
   });
   it("rejects non-uuid id", () => {
     expect(() => Room.parse({ ...valid, id: "not-a-uuid" })).toThrow();
-  });
-});
-
-describe("RoomInvite", () => {
-  const valid = {
-    id: "00000000-0000-0000-0000-000000000001",
-    roomId: "00000000-0000-0000-0000-000000000002",
-    invitedEmail: "user@example.com",
-    invitedBy: "00000000-0000-0000-0000-000000000003",
-    createdAt: new Date().toISOString(),
-    acceptedAt: null,
-  };
-  it("parses a valid invite", () => {
-    expect(RoomInvite.parse(valid).invitedEmail).toBe("user@example.com");
-  });
-  it("rejects invalid email", () => {
-    expect(() => RoomInvite.parse({ ...valid, invitedEmail: "not-email" })).toThrow();
   });
 });
 
@@ -162,12 +144,21 @@ describe("SlugParam", () => {
   });
 });
 
-describe("CreateInviteBody", () => {
+describe("AddToWhitelistBody", () => {
   it("lowercases email", () => {
-    expect(CreateInviteBody.parse({ email: "User@Example.COM" }).email).toBe("user@example.com");
+    expect(AddToWhitelistBody.parse({ email: "User@Example.COM" }).email).toBe("user@example.com");
   });
   it("rejects invalid email", () => {
-    expect(() => CreateInviteBody.parse({ email: "not-email" })).toThrow();
+    expect(() => AddToWhitelistBody.parse({ email: "not-email" })).toThrow();
+  });
+});
+
+describe("AddToBlacklistBody", () => {
+  it("lowercases email", () => {
+    expect(AddToBlacklistBody.parse({ email: "User@Example.COM" }).email).toBe("user@example.com");
+  });
+  it("rejects invalid email", () => {
+    expect(() => AddToBlacklistBody.parse({ email: "not-email" })).toThrow();
   });
 });
 
@@ -216,11 +207,11 @@ describe("ListRoomsResponse", () => {
           guestAccess: "none",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          pendingInvite: true,
+          pendingAccess: true,
         },
       ],
     };
-    expect(ListRoomsResponse.parse(data).rooms[0]?.pendingInvite).toBe(true);
+    expect(ListRoomsResponse.parse(data).rooms[0]?.pendingAccess).toBe(true);
   });
 });
 

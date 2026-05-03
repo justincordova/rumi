@@ -1,7 +1,7 @@
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { Resend } from "resend";
-import { inviteAcceptedTemplate, inviteReceivedTemplate } from "./templates";
+import { accessGrantedTemplate } from "./templates";
 
 let _resend: Resend | null = null;
 function getResend() {
@@ -45,24 +45,13 @@ async function send(opts: {
   }
 }
 
-export async function sendInviteEmail(opts: {
+export async function sendAccessGrantedEmail(opts: {
   toUserId: string;
   toEmail: string;
-  inviterName: string;
+  granterName: string;
   roomName: string;
   roomSlug: string;
 }) {
   const { toEmail, ...templateOpts } = opts;
-  return send({ to: toEmail, ...inviteReceivedTemplate(templateOpts) });
-}
-
-export async function sendInviteAcceptedEmail(opts: {
-  toUserId: string;
-  toEmail: string;
-  accepterName: string;
-  roomName: string;
-  roomSlug: string;
-}) {
-  const { toEmail, ...templateOpts } = opts;
-  return send({ to: toEmail, ...inviteAcceptedTemplate(templateOpts) });
+  return send({ to: toEmail, ...accessGrantedTemplate(templateOpts) });
 }

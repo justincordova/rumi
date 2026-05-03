@@ -1,10 +1,15 @@
 import { apiFetch } from "@/lib/api";
-import type { Room } from "@rumi/protocol";
-import type { ListRoomsResponse } from "@rumi/protocol";
+import type {
+  ListRoomsResponse,
+  ListTrashedRoomsResponse,
+  Room,
+  TrashedRoom,
+} from "@rumi/protocol";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-type RoomEntry = Room & { pendingInvite: boolean };
+type RoomEntry = Room & { pendingAccess: boolean; pendingWhitelistId?: string };
+export type TrashedRoomEntry = TrashedRoom;
 
 export type RoomSort = "updated" | "created" | "name";
 export type ViewMode = "grid" | "list";
@@ -32,14 +37,18 @@ interface RoomsState {
   sort: RoomSort;
   search: string;
   viewMode: ViewMode;
+  trashed: TrashedRoomEntry[];
+  trashStatus: "idle" | "loading" | "ready" | "error";
   setSort: (sort: RoomSort) => void;
   setSearch: (search: string) => void;
   setViewMode: (mode: ViewMode) => void;
   filtered: () => RoomEntry[];
   fetch: () => Promise<void>;
+  fetchTrash: () => Promise<void>;
   addRoom: (room: Room) => void;
   removeRoom: (slug: string) => void;
   updateRoom: (room: Room) => void;
+  removeTrashedRoom: (slug: string) => void;
 }
 
 export const useRoomsStore = create<RoomsState>()(
@@ -50,6 +59,8 @@ export const useRoomsStore = create<RoomsState>()(
       sort: "updated",
       search: "",
       viewMode: "grid",
+      trashed: [],
+      trashStatus: "idle",
       setSort: (sort) => set({ sort, rooms: sortRooms(get().rooms, sort) }),
       setSearch: (search) => set({ search }),
       setViewMode: (viewMode) => set({ viewMode }),
@@ -63,8 +74,17 @@ export const useRoomsStore = create<RoomsState>()(
           set({ status: "error" });
         }
       },
+      fetchTrash: async () => {
+        set({ trashStatus: "loading" });
+        try {
+          const data = await apiFetch<ListTrashedRoomsResponse>("/api/rooms/trash");
+          set({ trashed: data.rooms, trashStatus: "ready" });
+        } catch {
+          set({ trashStatus: "error" });
+        }
+      },
       addRoom: (room) =>
-        set((s) => ({ rooms: sortRooms([{ ...room, pendingInvite: false }, ...s.rooms], s.sort) })),
+        set((s) => ({ rooms: sortRooms([{ ...room, pendingAccess: false }, ...s.rooms], s.sort) })),
       removeRoom: (slug) => set({ rooms: get().rooms.filter((r) => r.slug !== slug) }),
       updateRoom: (room) =>
         set((s) => ({
@@ -73,6 +93,7 @@ export const useRoomsStore = create<RoomsState>()(
             s.sort,
           ),
         })),
+      removeTrashedRoom: (slug) => set({ trashed: get().trashed.filter((r) => r.slug !== slug) }),
     }),
     {
       name: "rumi-rooms-prefs",

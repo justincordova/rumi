@@ -12,5 +12,6 @@ declare module "fastify" {
     dropRoomConnections: (roomId: string) => Promise<void>;
     closeTabConnections: (tabId: string) => void;
     dropUserConnections: (userId: string) => void;
+    dropConnectionForUserInRoom: (roomId: string, userId: string) => void;
   }
 }

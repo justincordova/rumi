@@ -5,17 +5,21 @@ import {
   uniqueNamesGenerator,
 } from "unique-names-generator";
 
+const RESERVED_SLUGS = new Set(["trash", "new", "settings", "api", "health", "ws"]);
+
 const numbers = NumberDictionary.generate({ length: 2 });
 
 export function generateSlug(): string {
-  return uniqueNamesGenerator({
-    dictionaries: [adjectives, animals, numbers],
-    separator: "-",
-    style: "lowerCase",
-  });
+  for (;;) {
+    const slug = uniqueNamesGenerator({
+      dictionaries: [adjectives, animals, numbers],
+      separator: "-",
+      style: "lowerCase",
+    });
+    if (!RESERVED_SLUGS.has(slug)) return slug;
+  }
 }
 
 export function fallbackSlug(): string {
-  // Used after 5 collision retries — appends a 4-char UUID fragment.
   return `${generateSlug()}-${crypto.randomUUID().slice(0, 4)}`;
 }

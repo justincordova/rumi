@@ -49,6 +49,8 @@ function makeDbMock(
     query: {
       rooms: { findFirst: async () => room },
       roomMembers: { findFirst: async () => member },
+      roomWhitelist: { findFirst: async () => null },
+      roomBlacklist: { findFirst: async () => null },
       tabs: { findFirst: async () => tab },
     },
     insert: () => ({
@@ -194,5 +196,65 @@ describe("onAuthenticate", () => {
       documentName: "room:room-id",
     } as Parameters<typeof onAuthenticate>[0]);
     expect(result.readOnly).toBe(false);
+  });
+
+  it("blacklisted user → throws forbidden", async () => {
+    const dbMock = makeDbMock();
+    // biome-ignore lint/suspicious/noExplicitAny: test patching
+    (_db as any).query = {
+      ...dbMock.query,
+      roomBlacklist: {
+        findFirst: async () => ({ id: "bl-id", roomId: "room-id", email: "user@example.com" }),
+      },
+    };
+    // biome-ignore lint/suspicious/noExplicitAny: test patching
+    (_db as any).insert = dbMock.insert;
+    await expect(
+      onAuthenticate({
+        token: "eyJvalid.token",
+        documentName: "room:room-id",
+      } as Parameters<typeof onAuthenticate>[0]),
+    ).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it("whitelisted user on private room → auto-joins as member", async () => {
+    const dbMock = makeDbMock({
+      room: { ...baseRoom, visibility: "private" as const },
+      member: null,
+    });
+    // biome-ignore lint/suspicious/noExplicitAny: test patching
+    (_db as any).query = {
+      ...dbMock.query,
+      roomWhitelist: {
+        findFirst: async () => ({ id: "wl-id", roomId: "room-id", email: "user@example.com" }),
+      },
+    };
+    // biome-ignore lint/suspicious/noExplicitAny: test patching
+    (_db as any).insert = dbMock.insert;
+    const result = await onAuthenticate({
+      token: "eyJvalid.token",
+      documentName: "room:room-id",
+    } as Parameters<typeof onAuthenticate>[0]);
+    expect(result.readOnly).toBe(false);
+  });
+
+  it("non-whitelisted user on private room → throws forbidden", async () => {
+    const dbMock = makeDbMock({
+      room: { ...baseRoom, visibility: "private" as const },
+      member: null,
+    });
+    // biome-ignore lint/suspicious/noExplicitAny: test patching
+    (_db as any).query = {
+      ...dbMock.query,
+      roomWhitelist: { findFirst: async () => null },
+    };
+    // biome-ignore lint/suspicious/noExplicitAny: test patching
+    (_db as any).insert = dbMock.insert;
+    await expect(
+      onAuthenticate({
+        token: "eyJvalid.token",
+        documentName: "room:room-id",
+      } as Parameters<typeof onAuthenticate>[0]),
+    ).rejects.toBeInstanceOf(AuthError);
   });
 });

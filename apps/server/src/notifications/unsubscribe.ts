@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 
-export type Channel = "invite_received" | "invite_accepted" | "all";
+export type Channel = "invite_received" | "room_access_granted" | "invite_accepted" | "all";
 
 export function signUnsubscribeToken(userId: string, channel: Channel): string | null {
   if (!env.UNSUBSCRIBE_HMAC_SECRET) return null;
@@ -36,7 +36,10 @@ export function verifyUnsubscribeToken(token: string): { userId: string; channel
   const channel = payload.slice(colonIdx + 1);
   if (
     !userId ||
-    (channel !== "invite_received" && channel !== "invite_accepted" && channel !== "all")
+    (channel !== "invite_received" &&
+      channel !== "room_access_granted" &&
+      channel !== "invite_accepted" &&
+      channel !== "all")
   )
     return null;
   return { userId, channel: channel as Channel };

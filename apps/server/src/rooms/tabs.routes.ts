@@ -1,5 +1,16 @@
-import { broadcastTabsCreated, broadcastTabsDeleted, broadcastTabsUpdated } from "@/sync/control";
-import { CreateTabBody, SlugParam, TabIdParams, UpdateTabBody } from "@rumi/protocol";
+import {
+  broadcastTabsCreated,
+  broadcastTabsDeleted,
+  broadcastTabsReordered,
+  broadcastTabsUpdated,
+} from "@/sync/control";
+import {
+  CreateTabBody,
+  ReorderTabsBody,
+  SlugParam,
+  TabIdParams,
+  UpdateTabBody,
+} from "@rumi/protocol";
 import type { FastifyPluginAsync } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { serializeTab } from "./serialize";
@@ -41,6 +52,24 @@ export const tabsRoutes: FastifyPluginAsync = async (app) => {
       app.log.info({ userId: req.user?.id, tabId: tab.id }, "tab updated");
       void broadcastTabsUpdated(app.hocuspocus, tab.roomId, serialized);
       return { tab: serialized };
+    },
+  );
+
+  typed.post(
+    "/:slug/tabs/reorder",
+    { schema: { params: SlugParam, body: ReorderTabsBody } },
+    async (req) => {
+      const reordered = await app.tabsService.reorderTabs(
+        req.params.slug,
+        // biome-ignore lint/style/noNonNullAssertion: auth plugin guarantees req.user is set for /api/ routes
+        req.user!.id,
+        req.body.tabIds,
+      );
+      const serialized = reordered.map(serializeTab);
+      if (serialized.length > 0) {
+        void broadcastTabsReordered(app.hocuspocus, serialized[0]?.roomId ?? "", serialized);
+      }
+      return { tabs: serialized };
     },
   );
 

@@ -1,6 +1,23 @@
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { TabSummary } from "@rumi/protocol";
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { Role, TabSummary } from "@rumi/protocol";
 import type { CreateTabResponse } from "@rumi/protocol";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -16,10 +33,33 @@ interface Props {
   roomSlug: string;
   onSelect: (tabId: string) => void;
   isGuest?: boolean;
+  role?: Role | null;
 }
 
-export function TabBar({ tabs, activeTabId, roomSlug, onSelect, isGuest }: Props) {
+export function TabBar({ tabs, activeTabId, roomSlug, onSelect, isGuest, role }: Props) {
   const atCap = tabs.length >= TAB_CAP;
+  const canManageTabs = role === "owner" || role === "admin";
+
+  // Local optimistic order for drag-and-drop. We mirror the parent-supplied
+  // tabs and only diverge briefly during a drag; once the server broadcast
+  // arrives via the control doc, the parent's `tabs` prop is the source of
+  // truth again.
+  const [optimistic, setOptimistic] = useState<TabSummary[] | null>(null);
+  const tabsToRender = optimistic ?? tabs;
+
+  // Reset optimistic state once the parent prop reflects the new order
+  // (or any further tab list change).
+  useEffect(() => {
+    if (!optimistic) return;
+    const sameOrder =
+      optimistic.length === tabs.length && optimistic.every((t, i) => t.id === tabs[i]?.id);
+    if (sameOrder) setOptimistic(null);
+  }, [tabs, optimistic]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   async function addTab(type: "tab" | "drawing") {
     try {
@@ -50,33 +90,96 @@ export function TabBar({ tabs, activeTabId, roomSlug, onSelect, isGuest }: Props
     }
   }
 
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = tabsToRender.findIndex((t) => t.id === active.id);
+    const newIndex = tabsToRender.findIndex((t) => t.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) {
+      toast.info("Tab list changed during drag — try again");
+      return;
+    }
+    const next = arrayMove(tabsToRender, oldIndex, newIndex);
+    setOptimistic(next);
+    try {
+      await apiFetch(`/api/rooms/${roomSlug}/tabs/reorder`, {
+        method: "POST",
+        body: { tabIds: next.map((t) => t.id) },
+      });
+      // Clear optimistic state on success so the server broadcast (or any
+      // concurrent reorder by another admin) becomes the source of truth on
+      // the next render. Without this, a concurrent reorder that produces a
+      // different final order would be hidden by our stale optimistic state.
+      setOptimistic(null);
+    } catch (err: unknown) {
+      setOptimistic(null);
+      // biome-ignore lint/suspicious/noExplicitAny: error message extraction
+      toast.error((err as any)?.message ?? "Couldn't reorder tabs");
+    }
+  }
+
+  const tabIds = tabsToRender.map((t) => t.id);
+
   return (
     <div className="flex-none border-b border-border bg-background shrink-0">
       <div className="flex items-end gap-1 px-2 pt-1.5">
         <div className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto">
-          {tabs.map((tab) => {
-            const isActive = tab.id === activeTabId;
-            const _Icon = getTabIcon(tab.type, tab.language);
-            return (
-              <TabItem
-                key={tab.id}
-                tab={tab}
-                isActive={isActive}
-                roomSlug={roomSlug}
-                onSelect={onSelect}
-                onClose={closeTab}
-                canClose={tabs.length > 1}
-                isGuest={isGuest}
-              />
-            );
-          })}
-          {!isGuest && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={tabIds} strategy={horizontalListSortingStrategy}>
+              {tabsToRender.map((tab) => {
+                const isActive = tab.id === activeTabId;
+                return (
+                  <SortableTabItem
+                    key={tab.id}
+                    tab={tab}
+                    isActive={isActive}
+                    roomSlug={roomSlug}
+                    onSelect={onSelect}
+                    onClose={closeTab}
+                    canClose={tabsToRender.length > 1 && canManageTabs}
+                    isGuest={isGuest}
+                    canRename={canManageTabs}
+                    canDrag={!!canManageTabs}
+                  />
+                );
+              })}
+            </SortableContext>
+          </DndContext>
+          {!isGuest && canManageTabs && (
             <div className="mb-0.5">
               <AddTabPopover onAdd={addTab} atCap={atCap} onAtCapClick={notifyAtCap} />
             </div>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function SortableTabItem(props: TabItemProps & { canDrag: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.tab.id,
+    disabled: !props.canDrag,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...(props.canDrag ? attributes : {})}
+      {...(props.canDrag ? listeners : {})}
+    >
+      <TabItem {...props} />
     </div>
   );
 }
@@ -89,9 +192,19 @@ interface TabItemProps {
   onClose: (e: React.MouseEvent, tabId: string) => void;
   canClose: boolean;
   isGuest?: boolean;
+  canRename?: boolean;
 }
 
-function TabItem({ tab, isActive, roomSlug, onSelect, onClose, canClose, isGuest }: TabItemProps) {
+function TabItem({
+  tab,
+  isActive,
+  roomSlug,
+  onSelect,
+  onClose,
+  canClose,
+  isGuest,
+  canRename,
+}: TabItemProps) {
   const Icon = getTabIcon(tab.type, tab.language);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tab.name);
@@ -163,10 +276,14 @@ function TabItem({ tab, isActive, roomSlug, onSelect, onClose, canClose, isGuest
       ) : (
         <span
           className="min-w-0 flex-1 truncate font-medium"
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            setEditing(true);
-          }}
+          onDoubleClick={
+            canRename
+              ? (e) => {
+                  e.stopPropagation();
+                  setEditing(true);
+                }
+              : undefined
+          }
         >
           {tab.name}
         </span>

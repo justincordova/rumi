@@ -1,10 +1,11 @@
+import { getUserProfile } from "@/auth/supabase-admin";
 import { verifyJwt } from "@/auth/verify";
 import { db } from "@/db/client";
-import { roomMembers, rooms, tabs } from "@/db/schema";
+import { roomBlacklist, roomMembers, roomWhitelist, rooms, tabs } from "@/db/schema";
 import { AuthError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import type { onAuthenticatePayload } from "@hocuspocus/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 export async function onAuthenticate(payload: onAuthenticatePayload) {
   const { token, documentName } = payload;
@@ -37,19 +38,45 @@ async function authenticateJwt(token: string, documentName: string) {
     });
     if (!room) throw new AuthError("not_found", "Room not found");
 
+    // Check blacklist
+    const blacklisted = await db.query.roomBlacklist.findFirst({
+      where: and(
+        eq(roomBlacklist.roomId, room.id),
+        sql`lower(${roomBlacklist.email}) = lower(${user.email})`,
+      ),
+    });
+    if (blacklisted) throw new AuthError("forbidden", "Access denied");
+
     const member = await db.query.roomMembers.findFirst({
       where: and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, user.id)),
     });
 
     if (!member) {
       if (room.visibility === "open") {
-        // Auto-join: insert member row; ignore race with another concurrent join
+        const existingByEmail = await findMemberByEmail(db, room.id, user.id, user.email);
+        if (existingByEmail) {
+          return { user, roomId: room.id, tabId, readOnly: false, roomOwner: room.ownerId };
+        }
         await db
           .insert(roomMembers)
           .values({ roomId: room.id, userId: user.id, role: "member" })
           .onConflictDoNothing();
       } else {
-        throw new AuthError("forbidden", "Not a member");
+        // Private room — check whitelist
+        const whitelisted = await db.query.roomWhitelist.findFirst({
+          where: and(
+            eq(roomWhitelist.roomId, room.id),
+            sql`lower(${roomWhitelist.email}) = lower(${user.email})`,
+          ),
+        });
+        if (whitelisted) {
+          await db
+            .insert(roomMembers)
+            .values({ roomId: room.id, userId: user.id, role: "member" })
+            .onConflictDoNothing();
+        } else {
+          throw new AuthError("forbidden", "No access to this room");
+        }
       }
     }
 
@@ -90,4 +117,23 @@ async function authenticateGuest(documentName: string) {
   logger.debug({ roomId: room.id, tabId, readOnly, documentName }, "ws guest authenticated");
 
   return { isGuest: true, roomId: room.id, tabId, readOnly, roomOwner: room.ownerId };
+}
+
+async function findMemberByEmail(
+  db: typeof import("@/db/client")["db"],
+  roomId: string,
+  currentUserId: string,
+  email: string,
+): Promise<boolean> {
+  const members = await db.query.roomMembers.findMany({
+    where: and(eq(roomMembers.roomId, roomId), sql`${roomMembers.userId} != ${currentUserId}`),
+    columns: { userId: true },
+  });
+  for (const m of members) {
+    const profile = await getUserProfile(m.userId).catch(() => null);
+    if (profile?.email?.toLowerCase() === email.toLowerCase()) {
+      return true;
+    }
+  }
+  return false;
 }

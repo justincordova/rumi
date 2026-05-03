@@ -52,49 +52,24 @@ function renderHtml(opts: {
 </html>`;
 }
 
-export function inviteReceivedTemplate(opts: {
+export function accessGrantedTemplate(opts: {
   toUserId: string;
-  inviterName: string;
+  granterName: string;
   roomName: string;
   roomSlug: string;
 }) {
   const url = `${env.WEB_URL}/r/${opts.roomSlug}`;
-  const unsubChan = buildUnsubUrl(opts.toUserId, "invite_received");
+  const unsubChan = buildUnsubUrl(opts.toUserId, "room_access_granted");
   const unsubAll = buildUnsubUrl(opts.toUserId, "all");
-  const escapedInviter = escapeHtml(opts.inviterName);
+  const escapedGranter = escapeHtml(opts.granterName);
   const escapedRoom = escapeHtml(opts.roomName);
-  const subject = sanitizeSubject(`${opts.inviterName} invited you to a room on Rumi`);
-  const text = `${opts.inviterName} invited you to "${opts.roomName}" on Rumi.\n\nOpen the room: ${url}\n\nIf you weren't expecting this, you can ignore this email.\n\nManage email preferences: ${env.WEB_URL}/settings?tab=general${unsubChan ? `\nUnsubscribe from invite emails: ${unsubChan}` : ""}`;
+  const subject = sanitizeSubject(`${opts.granterName} gave you access to a room on Rumi`);
+  const text = `${opts.granterName} gave you access to "${opts.roomName}" on Rumi.\n\nOpen the room: ${url}\n\nIf you weren't expecting this, you can ignore this email.\n\nManage email preferences: ${env.WEB_URL}/settings?tab=general${unsubChan ? `\nUnsubscribe from access emails: ${unsubChan}` : ""}`;
   const html = renderHtml({
-    heading: escapedInviter
-      ? `${sanitizeSubject(escapedInviter)} invited you to a room on Rumi`
-      : "You were invited to a room on Rumi",
-    body: `${escapedInviter} invited you to "${escapedRoom}".`,
-    ctaUrl: url,
-    ctaLabel: "Open room",
-    unsubChanUrl: unsubChan,
-  });
-  return { subject, text, html, listUnsubscribe: unsubAll ?? undefined };
-}
-
-export function inviteAcceptedTemplate(opts: {
-  toUserId: string;
-  accepterName: string;
-  roomName: string;
-  roomSlug: string;
-}) {
-  const url = `${env.WEB_URL}/r/${opts.roomSlug}`;
-  const unsubChan = buildUnsubUrl(opts.toUserId, "invite_accepted");
-  const unsubAll = buildUnsubUrl(opts.toUserId, "all");
-  const escapedAccepter = escapeHtml(opts.accepterName ?? "Someone");
-  const escapedRoom = escapeHtml(opts.roomName);
-  const subject = sanitizeSubject(
-    `${opts.accepterName ?? "Someone"} joined your room "${opts.roomName}"`,
-  );
-  const text = `${opts.accepterName ?? "Someone"} accepted your invite to "${opts.roomName}".\n\nOpen the room: ${url}\n\nManage email preferences: ${env.WEB_URL}/settings?tab=general${unsubChan ? `\nUnsubscribe from these emails: ${unsubChan}` : ""}`;
-  const html = renderHtml({
-    heading: sanitizeSubject(`${escapedAccepter} joined your room "${escapedRoom}"`),
-    body: `${escapedAccepter} accepted your invite to "${escapedRoom}".`,
+    heading: escapedGranter
+      ? `${sanitizeSubject(escapedGranter)} gave you access to a room on Rumi`
+      : "You were given access to a room on Rumi",
+    body: `${escapedGranter} gave you access to "${escapedRoom}".`,
     ctaUrl: url,
     ctaLabel: "Open room",
     unsubChanUrl: unsubChan,

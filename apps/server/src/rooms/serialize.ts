@@ -1,11 +1,13 @@
 import type {
-  roomInvites as roomInvitesTable,
+  roomBlacklist as roomBlacklistTable,
+  roomWhitelist as roomWhitelistTable,
   rooms as roomsTable,
   tabs as tabsTable,
 } from "@/db/schema";
 import type {
-  RoomInvite as ProtocolInvite,
+  RoomBlacklistEntry as ProtocolBlacklistEntry,
   Room as ProtocolRoom,
+  RoomWhitelistEntry as ProtocolWhitelistEntry,
   TabSummary,
 } from "@rumi/protocol";
 
@@ -35,13 +37,24 @@ export function serializeRoom(r: typeof roomsTable.$inferSelect): ProtocolRoom {
   };
 }
 
-export function serializeInvite(i: typeof roomInvitesTable.$inferSelect): ProtocolInvite {
+export function serializeWhitelistEntry(
+  w: typeof roomWhitelistTable.$inferSelect,
+): ProtocolWhitelistEntry {
   return {
-    id: i.id,
-    roomId: i.roomId,
-    invitedEmail: i.invitedEmail,
-    invitedBy: i.invitedBy,
-    createdAt: i.createdAt.toISOString(),
-    acceptedAt: i.acceptedAt?.toISOString() ?? null,
+    id: w.id,
+    roomId: w.roomId,
+    email: w.email,
+    createdAt: w.createdAt.toISOString(),
+  };
+}
+
+export function serializeBlacklistEntry(
+  b: typeof roomBlacklistTable.$inferSelect,
+): ProtocolBlacklistEntry {
+  return {
+    id: b.id,
+    roomId: b.roomId,
+    email: b.email,
+    createdAt: b.createdAt.toISOString(),
   };
 }

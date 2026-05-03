@@ -29,7 +29,7 @@ export async function lookupUserIdByEmail(email: string): Promise<string | null>
 
 export async function getUserProfile(
   userId: string,
-): Promise<{ email: string; displayName: string | null } | null> {
+): Promise<{ email: string; displayName: string | null; avatarUrl: string | null } | null> {
   if (!env.SUPABASE_SERVICE_ROLE_KEY) return null;
   try {
     const origin = new URL(env.SUPABASE_JWT_ISSUER).origin;
@@ -50,6 +50,7 @@ export async function getUserProfile(
     return {
       email,
       displayName: (meta?.displayName as string) ?? (meta?.full_name as string) ?? null,
+      avatarUrl: (meta?.avatar_url as string) ?? (meta?.avatarUrl as string) ?? null,
     };
   } catch (err) {
     logger.debug({ err, userId }, "supabase admin profile lookup failed");
