@@ -10,3 +10,15 @@ process.env.NODE_ENV ??= "test";
 // Web DOM env — happy-dom registers a global DOM for React component tests.
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 GlobalRegistrator.register();
+
+// happy-dom installs a BrowserExceptionObserver that calls process.exit(1)
+// when an uncaught exception or unhandled rejection fires and no other
+// listener is registered. In CI this produces unnamed test failures with no
+// source attribution (Bun sees process.exit mid-run and marks 3 blank slots).
+//
+// Adding our own listener raises the listener count above the threshold that
+// happy-dom checks, preventing the forced exit. Async side-effects from
+// test teardown (e.g. Zustand persist flushing to localStorage, supabase
+// auth state changes) can then reject without killing the test worker.
+process.on("unhandledRejection", () => {});
+process.on("uncaughtException", () => {});
