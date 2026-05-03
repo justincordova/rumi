@@ -1,41 +1,70 @@
 import { useEffect } from "react";
 
-const TITLE = "Rumi — Real-time collaboration for developers";
-const DESCRIPTION = "Markdown, code, and drawings in shared rooms. No setup, no merge conflicts.";
-const URL = "https://rumi.app/";
-const OG_IMAGE = "/og-cover.png";
+const DEFAULT_TITLE = "Rumi — Real-time collaboration for developers";
+const DEFAULT_DESCRIPTION =
+  "Markdown, code, and drawings in shared rooms. No setup, no merge conflicts.";
+const SITE_ORIGIN = "https://rumi.app";
+const DEFAULT_OG_IMAGE = "/og-cover.png";
 
 type MetaDef = {
-  attr: "name" | "property" | "rel";
+  attr: "name" | "property";
   key: string;
   content: string;
 };
 
-const METAS: MetaDef[] = [
-  { attr: "name", key: "description", content: DESCRIPTION },
-  { attr: "property", key: "og:title", content: TITLE },
-  { attr: "property", key: "og:description", content: DESCRIPTION },
-  { attr: "property", key: "og:type", content: "website" },
-  { attr: "property", key: "og:url", content: URL },
-  { attr: "property", key: "og:image", content: OG_IMAGE },
-  { attr: "name", key: "twitter:card", content: "summary_large_image" },
-  { attr: "name", key: "twitter:title", content: TITLE },
-  { attr: "name", key: "twitter:description", content: DESCRIPTION },
-  { attr: "name", key: "twitter:image", content: OG_IMAGE },
-];
+export interface SeoOptions {
+  title?: string;
+  description?: string;
+  /** Path or absolute URL. Defaults to "/" (the landing page). */
+  canonical?: string;
+  ogImage?: string;
+  /** When true, adds `<meta name="robots" content="noindex">`. */
+  noindex?: boolean;
+}
 
-export function useSeoMeta() {
+function resolveCanonical(canonical: string | undefined): string {
+  if (!canonical) return `${SITE_ORIGIN}/`;
+  if (canonical.startsWith("http://") || canonical.startsWith("https://")) return canonical;
+  return `${SITE_ORIGIN}${canonical.startsWith("/") ? canonical : `/${canonical}`}`;
+}
+
+export function useSeoMeta(opts: SeoOptions = {}) {
+  const {
+    title = DEFAULT_TITLE,
+    description = DEFAULT_DESCRIPTION,
+    canonical,
+    ogImage = DEFAULT_OG_IMAGE,
+    noindex = false,
+  } = opts;
+
   useEffect(() => {
-    document.title = TITLE;
+    const previousTitle = document.title;
+    document.title = title;
 
-    const canonical = document.createElement("link");
-    canonical.rel = "canonical";
-    canonical.href = URL;
-    document.head.appendChild(canonical);
+    const canonicalUrl = resolveCanonical(canonical);
 
-    const els: HTMLElement[] = [canonical];
+    const canonicalEl = document.createElement("link");
+    canonicalEl.rel = "canonical";
+    canonicalEl.href = canonicalUrl;
+    document.head.appendChild(canonicalEl);
 
-    for (const m of METAS) {
+    const els: HTMLElement[] = [canonicalEl];
+
+    const metas: MetaDef[] = [
+      { attr: "name", key: "description", content: description },
+      { attr: "property", key: "og:title", content: title },
+      { attr: "property", key: "og:description", content: description },
+      { attr: "property", key: "og:type", content: "website" },
+      { attr: "property", key: "og:url", content: canonicalUrl },
+      { attr: "property", key: "og:image", content: ogImage },
+      { attr: "name", key: "twitter:card", content: "summary_large_image" },
+      { attr: "name", key: "twitter:title", content: title },
+      { attr: "name", key: "twitter:description", content: description },
+      { attr: "name", key: "twitter:image", content: ogImage },
+    ];
+    if (noindex) metas.push({ attr: "name", key: "robots", content: "noindex" });
+
+    for (const m of metas) {
       const el = document.createElement("meta");
       el.setAttribute(m.attr, m.key);
       el.content = m.content;
@@ -45,6 +74,7 @@ export function useSeoMeta() {
 
     return () => {
       for (const el of els) el.remove();
+      document.title = previousTitle;
     };
-  }, []);
+  }, [title, description, canonical, ogImage, noindex]);
 }

@@ -1,19 +1,35 @@
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { PricingNav } from "@/components/landing/pricing-nav";
 import { PricingSection } from "@/components/landing/pricing-section";
+import { RouteError } from "@/components/route-error";
 import { TopBar } from "@/components/topbar";
 import { useSession } from "@/lib/auth";
+import { useSeoMeta } from "@/lib/seo";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/pricing")({
   component: PricingPage,
+  errorComponent: PricingRouteError,
 });
+
+function PricingRouteError({ error, reset }: { error: Error; reset: () => void }) {
+  return (
+    <RouteError error={error} reset={reset} boundary="pricing" homePath="/" homeLabel="Home" />
+  );
+}
 
 function PricingPage() {
   const { status } = useSession();
   const authenticated = status === "authenticated";
   const router = useRouter();
+
+  useSeoMeta({
+    title: "Pricing — Rumi",
+    description:
+      "Free, Pro ($8/mo), and Max ($20/mo) plans. Real-time collaborative rooms with markdown, code, and drawing tabs.",
+    canonical: "/pricing",
+  });
 
   const goBack = () => {
     if (window.history.length > 1) {

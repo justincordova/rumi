@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { useEffect, useId, useState } from "react";
 
 type Consent = {
   necessary: true;
   analytics: boolean;
-  marketing: boolean;
+  /**
+   * Legacy field kept for backward-compat with any saved consent records.
+   * No marketing tooling currently reads it; the toggle was removed in the
+   * pre-launch hardening pass.
+   */
+  marketing?: boolean;
   timestamp: number;
 };
 
@@ -35,7 +41,6 @@ export function CookieBanner({
     setConsent({
       necessary: true,
       analytics: true,
-      marketing: true,
       timestamp: Date.now(),
     });
     setDismissed(true);
@@ -45,7 +50,6 @@ export function CookieBanner({
     setConsent({
       necessary: true,
       analytics: false,
-      marketing: false,
       timestamp: Date.now(),
     });
     setDismissed(true);
@@ -54,7 +58,15 @@ export function CookieBanner({
   return (
     <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-xl border border-border bg-background p-4 shadow-lg animate-in slide-in-from-bottom-4 fade-in duration-300">
       <p className="text-sm text-muted-foreground mb-3">
-        We use cookies to improve your experience. You can choose which cookies to allow.
+        We use cookies to improve your experience. You can choose which cookies to allow.{" "}
+        <Link
+          to="/privacy"
+          hash="cookies"
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          Learn more
+        </Link>
+        .
       </p>
       <div className="flex flex-wrap gap-2">
         <button
@@ -91,13 +103,22 @@ export function CookiePreferencesModal({
   onOpenChange: (open: boolean) => void;
 }) {
   const [analytics, setAnalytics] = useState(() => getConsent()?.analytics ?? false);
-  const [marketing, setMarketing] = useState(() => getConsent()?.marketing ?? false);
+  const titleId = useId();
+
+  // Close on Escape so this hand-rolled modal behaves like a real dialog.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onOpenChange(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onOpenChange]);
 
   function save() {
     setConsent({
       necessary: true,
       analytics,
-      marketing,
       timestamp: Date.now(),
     });
     onOpenChange(false);
@@ -111,10 +132,22 @@ export function CookiePreferencesModal({
         onClick={() => onOpenChange(false)}
         aria-label="Close"
       />
-      <div className="relative z-10 w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-lg animate-in zoom-in-95 fade-in duration-200">
-        <h2 className="text-lg font-semibold mb-1">Cookie preferences</h2>
+      {/* biome-ignore lint/a11y/useSemanticElements: native <dialog> doesn't work well with our custom backdrop pattern; ARIA role is the documented fallback */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative z-10 w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-lg animate-in zoom-in-95 fade-in duration-200"
+      >
+        <h2 id={titleId} className="text-lg font-semibold mb-1">
+          Cookie preferences
+        </h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Choose which cookies you want to allow.
+          Choose which cookies you want to allow.{" "}
+          <Link to="/privacy" hash="cookies" className="underline underline-offset-2">
+            Learn more
+          </Link>
+          .
         </p>
         <div className="space-y-3">
           <CookieToggle
@@ -128,12 +161,6 @@ export function CookiePreferencesModal({
             description="Help us understand how the app is used."
             checked={analytics}
             onChange={setAnalytics}
-          />
-          <CookieToggle
-            label="Marketing"
-            description="Used to deliver relevant advertisements."
-            checked={marketing}
-            onChange={setMarketing}
           />
         </div>
         <div className="mt-6 flex justify-end gap-2">

@@ -212,3 +212,53 @@
     background-position: 100% 50%;
   }
 }
+
+/* Long-form document prose (Privacy, Terms). Intentionally simple — no
+   tailwindcss/typography plugin, just hand-tuned spacing/sizes that match
+   the rest of the design system. */
+.prose-document {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--color-foreground);
+}
+.prose-document h1 {
+  font-family: var(--font-sans);
+  letter-spacing: -0.02em;
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.prose-document h2 {
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  scroll-margin-top: 4rem;
+}
+.prose-document p {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.prose-document ul {
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+.prose-document li {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+.prose-document a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-document a:hover {
+  text-decoration-thickness: 2px;
+}
+.prose-document strong {
+  font-weight: 600;
+}

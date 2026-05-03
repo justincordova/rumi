@@ -1,10 +1,9 @@
 import logoT from "@/assets/logos/logo-t.png";
-import { maybeLoadAnalytics } from "@/lib/analytics";
 import { useSession } from "@/lib/auth";
 import { useSeoMeta } from "@/lib/seo";
 import { Navigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { CookieBanner, CookiePreferencesModal } from "./cookie-consent";
+import { useState } from "react";
+import { CookiePreferencesModal } from "./cookie-consent";
 import { Hero } from "./hero";
 import { LandingFooter } from "./landing-footer";
 import { LandingNav } from "./landing-nav";
@@ -16,13 +15,6 @@ export function LandingPage() {
   const [cookiePrefsOpen, setCookiePrefsOpen] = useState(false);
 
   useSeoMeta();
-
-  useEffect(() => {
-    maybeLoadAnalytics();
-    const handler = () => maybeLoadAnalytics();
-    window.addEventListener("rumi-consent-changed", handler);
-    return () => window.removeEventListener("rumi-consent-changed", handler);
-  }, []);
 
   if (status === "loading") {
     return (
@@ -49,7 +41,8 @@ export function LandingPage() {
         </main>
         <LandingFooter onCookiePreferences={() => setCookiePrefsOpen(true)} />
       </div>
-      <CookieBanner onManagePreferences={() => setCookiePrefsOpen(true)} />
+      {/* Modal stays here so the footer link can open it. The global banner
+          (auto-shown if no consent yet) lives in __root.tsx. */}
       <CookiePreferencesModal open={cookiePrefsOpen} onOpenChange={setCookiePrefsOpen} />
     </div>
   );

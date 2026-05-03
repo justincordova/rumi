@@ -18,18 +18,18 @@ export function LandingFooter({ onCookiePreferences }: { onCookiePreferences: ()
             >
               Sign in
             </Link>
-            <a
-              href="/privacy"
+            <Link
+              to="/privacy"
               className="text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               Privacy
-            </a>
-            <a
-              href="/terms"
+            </Link>
+            <Link
+              to="/terms"
               className="text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               Terms
-            </a>
+            </Link>
             <button
               type="button"
               onClick={onCookiePreferences}

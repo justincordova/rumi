@@ -2,6 +2,7 @@ import { CreateRoomDialog } from "@/components/rooms/create-room-dialog";
 import { EmptyState } from "@/components/rooms/empty-state";
 import { RoomCard } from "@/components/rooms/room-card";
 import { RoomRow } from "@/components/rooms/room-row";
+import { RouteError } from "@/components/route-error";
 import { TopBar } from "@/components/topbar";
 import {
   DropdownMenu,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth";
+import { useSeoMeta } from "@/lib/seo";
 import { type RoomSort, type ViewMode, useRoomsStore } from "@/stores/rooms";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDownAZ, Check, LayoutGrid, List, Plus, Search } from "lucide-react";
@@ -19,9 +21,21 @@ import { useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/_authed/dashboard")({
   component: DashboardPage,
+  errorComponent: DashboardRouteError,
 });
 
+function DashboardRouteError({ error, reset }: { error: Error; reset: () => void }) {
+  return (
+    <RouteError error={error} reset={reset} boundary="dashboard" homePath="/" homeLabel="Home" />
+  );
+}
+
 function DashboardPage() {
+  useSeoMeta({
+    title: "Dashboard — Rumi",
+    description: "Your collaborative rooms.",
+    noindex: true,
+  });
   const {
     rooms,
     status,
@@ -145,6 +159,7 @@ function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setSearch("")}
+                    aria-label="Clear search"
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <span className="text-xs">&#x2715;</span>
@@ -219,6 +234,8 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode
       <button
         type="button"
         onClick={() => onChange("grid")}
+        aria-label="Grid view"
+        aria-pressed={mode === "grid"}
         className={`grid h-7 w-7 place-items-center rounded-[5px] transition-colors ${mode === "grid" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
       >
         <LayoutGrid className="h-3.5 w-3.5" />
@@ -226,6 +243,8 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode
       <button
         type="button"
         onClick={() => onChange("list")}
+        aria-label="List view"
+        aria-pressed={mode === "list"}
         className={`grid h-7 w-7 place-items-center rounded-[5px] transition-colors ${mode === "list" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
       >
         <List className="h-3.5 w-3.5" />

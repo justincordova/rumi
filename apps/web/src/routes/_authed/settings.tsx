@@ -1,4 +1,5 @@
 import { CheckoutModal } from "@/components/billing/checkout-modal";
+import { RouteError } from "@/components/route-error";
 import { TopBar } from "@/components/topbar";
 import {
   AlertDialog,
@@ -17,6 +18,7 @@ import { ApiError, apiFetch } from "@/lib/api";
 import { linkProvider, signOut, useSession } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { usePrefs } from "@/lib/prefs";
+import { useSeoMeta } from "@/lib/seo";
 import { useSubscriptionStore } from "@/stores/subscription";
 import type {
   DeleteAccountBlockedResponse,
@@ -48,7 +50,12 @@ export const Route = createFileRoute("/_authed/settings")({
     checkout: checkoutStateSchema.parse((search as Record<string, unknown>).checkout),
   }),
   component: SettingsPage,
+  errorComponent: SettingsRouteError,
 });
+
+function SettingsRouteError({ error, reset }: { error: Error; reset: () => void }) {
+  return <RouteError error={error} reset={reset} boundary="settings" />;
+}
 
 type Tab = z.infer<typeof settingsTabSchema>;
 
@@ -61,6 +68,12 @@ const TABS: { value: Tab; label: string; icon: typeof Settings2 }[] = [
 function SettingsPage() {
   const tab = Route.useSearch({ select: (s) => s.tab });
   const navigate = useNavigate();
+
+  useSeoMeta({
+    title: "Settings — Rumi",
+    description: "Manage your Rumi account, plan, and notifications.",
+    noindex: true,
+  });
 
   function setTab(value: Tab) {
     navigate({ to: "/settings", search: { tab: value, checkout: undefined } });

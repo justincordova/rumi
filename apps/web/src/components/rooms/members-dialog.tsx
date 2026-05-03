@@ -307,6 +307,7 @@ export function MembersDialog({
                           <button
                             type="button"
                             onClick={() => removeWhitelistEntry(w.id)}
+                            aria-label={`Remove ${w.email} from whitelist`}
                             className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                           >
                             <X className="h-4 w-4" />
@@ -438,6 +439,7 @@ function AddEmailInput({
         />
         <button
           type="submit"
+          aria-label="Add email"
           className="grid h-8 w-8 place-items-center rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shrink-0"
         >
           <Plus className="h-4 w-4" />
@@ -522,6 +524,7 @@ function MemberRow({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
+              aria-label={`Member options for ${name}`}
               className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <MoreVertical className="h-4 w-4" />

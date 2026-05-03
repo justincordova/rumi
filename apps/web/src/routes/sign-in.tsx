@@ -1,6 +1,7 @@
 import logoT from "@/assets/logos/logo-t.png";
 import { Button } from "@/components/ui/button";
 import { signInWithProvider } from "@/lib/auth";
+import { useSeoMeta } from "@/lib/seo";
 import { createFileRoute } from "@tanstack/react-router";
 import { FaGithub as FaGithubRaw } from "react-icons/fa6";
 import { FcGoogle as FcGoogleRaw } from "react-icons/fc";
@@ -21,6 +22,12 @@ export const Route = createFileRoute("/sign-in")({
 
 function SignInPage() {
   const { next } = Route.useSearch();
+  useSeoMeta({
+    title: "Sign in — Rumi",
+    description: "Sign in to Rumi to start collaborating.",
+    canonical: "/sign-in",
+    noindex: true,
+  });
   return (
     <div className="relative min-h-screen grid place-items-center p-6 bg-gradient-subtle overflow-hidden">
       <div className="absolute inset-0 grid-dots opacity-30 pointer-events-none" />

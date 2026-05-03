@@ -123,7 +123,14 @@ export function TabBar({ tabs, activeTabId, roomSlug, onSelect, isGuest, role }:
   return (
     <div className="flex-none border-b border-border bg-background shrink-0">
       <div className="flex items-end gap-1 px-2 pt-1.5">
-        <div className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto">
+        <div
+          // Scroll affordance: a right-edge gradient scrim hints there's more
+          // content when the strip overflows. Pure CSS — only renders on
+          // narrow widths where overflow is likely.
+          className="relative flex min-w-0 flex-1 items-end gap-1 overflow-x-auto after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:bg-gradient-to-l after:from-background after:to-transparent sm:after:hidden"
+          role="tablist"
+          aria-label="Open tabs"
+        >
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -297,6 +304,7 @@ function TabItem({
             isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100",
           )}
           title="Close tab"
+          aria-label={`Close ${tab.name}`}
         >
           <X className="h-3 w-3" />
         </button>

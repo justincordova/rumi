@@ -19,7 +19,7 @@ import { usePrefs } from "@/lib/prefs";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import type { Room } from "@rumi/protocol";
 import { Link } from "@tanstack/react-router";
-import { Check, LogIn, Settings2, Users } from "lucide-react";
+import { Check, LogIn, MoreVertical, Settings2, Users } from "lucide-react";
 import { useState } from "react";
 import { AppearanceItems } from "./appearance-items";
 import { DashboardDropdown } from "./dashboard-dropdown";
@@ -66,55 +66,105 @@ export function TopBar({ room, status, provider, isGuest }: TopBarProps) {
 
           {room && !isGuest && (
             <>
-              <ShareButton room={room} />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setMembersOpen(true)}
-              >
-                <Users className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-
-          {room && !isGuest && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Settings2 className="h-4 w-4" />
+              {/* md+ : full-width controls */}
+              <div className="hidden md:flex items-center gap-2">
+                <ShareButton room={room} />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setMembersOpen(true)}
+                  aria-label="Members"
+                >
+                  <Users className="h-4 w-4" />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={16} className="w-52">
-                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Room
-                </DropdownMenuLabel>
-                <RenameRoomItem room={room} />
-                <VisibilitySelector room={room} />
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Appearance
-                </DropdownMenuLabel>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    {(["light", "dark", "system"] as const).map((t) => (
-                      <DropdownMenuItem
-                        key={t}
-                        onSelect={() => setTheme(t)}
-                        className="flex items-center gap-2"
-                      >
-                        {theme === t && <Check className="h-3.5 w-3.5" />}
-                        <span className={theme === t ? "" : "ml-[20px]"}>
-                          {t.charAt(0).toUpperCase() + t.slice(1)}
-                        </span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <AppearanceItems />
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      aria-label="Room settings"
+                    >
+                      <Settings2 className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" sideOffset={16} className="w-52">
+                    <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Room
+                    </DropdownMenuLabel>
+                    <RenameRoomItem room={room} />
+                    <VisibilitySelector room={room} />
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Appearance
+                    </DropdownMenuLabel>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        {(["light", "dark", "system"] as const).map((t) => (
+                          <DropdownMenuItem
+                            key={t}
+                            onSelect={() => setTheme(t)}
+                            className="flex items-center gap-2"
+                          >
+                            {theme === t && <Check className="h-3.5 w-3.5" />}
+                            <span className={theme === t ? "" : "ml-[20px]"}>
+                              {t.charAt(0).toUpperCase() + t.slice(1)}
+                            </span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <AppearanceItems />
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* < md : single overflow menu collapses Share/Members/Settings */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 md:hidden"
+                    aria-label="Room actions"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={16} className="w-52">
+                  <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Room
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem onSelect={() => setMembersOpen(true)}>Members</DropdownMenuItem>
+                  <RenameRoomItem room={room} />
+                  <VisibilitySelector room={room} />
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Appearance
+                  </DropdownMenuLabel>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {(["light", "dark", "system"] as const).map((t) => (
+                        <DropdownMenuItem
+                          key={t}
+                          onSelect={() => setTheme(t)}
+                          className="flex items-center gap-2"
+                        >
+                          {theme === t && <Check className="h-3.5 w-3.5" />}
+                          <span className={theme === t ? "" : "ml-[20px]"}>
+                            {t.charAt(0).toUpperCase() + t.slice(1)}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <AppearanceItems />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           )}
 
           {!isGuest && (

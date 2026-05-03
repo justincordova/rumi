@@ -17,6 +17,7 @@ import { createService } from "@/rooms/service";
 import { tabsRoutes } from "@/rooms/tabs.routes";
 import { createTabsService } from "@/rooms/tabs.service";
 import { subscriptionRoutes } from "@/subscriptions/routes";
+import { checkGuestRateLimit } from "@/sync/guest-rate-limit";
 import { buildHocuspocus } from "@/sync/hocuspocus";
 import cors from "@fastify/cors";
 import formbody from "@fastify/formbody";
@@ -194,6 +195,20 @@ if (import.meta.main) {
       socket.destroy();
       return;
     }
+
+    // Rate-limit unauthenticated upgrade attempts per IP. Authenticated
+    // upgrades (Bearer token in sec-websocket-protocol or query string)
+    // skip this. @fastify/rate-limit doesn't apply to raw upgrade events
+    // so this is the only line of defense.
+    const { allowed, retryAfterSeconds } = checkGuestRateLimit(request);
+    if (!allowed) {
+      socket.write(
+        `HTTP/1.1 429 Too Many Requests\r\nRetry-After: ${retryAfterSeconds}\r\nConnection: close\r\n\r\n`,
+      );
+      socket.destroy();
+      return;
+    }
+
     wss.handleUpgrade(request, socket, head, (ws) => {
       try {
         // biome-ignore lint/suspicious/noExplicitAny: Hocuspocus expects a ws.WebSocket instance

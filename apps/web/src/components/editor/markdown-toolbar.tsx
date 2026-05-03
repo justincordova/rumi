@@ -39,8 +39,8 @@ export function MarkdownToolbar({ tab, readOnly, viewRef, roomSlug, ytext }: Pro
   ];
 
   return (
-    <div className="h-10 border-b border-border bg-surface/60 px-2 flex items-center gap-1 shrink-0">
-      <div className="flex items-center gap-0.5">
+    <div className="min-h-10 border-b border-border bg-surface/60 px-2 flex flex-wrap items-center gap-1 shrink-0 py-1 sm:py-0">
+      <div className="flex items-center gap-0.5 flex-wrap">
         {buttons.map(({ Icon, title, action }) => (
           <Button
             key={title}

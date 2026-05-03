@@ -8,6 +8,7 @@ import { TopBar } from "@/components/topbar";
 import { ApiError, apiFetch } from "@/lib/api";
 import { useSession } from "@/lib/auth";
 import { getGuestId } from "@/lib/guest";
+import { useSeoMeta } from "@/lib/seo";
 import { useRoomsStore } from "@/stores/rooms";
 import type { GetRoomResponse as GetRoomResponseType } from "@rumi/protocol";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
@@ -66,6 +67,14 @@ function RoomPage() {
   const storeRoom = useRoomsStore((s) => s.rooms.find((r) => r.slug === loaderRoom.slug));
   const room = storeRoom ? { ...loaderRoom, ...storeRoom } : loaderRoom;
   const search = Route.useSearch();
+
+  // Private rooms shouldn't appear in search results.
+  useSeoMeta({
+    title: `${room.name ?? room.slug} — Rumi`,
+    description: "Real-time collaborative room.",
+    canonical: `/r/${room.slug}`,
+    noindex: room.visibility === "private",
+  });
   const navigate = Route.useNavigate();
   const isGuest = useSession((s) => s.status !== "authenticated");
 
