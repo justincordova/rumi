@@ -32,7 +32,7 @@ function DashboardRouteError({ error, reset }: { error: Error; reset: () => void
 
 function DashboardPage() {
   useSeoMeta({
-    title: "Dashboard — Rumi",
+    title: "Dashboard",
     description: "Your collaborative rooms.",
     noindex: true,
   });

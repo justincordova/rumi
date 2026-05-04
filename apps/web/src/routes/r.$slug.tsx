@@ -70,7 +70,7 @@ function RoomPage() {
 
   // Private rooms shouldn't appear in search results.
   useSeoMeta({
-    title: `${room.name ?? room.slug} — Rumi`,
+    title: `${room.name ?? room.slug}`,
     description: "Real-time collaborative room.",
     canonical: `/r/${room.slug}`,
     noindex: room.visibility === "private",

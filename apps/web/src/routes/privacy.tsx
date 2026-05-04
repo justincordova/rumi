@@ -8,7 +8,7 @@ export const Route = createFileRoute("/privacy")({
 
 function PrivacyPage() {
   useSeoMeta({
-    title: "Privacy Policy — Rumi",
+    title: "Privacy Policy",
     description: "How Rumi collects, uses, and protects your data.",
     canonical: "/privacy",
     noindex: false,

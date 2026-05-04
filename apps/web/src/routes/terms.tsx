@@ -8,7 +8,7 @@ export const Route = createFileRoute("/terms")({
 
 function TermsPage() {
   useSeoMeta({
-    title: "Terms of Service — Rumi",
+    title: "Terms of Service",
     description: "The agreement between you and Rumi when you use the service.",
     canonical: "/terms",
     noindex: false,

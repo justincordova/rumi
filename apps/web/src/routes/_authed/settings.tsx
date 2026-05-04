@@ -70,7 +70,7 @@ function SettingsPage() {
   const navigate = useNavigate();
 
   useSeoMeta({
-    title: "Settings — Rumi",
+    title: "Settings",
     description: "Manage your Rumi account, plan, and notifications.",
     noindex: true,
   });

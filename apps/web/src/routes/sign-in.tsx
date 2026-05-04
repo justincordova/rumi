@@ -23,7 +23,7 @@ export const Route = createFileRoute("/sign-in")({
 function SignInPage() {
   const { next } = Route.useSearch();
   useSeoMeta({
-    title: "Sign in — Rumi",
+    title: "Sign in",
     description: "Sign in to Rumi to start collaborating.",
     canonical: "/sign-in",
     noindex: true,

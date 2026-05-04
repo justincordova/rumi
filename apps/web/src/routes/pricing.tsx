@@ -25,7 +25,7 @@ function PricingPage() {
   const router = useRouter();
 
   useSeoMeta({
-    title: "Pricing — Rumi",
+    title: "Pricing",
     description:
       "Free, Pro ($8/mo), and Max ($20/mo) plans. Real-time collaborative rooms with markdown, code, and drawing tabs.",
     canonical: "/pricing",
