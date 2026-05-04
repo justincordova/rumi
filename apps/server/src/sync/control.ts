@@ -6,7 +6,17 @@ export async function broadcastTabsCreated(h: Hocuspocus, roomId: string, tab: T
   try {
     const conn = await h.openDirectConnection(`room:${roomId}`);
     await conn.transact((doc) => {
-      doc.getArray<TabSummary>("tabs").push([tab]);
+      const arr = doc.getArray<TabSummary>("tabs");
+      // Idempotent: skip if this tab id is already present. This matters
+      // because `openDirectConnection` may itself trigger `onLoadDocument`,
+      // which hydrates the Y.Array from the DB — and the new tab's row was
+      // just inserted by `tabsService.createTab` before this call. Without
+      // this guard the hydration adds the row and then `push` adds it again,
+      // producing a duplicate that the client renders twice.
+      for (let i = 0; i < arr.length; i++) {
+        if ((arr.get(i) as TabSummary).id === tab.id) return;
+      }
+      arr.push([tab]);
     });
     await conn.disconnect();
   } catch (err) {
@@ -19,11 +29,17 @@ export async function broadcastTabsUpdated(h: Hocuspocus, roomId: string, tab: T
     const conn = await h.openDirectConnection(`room:${roomId}`);
     await conn.transact((doc) => {
       const arr = doc.getArray<TabSummary>("tabs");
-      for (let i = 0; i < arr.length; i++) {
+      // Walk from the end so deletes don't shift indices we haven't visited yet.
+      // Replace every match — if duplicates ever leaked in, they all get the
+      // current state instead of one stale entry being left behind.
+      let replaced = false;
+      for (let i = arr.length - 1; i >= 0; i--) {
         if ((arr.get(i) as TabSummary).id === tab.id) {
           arr.delete(i, 1);
-          arr.insert(i, [tab]);
-          break;
+          if (!replaced) {
+            arr.insert(i, [tab]);
+            replaced = true;
+          }
         }
       }
     });
@@ -60,10 +76,12 @@ export async function broadcastTabsDeleted(h: Hocuspocus, roomId: string, tabId:
     const conn = await h.openDirectConnection(`room:${roomId}`);
     await conn.transact((doc) => {
       const arr = doc.getArray<TabSummary>("tabs");
-      for (let i = 0; i < arr.length; i++) {
+      // Walk from the end so deletes don't shift indices we haven't visited
+      // yet, and remove every match so any pre-existing duplicates are also
+      // cleaned up.
+      for (let i = arr.length - 1; i >= 0; i--) {
         if ((arr.get(i) as TabSummary).id === tabId) {
           arr.delete(i, 1);
-          break;
         }
       }
     });
