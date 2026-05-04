@@ -65,16 +65,21 @@ function ipFor(req: IncomingMessage): string {
 
 /** Token is present iff the client passed an Authorization-equivalent. */
 function hasAuthToken(req: IncomingMessage): boolean {
-  // Hocuspocus's web client transports the token via the
-  // Sec-WebSocket-Protocol header (it's also the documented hook). A real
-  // JWT is base64url-encoded and starts with the header `eyJ`.
+  // The Hocuspocus client (`@hocuspocus/provider`) sends its auth token as a
+  // protocol-level message AFTER the WebSocket handshake — so at upgrade time
+  // it isn't visible here unless the client also surfaces it some other way.
+  // Our web client mirrors the JWT into the `?token=` query param specifically
+  // so this check works (see apps/web/src/components/editor/yjs-doc-cache.ts).
+  // A real JWT is base64url-encoded and starts with the header `eyJ`.
+  if (req.url?.includes("token=eyJ")) return true;
+  // Also accept tokens in Sec-WebSocket-Protocol for non-Hocuspocus clients
+  // (e.g. CLI tools or custom transports that follow the Bearer-as-subprotocol
+  // convention).
   const proto = req.headers["sec-websocket-protocol"];
   const protocols = Array.isArray(proto) ? proto : (proto?.split(",") ?? []).map((p) => p.trim());
   for (const p of protocols) {
     if (p.startsWith("eyJ")) return true;
   }
-  // Some clients pass it as a query parameter.
-  if (req.url?.includes("token=eyJ")) return true;
   return false;
 }
 

@@ -58,6 +58,13 @@ export function acquireDoc(opts: {
     url: wsUrl,
     name: documentName,
     token,
+    // Also surface the token as a URL query param so the server's pre-handshake
+    // guest rate limiter (`checkGuestRateLimit` / `hasAuthToken`) can see that
+    // this is an authenticated upgrade and skip the per-IP cap. Hocuspocus's
+    // own auth flow still uses the `token` option above (sent as a post-
+    // handshake auth message); the query param is purely informational for
+    // upgrade-time gating. Token is sent over WSS in production.
+    parameters: { token },
     document: ydoc,
     onStatus: ({ status: s }: { status: Status }) => {
       for (const fn of statusListeners) fn(s);
