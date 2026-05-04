@@ -141,17 +141,24 @@ export function createBillingService() {
       event: Stripe.Event,
     ): Promise<{ planChanged: boolean; userId: string | null }> {
       return db.transaction(async (tx) => {
-        const dup = await tx.query.processedWebhookEvents.findFirst({
-          where: eq(processedWebhookEvents.eventId, event.id),
-        });
-        if (dup) return { planChanged: false, userId: null };
+        // Acquire idempotency lock by inserting first — Postgres serializes
+        // concurrent insertions of the same primary key. The losing tx gets
+        // an empty `returning` and bails before doing any work, so two
+        // concurrent webhook deliveries (Stripe retries during deploys, or
+        // two replicas) can't both run the upsert in parallel and clobber
+        // ordering. Using `findFirst → ... → insert` instead leaves a
+        // phantom-read window under READ COMMITTED.
+        const claimed = await tx
+          .insert(processedWebhookEvents)
+          .values({ eventId: event.id, eventType: event.type })
+          .onConflictDoNothing()
+          .returning({ eventId: processedWebhookEvents.eventId });
+        if (claimed.length === 0) {
+          return { planChanged: false, userId: null };
+        }
 
         const sub = await resolveSubscriptionFromEvent(event);
         if (!sub) {
-          await tx
-            .insert(processedWebhookEvents)
-            .values({ eventId: event.id, eventType: event.type })
-            .onConflictDoNothing();
           return { planChanged: false, userId: null };
         }
 
@@ -170,10 +177,6 @@ export function createBillingService() {
             { eventId: event.id, customer: sub.customer },
             "webhook: cannot resolve userId",
           );
-          await tx
-            .insert(processedWebhookEvents)
-            .values({ eventId: event.id, eventType: event.type })
-            .onConflictDoNothing();
           return { planChanged: false, userId: null };
         }
 
@@ -211,10 +214,6 @@ export function createBillingService() {
             { eventId: event.id, userId, subscriptionId: sub.id },
             "ignoring late update for canceled subscription",
           );
-          await tx
-            .insert(processedWebhookEvents)
-            .values({ eventId: event.id, eventType: event.type })
-            .onConflictDoNothing();
           return { planChanged: false, userId };
         }
 
@@ -245,10 +244,6 @@ export function createBillingService() {
             { eventId: event.id, userId, priceId, subscriptionId: sub.id },
             "webhook: cannot resolve plan for new subscription, skipping upsert",
           );
-          await tx
-            .insert(processedWebhookEvents)
-            .values({ eventId: event.id, eventType: event.type })
-            .onConflictDoNothing();
           return { planChanged: false, userId };
         }
 
@@ -260,13 +255,10 @@ export function createBillingService() {
             set: { ...next },
           });
 
-        await tx
-          .insert(processedWebhookEvents)
-          .values({ eventId: event.id, eventType: event.type })
-          .onConflictDoNothing();
-
-        // Prune processed events older than 7 days to prevent unbounded growth.
-        const cutoff = new Date(Date.now() - 7 * 86400 * 1000);
+        // Prune processed events older than 30 days to keep the table bounded
+        // while still tolerating Stripe's max retry window. Done inside the
+        // tx since it's a small, indexed delete and avoids extra round-trips.
+        const cutoff = new Date(Date.now() - 30 * 86400 * 1000);
         await tx
           .delete(processedWebhookEvents)
           .where(lte(processedWebhookEvents.processedAt, cutoff));

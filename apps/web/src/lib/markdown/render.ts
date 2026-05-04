@@ -23,18 +23,26 @@ const schema = {
 let processor: Promise<any> | null = null;
 
 function buildProcessor() {
-  return getHighlighter().then((highlighter) =>
-    unified()
-      .use(remarkParse)
-      .use(remarkGfm)
-      .use(remarkRehype)
-      .use(rehypeShikiFromHighlighter, highlighter, {
-        themes: { light: "github-light", dark: "github-dark" },
-        defaultColor: false, // we drive theme via CSS vars
-      })
-      .use(rehypeSanitize, schema)
-      .use(rehypeStringify),
-  );
+  // If the highlighter fails (CDN failure, transient init error), reset the
+  // module cache so the next renderMarkdown() call retries — otherwise a
+  // single startup failure permanently breaks all preview rendering.
+  return getHighlighter()
+    .then((highlighter) =>
+      unified()
+        .use(remarkParse)
+        .use(remarkGfm)
+        .use(remarkRehype)
+        .use(rehypeShikiFromHighlighter, highlighter, {
+          themes: { light: "github-light", dark: "github-dark" },
+          defaultColor: false, // we drive theme via CSS vars
+        })
+        .use(rehypeSanitize, schema)
+        .use(rehypeStringify),
+    )
+    .catch((err) => {
+      processor = null;
+      throw err;
+    });
 }
 
 export async function renderMarkdown(source: string): Promise<string> {

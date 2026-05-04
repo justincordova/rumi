@@ -20,6 +20,23 @@ interface FetchOpts extends Omit<RequestInit, "body"> {
   _retried?: boolean;
 }
 
+// Single-flight refresh so a burst of concurrent 401s doesn't trigger N
+// parallel `refreshSession()` calls (and N parallel `signOut()` calls if the
+// refresh token is revoked). All callers await the same promise; the first
+// one drives the refresh, the rest piggyback on the result.
+let refreshInFlight: Promise<{ ok: boolean }> | null = null;
+
+async function runRefresh(): Promise<{ ok: boolean }> {
+  const { data, error } = await supabase.auth.refreshSession();
+  if (!error && data.session) {
+    useSession.getState()._set({ token: data.session.access_token });
+    return { ok: true };
+  }
+  // Refresh failed — sign out exactly once and let all queued callers fail.
+  await supabase.auth.signOut();
+  return { ok: false };
+}
+
 export async function apiFetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
   const token = useSession.getState().token;
   const headers = new Headers(opts.headers);
@@ -33,13 +50,15 @@ export async function apiFetch<T>(path: string, opts: FetchOpts = {}): Promise<T
   });
 
   if (res.status === 401 && !opts._retried) {
-    const { data, error } = await supabase.auth.refreshSession();
-    if (!error && data.session) {
-      useSession.getState()._set({ token: data.session.access_token });
+    if (!refreshInFlight) {
+      refreshInFlight = runRefresh().finally(() => {
+        refreshInFlight = null;
+      });
+    }
+    const { ok } = await refreshInFlight;
+    if (ok) {
       return apiFetch<T>(path, { ...opts, _retried: true });
     }
-    // Refresh failed — sign out and short-circuit
-    await supabase.auth.signOut();
     throw new ApiError("unauthorized", "Session expired", 401);
   }
   if (res.status === 204) return undefined as T;

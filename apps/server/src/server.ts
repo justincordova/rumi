@@ -189,6 +189,19 @@ if (import.meta.main) {
       return;
     }
 
+    // Validate Origin header. Browser WebSocket upgrades always include an
+    // Origin header set by the browser; CORS does NOT apply to WS upgrades,
+    // so this is the only same-origin enforcement. Non-browser clients
+    // (CLIs, server-to-server) typically omit Origin entirely — we allow
+    // those through because they can't be CSRF'd via a victim's browser.
+    const origin = request.headers.origin;
+    if (origin && origin !== env.WEB_ORIGIN) {
+      logger.warn({ origin, expected: env.WEB_ORIGIN }, "ws upgrade rejected: bad origin");
+      socket.write("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+
     // Rate-limit unauthenticated upgrade attempts per IP. Authenticated
     // upgrades (Bearer token in sec-websocket-protocol or query string)
     // skip this. @fastify/rate-limit doesn't apply to raw upgrade events

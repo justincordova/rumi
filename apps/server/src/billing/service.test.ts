@@ -157,10 +157,17 @@ function makeTx() {
         const ev = values as { eventId: string; eventType: string };
         return {
           onConflictDoNothing: () => {
-            if (!processedEvents.has(ev.eventId)) {
+            const isNew = !processedEvents.has(ev.eventId);
+            if (isNew) {
               processedEvents.set(ev.eventId, { eventType: ev.eventType });
             }
-            return Promise.resolve();
+            // Mirror Drizzle's chain: `.onConflictDoNothing().returning(...)`
+            // returns an array of rows actually inserted (empty on conflict).
+            // Used by the service for single-shot idempotency claim.
+            const claimedRows = isNew ? [{ eventId: ev.eventId }] : [];
+            return Object.assign(Promise.resolve(), {
+              returning: () => Promise.resolve(claimedRows),
+            });
           },
         };
       },

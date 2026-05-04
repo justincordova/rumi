@@ -8,20 +8,26 @@ export function useNotifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const failCountRef = useRef(0);
+  // Tracks whether the consuming component is still mounted. Without this
+  // guard, a refetch in flight at unmount time will call setItems / setLoading
+  // on an unmounted component (React warning + wasted render). Set inside the
+  // mount effect below; the closure here captures it.
+  const mountedRef = useRef(true);
 
   async function refetch() {
     const token = useSession.getState().token;
     if (!token) return;
-    setLoading(true);
+    if (mountedRef.current) setLoading(true);
     try {
       const data = await apiFetch<ListNotificationsResponse>("/api/notifications");
+      if (!mountedRef.current) return;
       setItems(data.notifications);
       setUnreadCount(data.unreadCount);
       failCountRef.current = 0;
     } catch {
-      failCountRef.current++;
+      if (mountedRef.current) failCountRef.current++;
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }
 
@@ -33,6 +39,7 @@ export function useNotifications() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refetch is stable for the lifetime of the hook; adding it would cause an infinite re-setup loop
   useEffect(() => {
+    mountedRef.current = true;
     let stopped = false;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -70,6 +77,7 @@ export function useNotifications() {
     document.addEventListener("visibilitychange", onVis);
     return () => {
       stopped = true;
+      mountedRef.current = false;
       if (timeoutId) clearTimeout(timeoutId);
       document.removeEventListener("visibilitychange", onVis);
     };

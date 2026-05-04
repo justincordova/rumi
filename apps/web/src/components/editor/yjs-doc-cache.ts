@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import * as Y from "yjs";
 
@@ -44,7 +45,11 @@ export function acquireDoc(opts: {
     return existing;
   }
 
-  const wsUrl = (import.meta.env.VITE_WS_URL as string | undefined) ?? "ws://localhost:3000/ws";
+  // Use the Zod-validated env from `@/lib/env` rather than reading
+  // `import.meta.env` directly, so a misconfigured VITE_WS_URL (e.g. empty
+  // string) fails at app boot instead of silently falling back to localhost
+  // in production.
+  const wsUrl = env.VITE_WS_URL;
   const ydoc = new Y.Doc();
   const statusListeners = new Set<(s: Status) => void>([onStatus]);
   const readOnlyListeners = new Set<(r: boolean) => void>([onReadOnly]);

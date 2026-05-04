@@ -17,7 +17,8 @@ const prettyStream = transport({
   },
 });
 
-const fileStream = createWriteStream(logFilePath, { flags: "w" });
+// Append, not truncate — preserve prior debug context across restarts.
+const fileStream = createWriteStream(logFilePath, { flags: "a" });
 
 export const logger = isDev
   ? pino({ level: env.LOG_LEVEL }, multistream([prettyStream, fileStream]))
