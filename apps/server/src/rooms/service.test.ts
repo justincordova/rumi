@@ -695,6 +695,10 @@ describe("createService", () => {
             return { email: "target@test.com", displayName: "Target", avatarUrl: null };
           return { email: "owner@test.com", displayName: "Owner", avatarUrl: null };
         },
+        // Reverse-lookup an email to a userId. The implementation now uses
+        // this for the auto-kick path instead of iterating every member.
+        lookupUserIdByEmail: async (email: string) =>
+          email === "target@test.com" ? "target-user-id" : null,
       };
       // biome-ignore lint/suspicious/noExplicitAny: test stub
       const svc = createService(db as any, mockDeps as any);

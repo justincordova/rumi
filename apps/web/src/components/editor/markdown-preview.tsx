@@ -18,12 +18,23 @@ export function MarkdownPreview({ ytext }: Props) {
     return () => ytext.unobserve(handler);
   }, [ytext]);
 
-  // Render markdown (debounced via useDeferredValue).
+  // Render markdown (debounced via useDeferredValue). Failures (e.g. Shiki
+  // CDN unreachable) shouldn't propagate as unhandled rejections — surface
+  // a visible fallback so the user knows the preview failed instead of
+  // silently showing stale content.
   useEffect(() => {
     let cancelled = false;
     const id = setTimeout(async () => {
-      const result = await renderMarkdown(deferredSource);
-      if (!cancelled) setHtml(result);
+      try {
+        const result = await renderMarkdown(deferredSource);
+        if (!cancelled) setHtml(result);
+      } catch {
+        if (!cancelled) {
+          setHtml(
+            '<p class="text-muted-foreground italic">Preview failed to render. Try refreshing.</p>',
+          );
+        }
+      }
     }, 50);
     return () => {
       cancelled = true;

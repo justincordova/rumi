@@ -26,17 +26,16 @@ async function findExistingMemberByEmail(
   deps?: ServiceDeps,
 ): Promise<{ role: string } | null> {
   if (!email || !deps) return null;
-  const members = await db.query.roomMembers.findMany({
-    where: and(eq(roomMembers.roomId, roomId), sql`${roomMembers.userId} != ${currentUserId}`),
-    columns: { userId: true, role: true },
+  // Single email→userId admin lookup, then a single DB membership query.
+  // Replaces N+1 per-member profile fetches that would ramp linearly with
+  // room size on every getRoomBySlug call.
+  const candidate = await deps.lookupUserIdByEmail(email).catch(() => null);
+  if (!candidate || candidate === currentUserId) return null;
+  const member = await db.query.roomMembers.findFirst({
+    where: and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, candidate)),
+    columns: { role: true },
   });
-  for (const m of members) {
-    const profile = await deps.getUserProfile(m.userId).catch(() => null);
-    if (profile?.email?.toLowerCase() === email.toLowerCase()) {
-      return { role: m.role };
-    }
-  }
-  return null;
+  return member ? { role: member.role } : null;
 }
 
 export function createService(db: DbClient, deps?: ServiceDeps) {
@@ -486,20 +485,20 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
         }
       }
 
-      // Resolve member-to-kick (if any) before opening the tx — getUserProfile
-      // is an external (Supabase admin API) call.
+      // Resolve member-to-kick (if any) before opening the tx. Use the
+      // email→userId reverse lookup (single Supabase admin call) instead of
+      // iterating every room member and looking up their profile (N+1 calls
+      // that would burn through the Supabase admin rate limit on a 50-member
+      // Max-plan room).
       let kickeeUserId: string | null = null;
       if (deps) {
-        const allMembers = await db.query.roomMembers.findMany({
-          where: eq(roomMembers.roomId, room.id),
-          columns: { userId: true },
-        });
-        for (const m of allMembers) {
-          const profile = await deps.getUserProfile(m.userId).catch(() => null);
-          if (profile?.email?.toLowerCase() === lower) {
-            kickeeUserId = m.userId;
-            break;
-          }
+        const candidate = await deps.lookupUserIdByEmail(lower).catch(() => null);
+        if (candidate) {
+          const isMember = await db.query.roomMembers.findFirst({
+            where: and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, candidate)),
+            columns: { userId: true },
+          });
+          if (isMember) kickeeUserId = candidate;
         }
       }
 

@@ -271,7 +271,18 @@ function DrawingTabInner({ tab, ydoc, provider, readOnly, role }: InnerProps) {
             zoomSteps: [0.25, 0.5, 1, 2, 4],
           });
           const unbindStore = bind(editor);
-          const unbindCursors = bindCursorPresence({ editor, provider, readOnly });
+          // If bindCursorPresence throws (e.g. provider awareness in a weird
+          // state during a teardown race), we'd leak the store binding —
+          // which then writes to a doc the parent has already released and
+          // throws inside Y.Doc internals on the next change. Catch and
+          // dispose unbindStore before re-raising.
+          let unbindCursors: () => void;
+          try {
+            unbindCursors = bindCursorPresence({ editor, provider, readOnly });
+          } catch (err) {
+            unbindStore();
+            throw err;
+          }
           return () => {
             unbindCursors();
             unbindStore();

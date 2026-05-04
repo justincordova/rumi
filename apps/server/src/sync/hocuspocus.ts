@@ -13,7 +13,21 @@ import { colorFor, trustedIdentityFor } from "./presence";
 // write storm on a single row (and contention on every reconnection wave).
 // 60s is fine-grained enough for the dashboard "last activity" view.
 const ROOM_TOUCH_INTERVAL_MS = 60_000;
+// Cap entry count so a long-lived process never accumulates a huge map of
+// stale roomIds (active rooms refresh their timestamp on every connect, so
+// the LRU eviction below targets the truly idle ones).
+const ROOM_TOUCH_MAX_ENTRIES = 10_000;
 const lastRoomTouch = new Map<string, number>();
+
+function recordRoomTouch(roomId: string, ts: number) {
+  if (lastRoomTouch.size >= ROOM_TOUCH_MAX_ENTRIES) {
+    // Drop the oldest insertion-order entry. Map iteration order is
+    // insertion order in v8, so the first key is the least-recently-set.
+    const oldest = lastRoomTouch.keys().next().value;
+    if (oldest !== undefined) lastRoomTouch.delete(oldest);
+  }
+  lastRoomTouch.set(roomId, ts);
+}
 
 export function buildHocuspocus() {
   return Server.configure({
@@ -155,7 +169,7 @@ export function buildHocuspocus() {
         const now = Date.now();
         const last = lastRoomTouch.get(ctx.roomId) ?? 0;
         if (now - last >= ROOM_TOUCH_INTERVAL_MS) {
-          lastRoomTouch.set(ctx.roomId, now);
+          recordRoomTouch(ctx.roomId, now);
           try {
             await db.update(rooms).set({ updatedAt: new Date() }).where(eq(rooms.id, ctx.roomId));
           } catch (err) {

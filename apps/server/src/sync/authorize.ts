@@ -1,4 +1,4 @@
-import { getUserProfile } from "@/auth/supabase-admin";
+import { lookupUserIdByEmail } from "@/auth/supabase-admin";
 import { verifyJwt } from "@/auth/verify";
 import { db } from "@/db/client";
 import { roomBlacklist, roomMembers, roomWhitelist, rooms, tabs } from "@/db/schema";
@@ -125,15 +125,16 @@ async function findMemberByEmail(
   currentUserId: string,
   email: string,
 ): Promise<boolean> {
-  const members = await db.query.roomMembers.findMany({
-    where: and(eq(roomMembers.roomId, roomId), sql`${roomMembers.userId} != ${currentUserId}`),
+  // Reverse-lookup the email to a single userId (one Supabase admin call),
+  // then check membership in the DB. Replaces the previous N+1 pattern that
+  // fetched every member's profile sequentially on every WS auth — under
+  // load that serialized connection-establishment behind dozens of admin
+  // round-trips.
+  const candidate = await lookupUserIdByEmail(email).catch(() => null);
+  if (!candidate || candidate === currentUserId) return false;
+  const member = await db.query.roomMembers.findFirst({
+    where: and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, candidate)),
     columns: { userId: true },
   });
-  for (const m of members) {
-    const profile = await getUserProfile(m.userId).catch(() => null);
-    if (profile?.email?.toLowerCase() === email.toLowerCase()) {
-      return true;
-    }
-  }
-  return false;
+  return !!member;
 }

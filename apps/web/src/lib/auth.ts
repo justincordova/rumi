@@ -77,13 +77,24 @@ export async function initAuth() {
   });
 }
 
+// Coerce a `next` redirect target to a safe internal path. Mirrors the check
+// in routes/auth/callback.tsx so we never round-trip an attacker-controlled
+// off-origin URL through the OAuth callback.
+function safeNext(next: string): string {
+  if (!next.startsWith("/")) return "/dashboard";
+  if (next.startsWith("//") || next.startsWith("/\\")) return "/dashboard";
+  return next;
+}
+
 export async function signInWithProvider(provider: "github" | "google", next = "/dashboard") {
-  const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+  const safe = safeNext(next);
+  const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safe)}`;
   await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
 }
 
 export async function linkProvider(provider: "github" | "google", next = "/settings") {
-  const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+  const safe = safeNext(next);
+  const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safe)}`;
   const { error } = await supabase.auth.linkIdentity({ provider, options: { redirectTo } });
   if (error) throw error;
 }
