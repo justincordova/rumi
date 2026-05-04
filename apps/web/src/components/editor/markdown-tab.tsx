@@ -22,12 +22,19 @@ export function MarkdownTab({ ydoc, provider, tab, readOnly, roomSlug }: Props) 
   const mode = useViewMode(tab.id); // "split" | "rendered" | "source"
   const viewRef = useRef<EditorView | null>(null);
 
-  // Welcome content seed — runs once after the provider syncs.
-  // Idempotent: a non-empty Y.Text means another client already seeded.
+  // Welcome content seed — runs at most ONCE per mount. Hocuspocus emits
+  // `synced` on every reconnect, so without this guard a user who deletes
+  // the Welcome content and then loses + regains network would see the
+  // seed re-inserted on reconnect. The seededRef is intentionally not
+  // reset across renders; the only way to re-seed is to remount.
+  const seededRef = useRef(false);
   useEffect(() => {
     if (readOnly) return;
     if (tab.name !== "Welcome" || tab.language !== "markdown") return;
+    if (seededRef.current) return;
     const seedIfEmpty = () => {
+      if (seededRef.current) return;
+      seededRef.current = true;
       if (ytext.length === 0) ytext.insert(0, WELCOME_MARKDOWN);
     };
     if (provider.synced) {

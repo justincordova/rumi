@@ -35,10 +35,46 @@ export async function lookupUserIdByEmail(email: string): Promise<string | null>
   }
 }
 
+// In-process LRU for getUserProfile results. listMembers, addToWhitelist,
+// transferOwnership and account-delete all hit this in tight loops. Without
+// caching, a 50-member room's "Members" panel burns 50 admin requests per
+// open and quickly trips Supabase's per-key rate limit (~100/min).
+// 60s TTL keeps the panel responsive while still letting display-name edits
+// propagate within a minute.
+type ProfileCacheEntry = {
+  email: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  expiresAt: number;
+};
+const PROFILE_CACHE_TTL_MS = 60_000;
+const PROFILE_CACHE_MAX = 5_000;
+const profileCache = new Map<string, ProfileCacheEntry>();
+
+function setProfileCache(userId: string, entry: ProfileCacheEntry) {
+  if (profileCache.size >= PROFILE_CACHE_MAX) {
+    const oldest = profileCache.keys().next().value;
+    if (oldest !== undefined) profileCache.delete(oldest);
+  }
+  profileCache.set(userId, entry);
+}
+
+/** Test/admin-only: invalidate a user's profile cache after we mutate metadata. */
+export function invalidateUserProfileCache(userId: string): void {
+  profileCache.delete(userId);
+}
+
 export async function getUserProfile(
   userId: string,
 ): Promise<{ email: string; displayName: string | null; avatarUrl: string | null } | null> {
   if (!env.SUPABASE_SERVICE_ROLE_KEY) return null;
+
+  const now = Date.now();
+  const cached = profileCache.get(userId);
+  if (cached && cached.expiresAt > now) {
+    return { email: cached.email, displayName: cached.displayName, avatarUrl: cached.avatarUrl };
+  }
+
   try {
     const origin = new URL(env.SUPABASE_JWT_ISSUER).origin;
     const res = (await fetch(`${origin}/auth/v1/admin/users/${userId}`, {
@@ -60,11 +96,13 @@ export async function getUserProfile(
     // into emails, awareness state, and notification payloads.
     const asString = (v: unknown): string | null =>
       typeof v === "string" && v.trim().length > 0 ? v : null;
-    return {
+    const profile = {
       email,
       displayName: asString(meta?.displayName) ?? asString(meta?.full_name) ?? null,
       avatarUrl: asString(meta?.avatar_url) ?? asString(meta?.avatarUrl) ?? null,
     };
+    setProfileCache(userId, { ...profile, expiresAt: now + PROFILE_CACHE_TTL_MS });
+    return profile;
   } catch (err) {
     logger.debug({ err, userId }, "supabase admin profile lookup failed");
     return null;
@@ -92,6 +130,7 @@ export async function updateUserMetadata(
       body: JSON.stringify({ user_metadata: metadata }),
       // biome-ignore lint/suspicious/noExplicitAny: see MinimalResponse comment above
     } as any)) as unknown as MinimalResponse;
+    if (res.ok) invalidateUserProfileCache(userId);
     return res.ok;
   } catch (err) {
     logger.warn({ err, userId }, "supabase admin metadata update failed");
@@ -115,6 +154,7 @@ export async function deleteUser(userId: string): Promise<boolean> {
       },
       // biome-ignore lint/suspicious/noExplicitAny: see MinimalResponse comment above
     } as any)) as unknown as MinimalResponse;
+    if (res.ok) invalidateUserProfileCache(userId);
     return res.ok;
   } catch (err) {
     logger.warn({ err, userId }, "supabase admin delete failed");

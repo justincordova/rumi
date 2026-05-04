@@ -1,5 +1,17 @@
 export type PlanKey = "free" | "pro" | "max";
 
+// Mirror of PLAN_LIMITS in apps/server/src/rooms/plan.ts. The server is the
+// source of truth for enforcement; these client values gate UI affordances
+// so we don't show "Add tab" to a Pro user already at their cap.
+export const PLAN_LIMITS: Record<
+  PlanKey,
+  { maxRooms: number; maxTabsPerRoom: number; maxConcurrentUsers: number }
+> = {
+  free: { maxRooms: 3, maxTabsPerRoom: 3, maxConcurrentUsers: 5 },
+  pro: { maxRooms: 25, maxTabsPerRoom: 10, maxConcurrentUsers: 15 },
+  max: { maxRooms: 100, maxTabsPerRoom: 50, maxConcurrentUsers: 50 },
+};
+
 export interface PlanDef {
   key: PlanKey;
   name: string;

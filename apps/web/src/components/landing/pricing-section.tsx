@@ -39,7 +39,11 @@ export function PricingSection() {
           onOpenChange={(open) => {
             if (!open) {
               setCheckoutPlan(null);
-              void pollUntilPlanChange("free");
+              // Poll against the *current* plan, not "free" — otherwise an
+              // existing Pro user upgrading to Max sees the loop exit on the
+              // first poll (current=pro !== "free") before the webhook lands,
+              // leaving the UI stuck on "Pro" until manual reload.
+              void pollUntilPlanChange(plan);
             }
           }}
           plan={checkoutPlan}

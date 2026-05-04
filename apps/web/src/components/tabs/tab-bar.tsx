@@ -1,5 +1,7 @@
 import { apiFetch } from "@/lib/api";
+import { PLAN_LIMITS, type PlanKey } from "@/lib/plans";
 import { cn } from "@/lib/utils";
+import { useSubscriptionStore } from "@/stores/subscription";
 import {
   DndContext,
   type DragEndEvent,
@@ -25,8 +27,6 @@ import { toast } from "sonner";
 import { AddTabPopover } from "./add-tab-popover";
 import { getTabIcon } from "./tab-icons";
 
-const TAB_CAP = 3;
-
 interface Props {
   tabs: TabSummary[];
   activeTabId: string | undefined;
@@ -37,7 +37,12 @@ interface Props {
 }
 
 export function TabBar({ tabs, activeTabId, roomSlug, onSelect, isGuest, role }: Props) {
-  const atCap = tabs.length >= TAB_CAP;
+  // Read the user's plan from the subscription store so the cap matches what
+  // the server enforces. The server is source of truth; this is just the UI
+  // affordance gate (showing or hiding the popover at limit).
+  const plan = useSubscriptionStore((s) => (s.subscription?.plan ?? "free") as PlanKey);
+  const tabCap = PLAN_LIMITS[plan].maxTabsPerRoom;
+  const atCap = tabs.length >= tabCap;
   const canManageTabs = role === "owner" || role === "admin";
 
   // Local optimistic order for drag-and-drop. We mirror the parent-supplied
@@ -75,8 +80,11 @@ export function TabBar({ tabs, activeTabId, roomSlug, onSelect, isGuest, role }:
   }
 
   function notifyAtCap() {
-    toast.message(`You've hit the ${TAB_CAP}-tab limit`, {
-      description: "Upgrade your account to create more tabs in this room.",
+    toast.message(`You've hit the ${tabCap}-tab limit`, {
+      description:
+        plan === "max"
+          ? "This is the maximum tabs per room."
+          : "Upgrade your account to create more tabs in this room.",
     });
   }
 

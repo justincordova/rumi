@@ -1,4 +1,5 @@
 import type { IncomingMessage } from "node:http";
+import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
 /** Max guest WS connection attempts per IP per minute. */
@@ -30,18 +31,36 @@ function startCleanup() {
 }
 
 /**
- * Returns the IP to bucket on. Trusts `x-forwarded-for` only when the server
- * itself is configured behind a proxy (Fastify already sets `trustProxy: true`,
- * which implies the operator vouches for the upstream). Falls back to the
- * socket remote address.
+ * Returns the IP to bucket on. This runs on the raw HTTP upgrade event before
+ * Fastify processes the request, so Fastify's trustProxy setting is not yet
+ * applied here — we have to honor it ourselves.
+ *
+ * When TRUST_PROXY_HOPS is 0 (no proxy in front), trust ONLY the socket
+ * address. An attacker hitting the server directly cannot otherwise rotate
+ * fake IPs via X-Forwarded-For to bypass the per-IP limit.
+ *
+ * When TRUST_PROXY_HOPS is N≥1, walk the XFF chain from the right (the most
+ * recent hop, i.e. the proxy closest to us) by N entries to find the real
+ * client IP. The leftmost entry is attacker-controlled if the chain is
+ * shorter than expected.
  */
 function ipFor(req: IncomingMessage): string {
+  const sockIp = req.socket.remoteAddress ?? "unknown";
+  if (env.TRUST_PROXY_HOPS === 0) return sockIp;
+
   const xff = req.headers["x-forwarded-for"];
-  if (typeof xff === "string" && xff.length > 0) {
-    const first = xff.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return req.socket.remoteAddress ?? "unknown";
+  const xffStr = Array.isArray(xff) ? xff.join(",") : xff;
+  if (typeof xffStr !== "string" || xffStr.length === 0) return sockIp;
+  const parts = xffStr
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  if (parts.length === 0) return sockIp;
+  // Walk from the right by TRUST_PROXY_HOPS hops. If there aren't enough
+  // entries (chain is shorter than configured), fall back to the leftmost
+  // entry as the best-available client IP.
+  const idx = Math.max(0, parts.length - env.TRUST_PROXY_HOPS);
+  return parts[idx] ?? sockIp;
 }
 
 /** Token is present iff the client passed an Authorization-equivalent. */
