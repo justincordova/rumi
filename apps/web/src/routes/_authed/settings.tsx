@@ -26,8 +26,9 @@ import type {
   PortalResponse,
   UpdateAccountResponse,
 } from "@rumi/protocol";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import {
+  ArrowLeft,
   Check,
   CreditCard,
   ExternalLink,
@@ -68,6 +69,7 @@ const TABS: { value: Tab; label: string; icon: typeof Settings2 }[] = [
 function SettingsPage() {
   const tab = Route.useSearch({ select: (s) => s.tab });
   const navigate = useNavigate();
+  const router = useRouter();
 
   useSeoMeta({
     title: "Settings",
@@ -79,10 +81,26 @@ function SettingsPage() {
     navigate({ to: "/settings", search: { tab: value, checkout: undefined } });
   }
 
+  const goBack = () => {
+    if (window.history.length > 1) {
+      router.history.back();
+    } else {
+      router.navigate({ to: "/dashboard" });
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <TopBar />
       <main className="flex-1 max-w-2xl w-full mx-auto px-6 pt-6 pb-8 space-y-5">
+        <button
+          type="button"
+          onClick={goBack}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back
+        </button>
         <h1 className="text-2xl font-display font-semibold tracking-tight">Settings</h1>
 
         <div className="flex gap-1 rounded-lg border border-border bg-muted/40 p-1">
