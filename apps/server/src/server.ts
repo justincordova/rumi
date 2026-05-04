@@ -40,7 +40,12 @@ export async function buildServer() {
     // biome-ignore lint/suspicious/noExplicitAny: Fastify's loggerInstance type is overly strict; pino's Logger is compatible at runtime
     loggerInstance: logger as any,
     disableRequestLogging: false,
-    trustProxy: true,
+    // Walk N trusted proxy hops when extracting client IP. `true` would trust
+    // any X-Forwarded-For chain, allowing an attacker who can hit the server
+    // directly to spoof their IP and bypass per-IP rate limits. Operators
+    // explicitly set TRUST_PROXY_HOPS to the number of LB/CDN hops in front
+    // of the app.
+    trustProxy: env.TRUST_PROXY_HOPS,
   }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);

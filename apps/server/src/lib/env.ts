@@ -24,6 +24,13 @@ const envSchema = z
     UNSUBSCRIBE_HMAC_SECRET: z.string().min(32).optional(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
     SENTRY_DSN: z.string().url().optional(),
+    // Number of trusted proxy hops in front of the server. Used by Fastify's
+    // trustProxy to decide how far to walk X-Forwarded-For. Set to 1 for a
+    // single load balancer (most cloud setups), 2 for an LB behind a CDN.
+    // 0 disables proxy trust entirely. Defaults to 0 — production deployments
+    // behind a proxy must set this explicitly so we don't accidentally trust
+    // attacker-spoofed X-Forwarded-For headers when running without a proxy.
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
   })
   .refine((d) => !d.RESEND_API_KEY || d.UNSUBSCRIBE_HMAC_SECRET, {
     message: "UNSUBSCRIBE_HMAC_SECRET is required when RESEND_API_KEY is set",

@@ -235,11 +235,18 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
         (body.visibility !== undefined && body.visibility !== room.visibility) ||
         (body.guestAccess !== undefined && body.guestAccess !== room.guestAccess);
 
+      // Compute the final visibility *after* this patch — even if visibility
+      // isn't being changed in this patch, the room may already be private,
+      // and a guestAccess change must be rejected/coerced accordingly. The
+      // previous code only forced guestAccess='none' when visibility was
+      // being explicitly set to private in the same patch.
+      const finalVisibility = body.visibility ?? room.visibility;
+
       const [updated] = await db
         .update(rooms)
         .set({
           ...body,
-          ...(body.visibility === "private" ? { guestAccess: "none" } : {}),
+          ...(finalVisibility === "private" ? { guestAccess: "none" } : {}),
           updatedAt: new Date(),
         })
         .where(eq(rooms.id, room.id))
@@ -322,7 +329,9 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
       // Mutate state in a single transaction so a crash mid-flow can't
       // leave the email on both lists. Side-effects (notifications,
       // emails) run after commit.
-      const created = await db.transaction(async (tx) => {
+      // `wasNew` is false when an existing whitelist row is reused so we
+      // don't re-spam the invitee on every admin click.
+      const { entry: created, wasNew } = await db.transaction(async (tx) => {
         // Remove from blacklist if present (mutual exclusion)
         await tx
           .delete(roomBlacklist)
@@ -339,23 +348,38 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
             sql`lower(${roomWhitelist.email}) = lower(${lower})`,
           ),
         });
-        if (existingRow) return existingRow;
+        if (existingRow) return { entry: existingRow, wasNew: false };
 
-        const [entry] = await tx
+        const [inserted] = await tx
           .insert(roomWhitelist)
           .values({ roomId: room.id, email: lower })
           .returning();
         // biome-ignore lint/style/noNonNullAssertion: Drizzle .returning() guarantees a row on INSERT
-        return entry!;
+        return { entry: inserted!, wasNew: true };
       });
 
-      if (deps) {
+      // Skip notifications + email when the row already existed — admins
+      // re-clicking "Add to whitelist" must not re-spam the invitee.
+      if (deps && wasNew) {
         try {
           const adderProfile = await deps.getUserProfile(userId).catch(() => null);
           const adderDisplayName = adderProfile?.displayName ?? adderProfile?.email ?? "Someone";
 
           const inviteeUserId = await deps.lookupUserIdByEmail(lower).catch(() => null);
+          // If the invitee is already a current member of the room (e.g.
+          // open-room auto-join already happened, or admin re-added someone
+          // they previously kicked), skip the "you have access" notification
+          // and email — those messages would be misleading.
+          let alreadyMember = false;
           if (inviteeUserId) {
+            const existing = await db.query.roomMembers.findFirst({
+              where: and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, inviteeUserId)),
+              columns: { userId: true },
+            });
+            alreadyMember = !!existing;
+          }
+
+          if (inviteeUserId && !alreadyMember) {
             await deps.notifications.recordNotification(inviteeUserId, {
               type: "room_access_granted",
               payload: {
@@ -377,7 +401,9 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
                 roomSlug: room.slug,
               });
             }
-          } else {
+          } else if (!inviteeUserId) {
+            // Email-only invite (no Rumi account yet) — send the email so
+            // the invitee can sign up and land in the room.
             void sendAccessGrantedEmail({
               toUserId: "anon",
               toEmail: lower,

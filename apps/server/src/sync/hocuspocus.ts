@@ -8,6 +8,13 @@ import { enforceConnectionLimits } from "./connection-limits";
 import { buildDatabaseExtension } from "./persistence";
 import { colorFor, trustedIdentityFor } from "./presence";
 
+// Per-room throttle for the rooms.updated_at "last activity" touch on every
+// ws connect. Without this, 50 users connecting to a popular room produces a
+// write storm on a single row (and contention on every reconnection wave).
+// 60s is fine-grained enough for the dashboard "last activity" view.
+const ROOM_TOUCH_INTERVAL_MS = 60_000;
+const lastRoomTouch = new Map<string, number>();
+
 export function buildHocuspocus() {
   return Server.configure({
     extensions: [buildDatabaseExtension()],
@@ -145,10 +152,17 @@ export function buildHocuspocus() {
         JSON.stringify({ type: "session", readOnly: !!ctx.readOnly }),
       );
       if (ctx.roomId && !ctx.tabId) {
-        try {
-          await db.update(rooms).set({ updatedAt: new Date() }).where(eq(rooms.id, ctx.roomId));
-        } catch (err) {
-          logger.warn({ err, roomId: ctx.roomId }, "failed to touch room updatedAt on connect");
+        const now = Date.now();
+        const last = lastRoomTouch.get(ctx.roomId) ?? 0;
+        if (now - last >= ROOM_TOUCH_INTERVAL_MS) {
+          lastRoomTouch.set(ctx.roomId, now);
+          try {
+            await db.update(rooms).set({ updatedAt: new Date() }).where(eq(rooms.id, ctx.roomId));
+          } catch (err) {
+            // Reset cache on failure so a retry can attempt the write again.
+            lastRoomTouch.delete(ctx.roomId);
+            logger.warn({ err, roomId: ctx.roomId }, "failed to touch room updatedAt on connect");
+          }
         }
       }
     },

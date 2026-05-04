@@ -55,10 +55,15 @@ export async function getUserProfile(
     const meta = data.user_metadata;
     const email = data.email?.trim();
     if (!email) return null;
+    // Runtime type guards: user_metadata comes from Supabase as untyped JSON.
+    // A non-string value (object, number) cast to `string` would propagate
+    // into emails, awareness state, and notification payloads.
+    const asString = (v: unknown): string | null =>
+      typeof v === "string" && v.trim().length > 0 ? v : null;
     return {
       email,
-      displayName: (meta?.displayName as string) ?? (meta?.full_name as string) ?? null,
-      avatarUrl: (meta?.avatar_url as string) ?? (meta?.avatarUrl as string) ?? null,
+      displayName: asString(meta?.displayName) ?? asString(meta?.full_name) ?? null,
+      avatarUrl: asString(meta?.avatar_url) ?? asString(meta?.avatarUrl) ?? null,
     };
   } catch (err) {
     logger.debug({ err, userId }, "supabase admin profile lookup failed");

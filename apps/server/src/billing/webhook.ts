@@ -30,8 +30,16 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
   // cause Stripe retries we'd rather not generate.
   app.post("/webhook", { config: { rateLimit: false } }, async (req, reply) => {
     if (!isStripeConfigured() || !env.STRIPE_WEBHOOK_SECRET) {
-      logger.warn("webhook received but Stripe is not configured");
-      return reply.code(200).send({ received: true });
+      logger.error(
+        "webhook received but Stripe is not configured — paid subscriptions will not be recorded",
+      );
+      // 503 in production so Stripe retries (and we get pager noise) instead
+      // of silently dropping. In dev/test we return 200 to keep local Stripe
+      // CLI runs noise-free.
+      if (env.NODE_ENV === "production") {
+        return reply.code(503).send({ error: "stripe_not_configured" });
+      }
+      return reply.code(200).send({ received: true, ignored: true });
     }
 
     const signature = req.headers["stripe-signature"];

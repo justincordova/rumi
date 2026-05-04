@@ -36,6 +36,14 @@ export function initSentry(): void {
       ) {
         event.request.data = "<redacted>";
       }
+      // The unsubscribe endpoint puts the HMAC token in the query string.
+      // Strip the query so a captured Sentry event can't be replayed to
+      // unsubscribe the affected user. (Body is still scrubbed by our other
+      // rules above when posted via form-encoded.)
+      if (event.request?.url?.includes("/api/notifications/unsubscribe")) {
+        event.request.url = event.request.url.split("?")[0];
+        if (event.request.query_string) event.request.query_string = "<redacted>";
+      }
       return event;
     },
   });

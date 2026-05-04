@@ -10,6 +10,10 @@ export function RoomTitle({ room }: { room: Room }) {
   const title = room.name?.trim() || room.slug;
   const [draft, setDraft] = useState(title);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Pressing Enter calls commit(), then setEditing(false) unmounts the
+  // <input>, which fires onBlur, which calls commit() again before the PATCH
+  // resolves. Guard with a ref so the second call is a no-op.
+  const committingRef = useRef(false);
   const updateRoom = useRoomsStore((s) => s.updateRoom);
 
   useEffect(() => {
@@ -19,10 +23,14 @@ export function RoomTitle({ room }: { room: Room }) {
     if (editing) {
       inputRef.current?.focus();
       inputRef.current?.select();
+    } else {
+      committingRef.current = false;
     }
   }, [editing]);
 
   async function commit() {
+    if (committingRef.current) return;
+    committingRef.current = true;
     const next = draft.trim();
     if (next !== (room.name ?? "")) {
       try {

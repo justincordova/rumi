@@ -163,13 +163,23 @@ export function createBillingService() {
         }
 
         // Resolve userId from subscription metadata, fallback to customer lookup.
+        // Cross-validate the two: Stripe metadata is set by us in
+        // `subscription_data.metadata`, but is editable in the Stripe Portal.
+        // If metadata claims user A but the customer-id maps to user B in
+        // our DB, prefer B (whoever owns the Stripe customer in our records)
+        // and log a warning. This blocks "spoofed metadata" from granting a
+        // plan to the wrong user.
         const metaUserId = sub.metadata?.userId ?? null;
-        let userId: string | null = metaUserId;
-        if (!userId) {
-          const byCustomer = await tx.query.subscriptions.findFirst({
-            where: eq(subscriptions.stripeCustomerId, sub.customer as string),
-          });
-          userId = byCustomer?.userId ?? null;
+        const byCustomer = await tx.query.subscriptions.findFirst({
+          where: eq(subscriptions.stripeCustomerId, sub.customer as string),
+        });
+        const dbUserId = byCustomer?.userId ?? null;
+        const userId: string | null = dbUserId ?? metaUserId;
+        if (metaUserId && dbUserId && metaUserId !== dbUserId) {
+          logger.warn(
+            { eventId: event.id, metaUserId, dbUserId, customer: sub.customer },
+            "webhook: subscription metadata userId disagrees with stored customer mapping; trusting db",
+          );
         }
 
         if (!userId) {

@@ -216,6 +216,9 @@ function TabItem({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tab.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Enter handler calls commit(); setEditing(false) unmounts the input which
+  // fires onBlur → commit() again. Guard prevents the duplicate PATCH.
+  const committingRef = useRef(false);
 
   useEffect(() => {
     setDraft(tab.name);
@@ -224,10 +227,14 @@ function TabItem({
     if (editing) {
       inputRef.current?.focus();
       inputRef.current?.select();
+    } else {
+      committingRef.current = false;
     }
   }, [editing]);
 
   async function commit() {
+    if (committingRef.current) return;
+    committingRef.current = true;
     const next = draft.trim() || "Untitled";
     if (next !== tab.name) {
       try {
