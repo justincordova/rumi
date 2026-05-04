@@ -108,15 +108,24 @@ export function PlanBadge() {
 
           <div className="px-4 py-3 border-t border-border">
             {isPaid ? (
-              <button
-                type="button"
-                onClick={() =>
-                  navigate({ to: "/settings", search: { tab: "billing", checkout: undefined } })
-                }
-                className="w-full text-center text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Manage billing
-              </button>
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate({ to: "/settings", search: { tab: "billing", checkout: undefined } })
+                  }
+                  className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Manage billing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate({ to: "/pricing" })}
+                  className="text-[12px] text-primary hover:text-primary/80 transition-colors"
+                >
+                  View plans
+                </button>
+              </div>
             ) : nextPlan ? (
               <div className="space-y-2">
                 <p className="text-[11px] text-muted-foreground text-center">
@@ -135,6 +144,15 @@ export function PlanBadge() {
                 >
                   Upgrade to Pro
                 </button>
+                {embeddedEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => navigate({ to: "/pricing" })}
+                    className="w-full text-center text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    View all plans
+                  </button>
+                )}
               </div>
             ) : null}
           </div>
