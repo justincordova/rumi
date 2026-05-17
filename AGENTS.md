@@ -23,8 +23,9 @@ rumi/
 ## Commands
 
 ```bash
-bun run dev:web          # Vite dev server
-bun run dev:server       # Fastify dev server
+bun run dev              # Web + server concurrently (prefixed logs)
+bun run dev:web          # Vite dev server only
+bun run dev:server       # Fastify dev server only
 bun run check            # Biome lint + format check
 bun run format           # Biome autofix
 bun run typecheck        # tsc -b (all workspaces)
