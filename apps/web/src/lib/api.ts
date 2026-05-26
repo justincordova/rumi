@@ -37,17 +37,34 @@ async function runRefresh(): Promise<{ ok: boolean }> {
   return { ok: false };
 }
 
+function safeParseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 export async function apiFetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
   const token = useSession.getState().token;
   const headers = new Headers(opts.headers);
   if (opts.body !== undefined) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const res = await fetch(`${env.VITE_API_URL}${path}`, {
-    ...opts,
-    headers,
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${env.VITE_API_URL}${path}`, {
+      ...opts,
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    });
+  } catch (err) {
+    // Network failure (DNS, offline, CORS preflight, abort, etc.). Without
+    // this branch the raw TypeError propagates as a non-ApiError and every
+    // call site's `instanceof ApiError` check falls through to a generic
+    // "server error" message with no signal it's a connectivity issue.
+    throw new ApiError("network_error", "Network request failed", 0, err);
+  }
 
   if (res.status === 401 && !opts._retried) {
     if (!refreshInFlight) {
@@ -62,10 +79,18 @@ export async function apiFetch<T>(path: string, opts: FetchOpts = {}): Promise<T
     throw new ApiError("unauthorized", "Session expired", 401);
   }
   if (res.status === 204) return undefined as T;
-  const json = await res.json();
+
+  // Body may be empty (some servers return no body on 5xx) or non-JSON (a
+  // proxy returning an HTML error page). Parse defensively so the helper
+  // always throws a typed ApiError instead of a SyntaxError from .json().
+  const text = await res.text();
+  const json = text ? safeParseJson(text) : null;
+
   if (!res.ok) {
-    const body = json as ErrorEnvelope;
-    throw new ApiError(body.error.code, body.error.message, res.status, json);
+    const body = json as ErrorEnvelope | null;
+    const code = body?.error?.code ?? "server_error";
+    const message = body?.error?.message ?? res.statusText ?? "Request failed";
+    throw new ApiError(code, message, res.status, json ?? undefined);
   }
   return json as T;
 }

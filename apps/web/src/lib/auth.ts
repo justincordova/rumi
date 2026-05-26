@@ -100,6 +100,14 @@ export async function linkProvider(provider: "github" | "google", next = "/setti
 }
 
 export async function signOut() {
-  await supabase.auth.signOut();
+  // signOut() can reject when the refresh token has already been revoked
+  // server-side or the network is unreachable. Either way, we want the user
+  // to land on the public home and a fresh page load to clear any in-memory
+  // session state — don't leave them on a half-broken settings page.
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // best-effort — local state is wiped by the redirect below
+  }
   window.location.href = "/";
 }

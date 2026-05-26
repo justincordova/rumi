@@ -13,21 +13,31 @@ export function useNotifications() {
   // on an unmounted component (React warning + wasted render). Set inside the
   // mount effect below; the closure here captures it.
   const mountedRef = useRef(true);
+  // Aborts the in-flight refetch when a new one starts (visibility change
+  // triggers an immediate refetch while the polling timer fired one moments
+  // before). Without this, a slow first response can clobber a fast second
+  // response since both call setItems.
+  const ctrlRef = useRef<AbortController | null>(null);
 
   async function refetch() {
     const token = useSession.getState().token;
     if (!token) return;
+    ctrlRef.current?.abort();
+    const ctrl = new AbortController();
+    ctrlRef.current = ctrl;
     if (mountedRef.current) setLoading(true);
     try {
-      const data = await apiFetch<ListNotificationsResponse>("/api/notifications");
-      if (!mountedRef.current) return;
+      const data = await apiFetch<ListNotificationsResponse>("/api/notifications", {
+        signal: ctrl.signal,
+      });
+      if (!mountedRef.current || ctrl.signal.aborted) return;
       setItems(data.notifications);
       setUnreadCount(data.unreadCount);
       failCountRef.current = 0;
     } catch {
-      if (mountedRef.current) failCountRef.current++;
+      if (mountedRef.current && !ctrl.signal.aborted) failCountRef.current++;
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (mountedRef.current && !ctrl.signal.aborted) setLoading(false);
     }
   }
 
@@ -79,6 +89,7 @@ export function useNotifications() {
       stopped = true;
       mountedRef.current = false;
       if (timeoutId) clearTimeout(timeoutId);
+      ctrlRef.current?.abort();
       document.removeEventListener("visibilitychange", onVis);
     };
   }, []);

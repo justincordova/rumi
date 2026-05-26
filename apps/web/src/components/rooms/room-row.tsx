@@ -71,16 +71,24 @@ export function RoomRow({
     }
   }
 
+  // Same Enter-then-blur double-submit guard as room-title.tsx.
+  const committingRef = useRef(false);
   async function commit() {
+    if (committingRef.current) return;
+    committingRef.current = true;
     const next = draft.trim();
-    if (next !== (room.name ?? "")) {
-      const res = await apiFetch<UpdateRoomResponse>(`/api/rooms/${room.slug}`, {
-        method: "PATCH",
-        body: { name: next || null },
-      });
-      updateRoom(res.room);
+    try {
+      if (next !== (room.name ?? "")) {
+        const res = await apiFetch<UpdateRoomResponse>(`/api/rooms/${room.slug}`, {
+          method: "PATCH",
+          body: { name: next || null },
+        });
+        updateRoom(res.room);
+      }
+      setEditing(false);
+    } finally {
+      committingRef.current = false;
     }
-    setEditing(false);
   }
 
   return (

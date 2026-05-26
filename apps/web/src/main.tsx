@@ -28,7 +28,15 @@ async function bootstrap(root: HTMLElement) {
   const params = new URLSearchParams(window.location.search);
   const code = params.get("code");
   if (code) {
-    await supabase.auth.exchangeCodeForSession(code);
+    // A bad/expired code throws here. Previously that prevented initAuth()
+    // from running and left the entire app stuck in status: "loading" — every
+    // protected route's beforeLoad checks for "anonymous" so the user never
+    // got redirected and stared at a blank screen.
+    try {
+      await supabase.auth.exchangeCodeForSession(code);
+    } catch {
+      // fall through to initAuth() so the app boots in anonymous mode
+    }
     params.delete("code");
     const clean = params.toString();
     const next = window.location.pathname + (clean ? `?${clean}` : "");

@@ -52,6 +52,11 @@ export function DeleteRoomDialog({ open, onOpenChange, slug }: Props) {
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
+              // preventDefault stops Radix from closing the dialog on click.
+              // Without it the dialog unmounts immediately, the spinner state
+              // is never visible, and a failed delete loses the confirmation
+              // affordance. confirm() closes the dialog on success itself.
+              e.preventDefault();
               e.stopPropagation();
               confirm();
             }}
