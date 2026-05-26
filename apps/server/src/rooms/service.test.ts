@@ -895,23 +895,31 @@ describe("createService", () => {
 
   describe("transferOwnership", () => {
     it("transfers ownership and old owner becomes admin", async () => {
+      // The transferOwnership tx runs two selects:
+      //   1) lock-for-update on new-owner's existing rooms (returns array via `.for("update")`)
+      //   2) re-fetch the updated room (returns array via direct await on the chain)
+      // The stub branches on the presence of `.for` on the chain — call 1 invokes it,
+      // call 2 awaits the where() result directly.
+      let selectCallIndex = 0;
+      const updatedRoom = {
+        id: "room-id",
+        slug: "test",
+        ownerId: "new-owner",
+        visibility: "open",
+        guestAccess: "none",
+        deletedAt: null,
+      };
       const db = makeDb({
         transaction: async (fn: (tx: unknown) => unknown) => {
           const tx = {
-            select: () => ({
-              from: () => ({
-                where: async () => [
-                  {
-                    id: "room-id",
-                    slug: "test",
-                    ownerId: "new-owner",
-                    visibility: "open",
-                    guestAccess: "none",
-                    deletedAt: null,
-                  },
-                ],
-              }),
-            }),
+            select: () => {
+              const idx = selectCallIndex++;
+              return {
+                from: () => ({
+                  where: idx === 0 ? () => ({ for: async () => [] }) : async () => [updatedRoom],
+                }),
+              };
+            },
             update: () => ({
               set: () => ({
                 where: async () => {},

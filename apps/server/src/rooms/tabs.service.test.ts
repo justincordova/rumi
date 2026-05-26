@@ -225,14 +225,11 @@ describe("createTabsService", () => {
       const db = makeDb({
         transaction: async (fn: (tx: unknown) => unknown) => {
           const stubTx = {
-            query: {
-              tabs: {
-                findFirst: async () => baseTab,
-              },
-            },
             select: () => ({
               from: () => ({
-                where: () => [{ count: 1 }],
+                where: () => ({
+                  for: async () => [baseTab],
+                }),
               }),
             }),
             delete: () => ({ where: () => ({ returning: async () => [] }) }),
@@ -243,7 +240,7 @@ describe("createTabsService", () => {
       });
       // biome-ignore lint/suspicious/noExplicitAny: test stub
       const svc = createTabsService(db as any);
-      await expect(svc.deleteTab("test-slug", "user-id", "tab-id")).rejects.toBeInstanceOf(
+      await expect(svc.deleteTab("test-slug", "user-id", baseTab.id)).rejects.toBeInstanceOf(
         AppError,
       );
     });
@@ -252,12 +249,15 @@ describe("createTabsService", () => {
       const db = makeDb({
         transaction: async (fn: (tx: unknown) => unknown) => {
           const stubTx = {
-            query: {
-              tabs: { findFirst: async () => null },
-            },
             select: () => ({
               from: () => ({
-                where: () => [{ count: 2 }],
+                where: () => ({
+                  // Two unrelated tabs in the room, neither matches the requested id.
+                  for: async () => [
+                    { ...baseTab, id: "00000000-0000-0000-0000-000000000010" },
+                    { ...baseTab, id: "00000000-0000-0000-0000-000000000011" },
+                  ],
+                }),
               }),
             }),
             delete: () => ({ where: () => ({ returning: async () => [] }) }),

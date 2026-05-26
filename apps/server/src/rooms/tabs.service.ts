@@ -120,10 +120,17 @@ export function createTabsService(db: DbClient) {
       if (!canManageTabs) throw new AuthError("forbidden", "Only admins can reorder tabs");
 
       return db.transaction(async (tx) => {
-        const existing = await tx.query.tabs.findMany({
-          where: eq(tabs.roomId, room.id),
-          orderBy: (t, { asc }) => [asc(t.ordinal)],
-        });
+        // Lock every tab row in the room for the duration of the tx. Without
+        // this, a concurrent reorder (or a deleteTab racing with us) can
+        // produce a unique-index conflict on (room_id, ordinal) in the middle
+        // of phase 2 because two transactions have both moved through the
+        // TEMP_BASE band.
+        const existing = await tx
+          .select()
+          .from(tabs)
+          .where(eq(tabs.roomId, room.id))
+          .orderBy(tabs.ordinal)
+          .for("update");
         if (existing.length !== tabIds.length) {
           throw new AppError("invalid_state", "Tab list mismatch", 400);
         }
@@ -168,17 +175,14 @@ export function createTabsService(db: DbClient) {
       if (!canManageTabs) throw new AuthError("forbidden", "Only admins can delete tabs");
 
       return db.transaction(async (tx) => {
-        const target = await tx.query.tabs.findFirst({
-          where: and(eq(tabs.id, tabId), eq(tabs.roomId, room.id)),
-        });
+        // Lock the whole room's tab rows: prevents a concurrent reorder or
+        // createTab from observing a half-deleted state when we re-pack
+        // ordinals below.
+        const allTabs = await tx.select().from(tabs).where(eq(tabs.roomId, room.id)).for("update");
+        const target = allTabs.find((t) => t.id === tabId);
         if (!target) throw new AuthError("not_found", "Tab not found");
 
-        const countResult = await tx
-          .select({ count: sql<number>`count(*)::int` })
-          .from(tabs)
-          .where(eq(tabs.roomId, room.id));
-
-        const tabCount = countResult[0]?.count ?? 0;
+        const tabCount = allTabs.length;
 
         if (tabCount <= 1) {
           throw new AppError("last_tab", "Cannot delete the last remaining tab", 422);

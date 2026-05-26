@@ -189,10 +189,24 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
           const tabList = await fetchTabs();
           return { room, role: existingByEmail.role, tabs: tabList };
         }
-        await db
-          .insert(roomMembers)
-          .values({ roomId: room.id, userId, role: "member" })
-          .onConflictDoNothing();
+        // Re-check blacklist inside a tx so a concurrent admin add-to-blacklist
+        // between our earlier check and the insert can't leave the user with a
+        // member row in a room they're blacklisted from. Without this, future
+        // requests deny them via blacklist but the row persists and they keep
+        // counting against concurrent-user caps + showing in member lists.
+        await db.transaction(async (tx) => {
+          const stillBlacklisted = await tx.query.roomBlacklist.findFirst({
+            where: and(
+              eq(roomBlacklist.roomId, room.id),
+              sql`lower(${roomBlacklist.email}) = lower(${userEmail ?? ""})`,
+            ),
+          });
+          if (stillBlacklisted) throw new AuthError("forbidden", "Access denied");
+          await tx
+            .insert(roomMembers)
+            .values({ roomId: room.id, userId, role: "member" })
+            .onConflictDoNothing();
+        });
         const tabList = await fetchTabs();
         return { room, role: "member" as const, tabs: tabList };
       }
@@ -206,10 +220,20 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
       });
       if (!whitelisted) throw new AuthError("forbidden", "No access to this room");
 
-      await db
-        .insert(roomMembers)
-        .values({ roomId: room.id, userId, role: "member" })
-        .onConflictDoNothing();
+      // Same blacklist-race protection as the open branch above.
+      await db.transaction(async (tx) => {
+        const stillBlacklisted = await tx.query.roomBlacklist.findFirst({
+          where: and(
+            eq(roomBlacklist.roomId, room.id),
+            sql`lower(${roomBlacklist.email}) = lower(${userEmail ?? ""})`,
+          ),
+        });
+        if (stillBlacklisted) throw new AuthError("forbidden", "Access denied");
+        await tx
+          .insert(roomMembers)
+          .values({ roomId: room.id, userId, role: "member" })
+          .onConflictDoNothing();
+      });
 
       const tabList = await fetchTabs();
       return { room, role: "member" as const, tabs: tabList };
@@ -735,11 +759,15 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
 
       const updated = await db.transaction(async (tx) => {
         const newOwnerPlan = await getUserPlan(newOwnerId);
-        const newOwnerOwnedCount = await tx
-          .select({ count: sql<number>`count(*)::int` })
+        // Lock the new owner's existing room rows so a concurrent createRoom
+        // by them can't sneak under the cap during transfer. SELECT FOR UPDATE
+        // is acceptable here since transfer is a rare admin action.
+        const newOwnerRows = await tx
+          .select({ id: rooms.id })
           .from(rooms)
-          .where(and(eq(rooms.ownerId, newOwnerId), isNull(rooms.deletedAt)));
-        const ownedByNewOwner = newOwnerOwnedCount[0]?.count ?? 0;
+          .where(and(eq(rooms.ownerId, newOwnerId), isNull(rooms.deletedAt)))
+          .for("update");
+        const ownedByNewOwner = newOwnerRows.length;
         if (ownedByNewOwner >= newOwnerPlan.maxRooms) {
           throw new AppError(
             "plan_limit_reached",
