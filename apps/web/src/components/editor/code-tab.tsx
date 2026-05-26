@@ -2,6 +2,7 @@ import { exportTextTab } from "@/lib/export-tab";
 import { LANGUAGES } from "@/lib/markdown/languages";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import type { TabSummary } from "@rumi/protocol";
+import { useEffect, useState } from "react";
 import type * as Y from "yjs";
 import { ExportMenu } from "./export-menu";
 import { LanguagePicker } from "./language-picker";
@@ -15,10 +16,22 @@ interface Props {
   roomSlug: string;
 }
 
+function countLines(s: string): number {
+  // Empty document still has one logical "line" so the UI reads "1 line".
+  return s.length === 0 ? 1 : s.split("\n").length;
+}
+
 export function CodeTab({ ydoc, provider, tab, readOnly, roomSlug }: Props) {
   const ytext = ydoc.getText("content");
-  // Observe line count reactively via a simple state-derived calculation
-  const lineCount = ytext.toString().split("\n").length;
+  // Subscribe to Y.Text changes so the line count updates as the user types
+  // (or peers edit). Previously the value was computed once per render and
+  // never updated.
+  const [lineCount, setLineCount] = useState(() => countLines(ytext.toString()));
+  useEffect(() => {
+    const handler = () => setLineCount(countLines(ytext.toString()));
+    ytext.observe(handler);
+    return () => ytext.unobserve(handler);
+  }, [ytext]);
   const langName = tab.language ? (LANGUAGES[tab.language]?.name ?? "Plain text") : "Plain text";
   const ext = tab.language ? (LANGUAGES[tab.language]?.fileExtension ?? "txt") : "txt";
 

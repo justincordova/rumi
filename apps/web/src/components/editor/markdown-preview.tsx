@@ -11,8 +11,11 @@ export function MarkdownPreview({ ytext }: Props) {
   const [html, setHtml] = useState("");
   const deferredSource = useDeferredValue(source);
 
-  // Observe Y.Text changes.
+  // Observe Y.Text changes. Reset `source` to the new ytext's current value
+  // whenever the prop changes so a parent that swaps the Y.Text doesn't keep
+  // displaying stale content until the next observed mutation arrives.
   useEffect(() => {
+    setSource(ytext.toString());
     const handler = () => setSource(ytext.toString());
     ytext.observe(handler);
     return () => ytext.unobserve(handler);

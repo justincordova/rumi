@@ -7,15 +7,20 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
 
-// Sanitize schema: GFM defaults + allow class on code/pre + data-* attributes
-// (Shiki writes these for theme switching).
+// Sanitize schema: GFM defaults + allow class on code/pre.
+//
+// We deliberately do NOT allow `style` on any element. Shiki is configured
+// with `defaultColor: false` below, which emits classes instead of inline
+// `style="color:..."` — so allowing `style` here was an unused attack surface
+// that let attacker-controlled markdown smuggle CSS (e.g. `position:fixed`
+// for UI redress, or `background:url(http://evil)` for tracking pixels).
 const schema = {
   ...defaultSchema,
   attributes: {
     ...defaultSchema.attributes,
     code: [...(defaultSchema.attributes?.code ?? []), "className"],
-    pre: [...(defaultSchema.attributes?.pre ?? []), "className", "style"],
-    span: [...(defaultSchema.attributes?.span ?? []), "className", "style"],
+    pre: [...(defaultSchema.attributes?.pre ?? []), "className"],
+    span: [...(defaultSchema.attributes?.span ?? []), "className"],
   },
 };
 

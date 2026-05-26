@@ -12,6 +12,7 @@ import {
   placeholder,
 } from "@codemirror/view";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
+import type React from "react";
 import { useEffect, useRef } from "react";
 import { yCollab } from "y-codemirror.next";
 import * as Y from "yjs";
@@ -28,9 +29,13 @@ interface Props {
   provider: HocuspocusProvider;
   language: string | null;
   readOnly: boolean;
+  /** Optional external ref the parent can use to dispatch commands (e.g. the
+   *  markdown toolbar's bold/italic actions). Without this, MarkdownTab's
+   *  toolbar viewRef stays null forever and every button silently no-ops. */
+  externalViewRef?: React.MutableRefObject<EditorView | null>;
 }
 
-export function TabCm({ ydoc, provider, language, readOnly }: Props) {
+export function TabCm({ ydoc, provider, language, readOnly, externalViewRef }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const langCompartment = useRef(new Compartment());
@@ -68,25 +73,40 @@ export function TabCm({ ydoc, provider, language, readOnly }: Props) {
       }),
     });
     viewRef.current = view;
+    if (externalViewRef) externalViewRef.current = view;
 
-    // Apply initial language async if needed.
+    // Apply initial language async if needed. Guarded by a cancellation token
+    // because the dynamic import resolution can race with a follow-up effect
+    // (e.g. rapid language switch) — without the guard a stale ext can be
+    // dispatched onto a destroyed view.
+    let cancelled = false;
     Promise.resolve(buildLangExtension(language)).then((ext) => {
+      if (cancelled || !viewRef.current) return;
       view.dispatch({ effects: langCompartment.current.reconfigure(ext) });
     });
 
     return () => {
+      cancelled = true;
       view.destroy();
       viewRef.current = null;
+      if (externalViewRef) externalViewRef.current = null;
     };
   }, [ydoc, provider]); // language and readOnly reconfigure via separate effects
 
-  // Reconfigure when language changes.
+  // Reconfigure when language changes. Same cancellation pattern — if the
+  // user picks `python` then immediately `go`, the python import may resolve
+  // last and reconfigure back to python without this guard.
   useEffect(() => {
+    let cancelled = false;
     const view = viewRef.current;
     if (!view) return;
     Promise.resolve(buildLangExtension(language)).then((ext) => {
+      if (cancelled || !viewRef.current) return;
       view.dispatch({ effects: langCompartment.current.reconfigure(ext) });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [language]);
 
   // Reconfigure when readOnly changes.

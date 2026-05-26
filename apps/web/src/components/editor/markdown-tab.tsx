@@ -67,7 +67,13 @@ export function MarkdownTab({ ydoc, provider, tab, readOnly, roomSlug }: Props) 
         <div
           className={`min-h-0 ${mode === "rendered" ? "hidden" : "flex-1 md:border-r md:border-border"}`}
         >
-          <TabCm ydoc={ydoc} provider={provider} language="markdown" readOnly={readOnly} />
+          <TabCm
+            ydoc={ydoc}
+            provider={provider}
+            language="markdown"
+            readOnly={readOnly}
+            externalViewRef={viewRef}
+          />
         </div>
         {/* Preview pane: hidden when mode === 'source' */}
         <div className={`min-h-0 overflow-auto ${mode === "source" ? "hidden" : "flex-1"}`}>
