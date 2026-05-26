@@ -12,8 +12,11 @@ mock.module("jose", () => ({
   })),
 }));
 
+const ROOM_UUID = "00000000-0000-0000-0000-0000000000aa";
+const TAB_UUID = "00000000-0000-0000-0000-000000000001";
+
 const baseRoom = {
-  id: "room-id",
+  id: ROOM_UUID,
   slug: "test",
   ownerId: "owner-id",
   visibility: "open" as const,
@@ -21,11 +24,11 @@ const baseRoom = {
   deletedAt: null,
 };
 
-const ownerMember = { roomId: "room-id", userId: "user-id", role: "owner" as const };
-const regularMember = { roomId: "room-id", userId: "user-id", role: "member" as const };
+const ownerMember = { roomId: ROOM_UUID, userId: "user-id", role: "owner" as const };
+const regularMember = { roomId: ROOM_UUID, userId: "user-id", role: "member" as const };
 const baseTab = {
-  id: "00000000-0000-0000-0000-000000000001",
-  roomId: "room-id",
+  id: TAB_UUID,
+  roomId: ROOM_UUID,
   type: "tab" as const,
   language: "markdown",
   name: "Welcome",
@@ -74,10 +77,10 @@ describe("onAuthenticate", () => {
     (_db as any).insert = makeDbMock().insert;
     const result = await onAuthenticate({
       token: "eyJvalid.token",
-      documentName: "room:room-id",
+      documentName: "room:00000000-0000-0000-0000-0000000000aa",
     } as Parameters<typeof onAuthenticate>[0]);
     expect(result.tabId).toBeNull();
-    expect(result.roomId).toBe("room-id");
+    expect(result.roomId).toBe(ROOM_UUID);
   });
 
   it("resolves tab uuid with tabId set", async () => {
@@ -99,7 +102,7 @@ describe("onAuthenticate", () => {
     (_db as any).insert = makeDbMock().insert;
     const result = await onAuthenticate({
       token: "eyJvalid.token",
-      documentName: "room:room-id",
+      documentName: "room:00000000-0000-0000-0000-0000000000aa",
     } as Parameters<typeof onAuthenticate>[0]);
     expect(result.readOnly).toBe(false);
   });
@@ -114,7 +117,7 @@ describe("onAuthenticate", () => {
     (_db as any).insert = makeDbMock().insert;
     const result = await onAuthenticate({
       token: "eyJvalid.token",
-      documentName: "room:room-id",
+      documentName: "room:00000000-0000-0000-0000-0000000000aa",
     } as Parameters<typeof onAuthenticate>[0]);
     expect(result.readOnly).toBe(false);
   });
@@ -130,7 +133,7 @@ describe("onAuthenticate", () => {
     await expect(
       onAuthenticate({
         token: "eyJvalid.token",
-        documentName: "room:room-id",
+        documentName: "room:00000000-0000-0000-0000-0000000000aa",
       } as Parameters<typeof onAuthenticate>[0]),
     ).rejects.toBeInstanceOf(AuthError);
   });
@@ -143,7 +146,7 @@ describe("onAuthenticate", () => {
     await expect(
       onAuthenticate({
         token: "eyJvalid.token",
-        documentName: "room:room-id",
+        documentName: "room:00000000-0000-0000-0000-0000000000aa",
       } as Parameters<typeof onAuthenticate>[0]),
     ).rejects.toBeInstanceOf(AuthError);
   });
@@ -169,7 +172,7 @@ describe("onAuthenticate", () => {
     await expect(
       onAuthenticate({
         token: "",
-        documentName: "room:room-id",
+        documentName: "room:00000000-0000-0000-0000-0000000000aa",
       } as Parameters<typeof onAuthenticate>[0]),
     ).rejects.toBeInstanceOf(AuthError);
   });
@@ -181,7 +184,7 @@ describe("onAuthenticate", () => {
     (_db as any).insert = makeDbMock().insert;
     const result = await onAuthenticate({
       token: "",
-      documentName: "room:room-id",
+      documentName: "room:00000000-0000-0000-0000-0000000000aa",
     } as Parameters<typeof onAuthenticate>[0]);
     expect(result.readOnly).toBe(true);
   });
@@ -193,7 +196,7 @@ describe("onAuthenticate", () => {
     (_db as any).insert = makeDbMock().insert;
     const result = await onAuthenticate({
       token: "",
-      documentName: "room:room-id",
+      documentName: "room:00000000-0000-0000-0000-0000000000aa",
     } as Parameters<typeof onAuthenticate>[0]);
     expect(result.readOnly).toBe(false);
   });
@@ -204,7 +207,7 @@ describe("onAuthenticate", () => {
     (_db as any).query = {
       ...dbMock.query,
       roomBlacklist: {
-        findFirst: async () => ({ id: "bl-id", roomId: "room-id", email: "user@example.com" }),
+        findFirst: async () => ({ id: "bl-id", roomId: ROOM_UUID, email: "user@example.com" }),
       },
     };
     // biome-ignore lint/suspicious/noExplicitAny: test patching
@@ -212,7 +215,7 @@ describe("onAuthenticate", () => {
     await expect(
       onAuthenticate({
         token: "eyJvalid.token",
-        documentName: "room:room-id",
+        documentName: "room:00000000-0000-0000-0000-0000000000aa",
       } as Parameters<typeof onAuthenticate>[0]),
     ).rejects.toBeInstanceOf(AuthError);
   });
@@ -226,14 +229,14 @@ describe("onAuthenticate", () => {
     (_db as any).query = {
       ...dbMock.query,
       roomWhitelist: {
-        findFirst: async () => ({ id: "wl-id", roomId: "room-id", email: "user@example.com" }),
+        findFirst: async () => ({ id: "wl-id", roomId: ROOM_UUID, email: "user@example.com" }),
       },
     };
     // biome-ignore lint/suspicious/noExplicitAny: test patching
     (_db as any).insert = dbMock.insert;
     const result = await onAuthenticate({
       token: "eyJvalid.token",
-      documentName: "room:room-id",
+      documentName: "room:00000000-0000-0000-0000-0000000000aa",
     } as Parameters<typeof onAuthenticate>[0]);
     expect(result.readOnly).toBe(false);
   });
@@ -253,7 +256,7 @@ describe("onAuthenticate", () => {
     await expect(
       onAuthenticate({
         token: "eyJvalid.token",
-        documentName: "room:room-id",
+        documentName: "room:00000000-0000-0000-0000-0000000000aa",
       } as Parameters<typeof onAuthenticate>[0]),
     ).rejects.toBeInstanceOf(AuthError);
   });

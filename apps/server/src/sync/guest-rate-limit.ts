@@ -56,12 +56,21 @@ function ipFor(req: IncomingMessage): string {
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
   if (parts.length === 0) return sockIp;
-  // Walk from the right by TRUST_PROXY_HOPS hops. If there aren't enough
-  // entries (chain is shorter than configured), fall back to the leftmost
-  // entry as the best-available client IP.
-  const idx = Math.max(0, parts.length - env.TRUST_PROXY_HOPS);
+  // Walk from the right by TRUST_PROXY_HOPS hops. If the chain is SHORTER
+  // than expected, fall back to the socket address (the actual TCP peer) —
+  // the leftmost XFF entry is attacker-controlled in that case and trusting
+  // it would let a client behind the proxy spoof their source IP.
+  if (parts.length < env.TRUST_PROXY_HOPS) return sockIp;
+  const idx = parts.length - env.TRUST_PROXY_HOPS;
   return parts[idx] ?? sockIp;
 }
+
+// A JWT-shape sniff (not a verify): three base64url segments joined by `.`,
+// header section starts with `eyJ`. This is purely an upgrade-time heuristic
+// to skip the per-IP guest cap for authenticated clients; the real auth
+// happens later in `onAuthenticate`. We deliberately require the `.` so a
+// query value like `?bypass=eyJanything` can't slip through.
+const JWT_SHAPE = /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 
 /** Token is present iff the client passed an Authorization-equivalent. */
 function hasAuthToken(req: IncomingMessage): boolean {
@@ -70,15 +79,25 @@ function hasAuthToken(req: IncomingMessage): boolean {
   // it isn't visible here unless the client also surfaces it some other way.
   // Our web client mirrors the JWT into the `?token=` query param specifically
   // so this check works (see apps/web/src/components/editor/yjs-doc-cache.ts).
-  // A real JWT is base64url-encoded and starts with the header `eyJ`.
-  if (req.url?.includes("token=eyJ")) return true;
+  if (req.url) {
+    try {
+      // The base only matters because URL needs an absolute form; we never
+      // use the origin. Parsing properly avoids substring-match bypasses
+      // (e.g. `?other=token=eyJfake`).
+      const parsed = new URL(req.url, "http://x");
+      const tok = parsed.searchParams.get("token");
+      if (tok && JWT_SHAPE.test(tok)) return true;
+    } catch {
+      // malformed URL — fall through and treat as unauthenticated
+    }
+  }
   // Also accept tokens in Sec-WebSocket-Protocol for non-Hocuspocus clients
   // (e.g. CLI tools or custom transports that follow the Bearer-as-subprotocol
   // convention).
   const proto = req.headers["sec-websocket-protocol"];
   const protocols = Array.isArray(proto) ? proto : (proto?.split(",") ?? []).map((p) => p.trim());
   for (const p of protocols) {
-    if (p.startsWith("eyJ")) return true;
+    if (JWT_SHAPE.test(p)) return true;
   }
   return false;
 }

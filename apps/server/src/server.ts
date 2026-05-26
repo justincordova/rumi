@@ -86,7 +86,11 @@ export async function buildServer() {
     logger.debug({ userId }, "dropping user ws connections");
     let closed = 0;
     let failed = 0;
-    for (const doc of hocuspocus.documents.values()) {
+    // Snapshot the documents map up front — closing a connection can trigger
+    // `onDisconnect`, which may delete the doc from the live map mid-iteration
+    // and cause us to skip entries.
+    const docs = Array.from(hocuspocus.documents.values());
+    for (const doc of docs) {
       for (const conn of doc.getConnections()) {
         // biome-ignore lint/suspicious/noExplicitAny: Hocuspocus context is typed as unknown
         const ctx = conn.context as any;
@@ -110,26 +114,28 @@ export async function buildServer() {
   });
   app.decorate("dropConnectionForUserInRoom", (roomId: string, userId: string) => {
     logger.debug({ roomId, userId }, "dropping user ws connections in room");
-    for (const doc of hocuspocus.documents.values()) {
+    // Only match by the authenticated user id, never the guest socket id —
+    // kicks are issued from HTTP routes that pass a userId from `req.user`,
+    // so matching `ctx.guestId === userId` here would let a UUID collision
+    // (extremely unlikely, but possible) target an arbitrary guest.
+    const docs = Array.from(hocuspocus.documents.values());
+    for (const doc of docs) {
       for (const conn of doc.getConnections()) {
         // biome-ignore lint/suspicious/noExplicitAny: Hocuspocus context is typed as unknown
         const ctx = conn.context as any;
-        const match =
-          (ctx?.user?.id === userId || ctx?.guestId === userId) && ctx?.roomId === roomId;
-        if (match) {
-          try {
-            conn.sendStateless(JSON.stringify({ type: "kicked" }));
-          } catch {
-            // best-effort; connection may already be closing
-          }
-          try {
-            conn.close();
-          } catch (err) {
-            logger.warn(
-              { err, userId, roomId, documentName: doc.name },
-              "failed to close ws connection during scoped user drop",
-            );
-          }
+        if (ctx?.user?.id !== userId || ctx?.roomId !== roomId) continue;
+        try {
+          conn.sendStateless(JSON.stringify({ type: "kicked" }));
+        } catch (err) {
+          logger.debug({ err, userId, roomId }, "kick sendStateless failed");
+        }
+        try {
+          conn.close();
+        } catch (err) {
+          logger.warn(
+            { err, userId, roomId, documentName: doc.name },
+            "failed to close ws connection during scoped user drop",
+          );
         }
       }
     }

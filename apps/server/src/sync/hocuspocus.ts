@@ -20,9 +20,14 @@ const ROOM_TOUCH_MAX_ENTRIES = 10_000;
 const lastRoomTouch = new Map<string, number>();
 
 function recordRoomTouch(roomId: string, ts: number) {
-  if (lastRoomTouch.size >= ROOM_TOUCH_MAX_ENTRIES) {
-    // Drop the oldest insertion-order entry. Map iteration order is
-    // insertion order in v8, so the first key is the least-recently-set.
+  // Genuine LRU behavior: deleting + re-setting moves the key to the end of
+  // insertion order, so the oldest *touched* entry is always at the front and
+  // gets evicted when we hit the cap. Without the delete, a hot room set
+  // early would stay at the front and get evicted, while idle rooms set
+  // recently would survive.
+  if (lastRoomTouch.has(roomId)) {
+    lastRoomTouch.delete(roomId);
+  } else if (lastRoomTouch.size >= ROOM_TOUCH_MAX_ENTRIES) {
     const oldest = lastRoomTouch.keys().next().value;
     if (oldest !== undefined) lastRoomTouch.delete(oldest);
   }
@@ -162,9 +167,15 @@ export function buildHocuspocus() {
         { userId: ctx.user?.id, guestId: ctx.guestId, roomId: ctx.roomId, tabId: ctx.tabId },
         "ws connect",
       );
-      connectionInstance.sendStateless(
-        JSON.stringify({ type: "session", readOnly: !!ctx.readOnly }),
-      );
+      try {
+        connectionInstance.sendStateless(
+          JSON.stringify({ type: "session", readOnly: !!ctx.readOnly }),
+        );
+      } catch (err) {
+        // Connection may have closed between auth completing and this hook
+        // running; don't let the failure abort the room-touch logic below.
+        logger.debug({ err }, "sendStateless(session) failed");
+      }
       if (ctx.roomId && !ctx.tabId) {
         const now = Date.now();
         const last = lastRoomTouch.get(ctx.roomId) ?? 0;

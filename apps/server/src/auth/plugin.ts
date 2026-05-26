@@ -1,4 +1,4 @@
-import { AuthError, envelope } from "@/lib/errors";
+import { AuthError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import type { FastifyPluginAsync } from "fastify";
 import fp from "fastify-plugin";
@@ -17,8 +17,9 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; pattern: RegExp; optional: 
   { method: "POST", pattern: /^\/api\/billing\/webhook$/, optional: false },
   // POST /api/notifications/unsubscribe — public; HMAC-signed token replaces JWT.
   // Pattern is anchored so a future sibling route (e.g. /unsubscribe-all) is
-  // not silently exposed as unauthenticated.
-  { method: "POST", pattern: /^\/api\/notifications\/unsubscribe(?:\?|$)/, optional: false },
+  // not silently exposed as unauthenticated. Allow an optional trailing slash
+  // since Fastify normalizes both (ignoreTrailingSlash defaults on).
+  { method: "POST", pattern: /^\/api\/notifications\/unsubscribe\/?(?:\?|$)/, optional: false },
 ];
 
 const authPlugin: FastifyPluginAsync = async (app) => {

@@ -7,27 +7,48 @@ import { logger } from "@/lib/logger";
 import type { onAuthenticatePayload } from "@hocuspocus/server";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
+// Standard UUID v1-v8 form. `documentName` is client-supplied, so we shape-
+// check before passing to the DB — Postgres would otherwise throw
+// "invalid input syntax for type uuid" inside the query and surface as a
+// generic auth failure with no diagnostic value, or worse, leak details via
+// the error path.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseDocumentName(documentName: string): { roomId?: string; tabId?: string } | null {
+  if (documentName.startsWith("room:")) {
+    const roomId = documentName.slice(5);
+    return UUID_RE.test(roomId) ? { roomId } : null;
+  }
+  return UUID_RE.test(documentName) ? { tabId: documentName } : null;
+}
+
 export async function onAuthenticate(payload: onAuthenticatePayload) {
   const { token, documentName } = payload;
 
+  const parsed = parseDocumentName(documentName);
+  if (!parsed) {
+    throw new AuthError("not_found", "Invalid document");
+  }
+
   // A real JWT always starts with the base64url-encoded header "eyJ"
   if (token?.startsWith("eyJ")) {
-    return authenticateJwt(token, documentName);
+    return authenticateJwt(token, parsed);
   }
-  return authenticateGuest(documentName);
+  return authenticateGuest(parsed);
 }
 
-async function authenticateJwt(token: string, documentName: string) {
+async function authenticateJwt(token: string, parsed: { roomId?: string; tabId?: string }) {
   try {
     const user = await verifyJwt(token);
 
     let tabId: string | null = null;
     let roomId: string;
 
-    if (documentName.startsWith("room:")) {
-      roomId = documentName.slice(5);
+    if (parsed.roomId) {
+      roomId = parsed.roomId;
     } else {
-      const tab = await db.query.tabs.findFirst({ where: eq(tabs.id, documentName) });
+      // biome-ignore lint/style/noNonNullAssertion: parseDocumentName guarantees one of roomId|tabId
+      const tab = await db.query.tabs.findFirst({ where: eq(tabs.id, parsed.tabId!) });
       if (!tab) throw new AuthError("not_found", "Tab not found");
       tabId = tab.id;
       roomId = tab.roomId;
@@ -80,24 +101,25 @@ async function authenticateJwt(token: string, documentName: string) {
       }
     }
 
-    logger.info({ userId: user.id, roomId: room.id, tabId, documentName }, "ws authenticated");
+    logger.info({ userId: user.id, roomId: room.id, tabId }, "ws authenticated");
 
     return { user, roomId: room.id, tabId, readOnly: false, roomOwner: room.ownerId };
   } catch (err) {
     if (err instanceof AuthError) throw err;
-    logger.warn({ err, documentName }, "ws auth: jwt verify or room lookup failed");
+    logger.warn({ err }, "ws auth: jwt verify or room lookup failed");
     throw new AuthError("unauthorized", "Invalid token");
   }
 }
 
-async function authenticateGuest(documentName: string) {
+async function authenticateGuest(parsed: { roomId?: string; tabId?: string }) {
   let tabId: string | null = null;
   let roomId: string;
 
-  if (documentName.startsWith("room:")) {
-    roomId = documentName.slice(5);
+  if (parsed.roomId) {
+    roomId = parsed.roomId;
   } else {
-    const tab = await db.query.tabs.findFirst({ where: eq(tabs.id, documentName) });
+    // biome-ignore lint/style/noNonNullAssertion: parseDocumentName guarantees one of roomId|tabId
+    const tab = await db.query.tabs.findFirst({ where: eq(tabs.id, parsed.tabId!) });
     if (!tab) throw new AuthError("not_found", "Tab not found");
     tabId = tab.id;
     roomId = tab.roomId;
@@ -114,7 +136,7 @@ async function authenticateGuest(documentName: string) {
 
   const readOnly = room.guestAccess === "view";
 
-  logger.debug({ roomId: room.id, tabId, readOnly, documentName }, "ws guest authenticated");
+  logger.debug({ roomId: room.id, tabId, readOnly }, "ws guest authenticated");
 
   return { isGuest: true, roomId: room.id, tabId, readOnly, roomOwner: room.ownerId };
 }
