@@ -1,6 +1,13 @@
 import { deleteUser, updateUserMetadata } from "@/auth/supabase-admin";
+import { getStripe, isStripeConfigured } from "@/billing/stripe";
 import { db } from "@/db/client";
-import { notificationPreferences, notifications, roomMembers, rooms } from "@/db/schema";
+import {
+  notificationPreferences,
+  notifications,
+  roomMembers,
+  rooms,
+  subscriptions,
+} from "@/db/schema";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { UpdateAccountBody } from "@rumi/protocol";
@@ -76,6 +83,27 @@ export const accountRoutes: FastifyPluginAsync = async (app) => {
       });
     }
 
+    // Best-effort: cancel the user's Stripe subscription BEFORE wiping the
+    // local row. Without this, the user is gone from our DB but Stripe keeps
+    // billing them until period end — and every subsequent renewal webhook
+    // fires for a userId that no longer maps to a Supabase account.
+    const subRow = await db.query.subscriptions.findFirst({
+      where: eq(subscriptions.userId, userId),
+    });
+    if (isStripeConfigured() && subRow?.stripeSubscriptionId) {
+      try {
+        await getStripe().subscriptions.cancel(subRow.stripeSubscriptionId);
+      } catch (err) {
+        // Don't block the account deletion on a Stripe failure — operator
+        // intervention can clean up the stranded subscription, but the user
+        // expects their deletion to succeed.
+        logger.warn(
+          { err, userId, subscriptionId: subRow.stripeSubscriptionId },
+          "stripe subscription cancel failed during account delete; manual cleanup may be required",
+        );
+      }
+    }
+
     await db.transaction(async (tx) => {
       const now = new Date();
       // Soft-delete every solo-owned room.
@@ -88,6 +116,8 @@ export const accountRoutes: FastifyPluginAsync = async (app) => {
       // Remove all room_members rows for this user (any leftover non-owner
       // memberships in rooms they're not solely owning).
       await tx.delete(roomMembers).where(eq(roomMembers.userId, userId));
+      // Wipe billing row to stop any future webhook from matching this user.
+      await tx.delete(subscriptions).where(eq(subscriptions.userId, userId));
       // Hard-delete notifications + prefs (they're per-user and ephemeral).
       await tx.delete(notifications).where(eq(notifications.userId, userId));
       await tx.delete(notificationPreferences).where(eq(notificationPreferences.userId, userId));

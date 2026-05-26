@@ -254,8 +254,11 @@ describe("createNotificationsService", () => {
       });
       // biome-ignore lint/suspicious/noExplicitAny: test stub
       expect((insertValues as any).emailEnabled).toBe(true);
+      // The patch must apply to BOTH the insert and update paths — the
+      // previous bug was that a brand-new "unsubscribe" call (no row yet)
+      // silently wrote DEFAULT_PREFS, ignoring the patch.
       // biome-ignore lint/suspicious/noExplicitAny: test stub
-      expect((insertValues as any).accessGrantedEmail).toBe(true);
+      expect((insertValues as any).accessGrantedEmail).toBe(false);
     });
 
     it("re-reads preferences after upsert", async () => {

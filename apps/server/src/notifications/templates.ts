@@ -60,19 +60,30 @@ function renderHtml(opts: {
 </html>`;
 }
 
+// Caps to prevent a hostile display name from producing an oversized subject
+// header (most MTAs reject >998 bytes per RFC 5322) or a runaway HTML heading.
+const NAME_CAP = 80;
+const ROOM_CAP = 120;
+
+function truncate(s: string, max: number): string {
+  return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
+}
+
 export function accessGrantedTemplate(opts: {
   toUserId: string;
   granterName: string;
   roomName: string;
   roomSlug: string;
 }) {
+  const granterName = truncate(opts.granterName, NAME_CAP);
+  const roomName = truncate(opts.roomName, ROOM_CAP);
   const url = `${env.WEB_URL}/r/${opts.roomSlug}`;
   const unsubChan = buildUnsubUrl(opts.toUserId, "room_access_granted");
   const unsubAll = buildUnsubUrl(opts.toUserId, "all");
-  const escapedGranter = escapeHtml(opts.granterName);
-  const escapedRoom = escapeHtml(opts.roomName);
-  const subject = sanitizeSubject(`${opts.granterName} gave you access to a room on Rumi`);
-  const text = `${opts.granterName} gave you access to "${opts.roomName}" on Rumi.\n\nOpen the room: ${url}\n\nIf you weren't expecting this, you can ignore this email.\n\nManage email preferences: ${env.WEB_URL}/settings?tab=general${unsubChan ? `\nUnsubscribe from access emails: ${unsubChan}` : ""}`;
+  const escapedGranter = escapeHtml(granterName);
+  const escapedRoom = escapeHtml(roomName);
+  const subject = sanitizeSubject(`${granterName} gave you access to a room on Rumi`);
+  const text = `${granterName} gave you access to "${roomName}" on Rumi.\n\nOpen the room: ${url}\n\nIf you weren't expecting this, you can ignore this email.\n\nManage email preferences: ${env.WEB_URL}/settings?tab=general${unsubChan ? `\nUnsubscribe from access emails: ${unsubChan}` : ""}`;
   const html = renderHtml({
     heading: escapedGranter
       ? `${sanitizeSubject(escapedGranter)} gave you access to a room on Rumi`

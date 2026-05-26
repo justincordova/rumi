@@ -87,11 +87,18 @@ export function createNotificationsService(db: DbClient) {
     },
 
     async updatePreferences(userId: string, patch: Partial<NotificationPreferences>) {
+      // The patch must apply on BOTH the insert and update paths. The previous
+      // version omitted the patch from the insert values, so a user's very
+      // first call to /preferences (no row yet) silently wrote DEFAULT_PREFS
+      // and ignored their request. Subsequent calls hit the update path and
+      // the patch took effect — but a brand-new "unsubscribe" click stayed
+      // subscribed.
       await db
         .insert(notificationPreferences)
         .values({
           userId,
           ...DEFAULT_PREFS,
+          ...patch,
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
