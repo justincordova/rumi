@@ -4,9 +4,37 @@ import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { eq, lte } from "drizzle-orm";
-import type Stripe from "stripe";
+import Stripe from "stripe";
 import { type Interval, type PaidPlan, planToPriceId, priceIdToPlan } from "./plans";
 import { getStripe } from "./stripe";
+
+/**
+ * Wraps a Stripe SDK call and re-throws known SDK errors as `AppError`s with
+ * the right status code. Without this, transient SDK errors (network blip,
+ * Stripe rate-limit, mis-configured key) all surface as `500` and get
+ * Sentry-tagged as unhandled — drowning real bugs in noise and giving the
+ * client a useless message.
+ */
+async function callStripe<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof Stripe.errors.StripeRateLimitError) {
+      throw new AppError("stripe_rate_limited", "Billing is busy, try again shortly", 429);
+    }
+    if (err instanceof Stripe.errors.StripeConnectionError) {
+      throw new AppError("stripe_unavailable", "Billing temporarily unavailable", 503);
+    }
+    if (err instanceof Stripe.errors.StripeAuthenticationError) {
+      logger.error({ err, label }, "stripe auth failed — check STRIPE_SECRET_KEY");
+      throw new AppError("stripe_misconfigured", "Billing misconfigured", 503);
+    }
+    if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === "resource_missing") {
+      throw new AppError("stripe_resource_missing", "Billing record not found", 404);
+    }
+    throw err;
+  }
+}
 
 export type BillingService = ReturnType<typeof createBillingService>;
 
@@ -14,9 +42,23 @@ function mapStripeStatus(status: Stripe.Subscription.Status): "active" | "past_d
   switch (status) {
     case "active":
     case "trialing":
+    // `paused` (set via pause_collection in the Billing Portal) preserves
+    // access through the current period — collapsing to "canceled" would
+    // strip paid features immediately. Treat as active here; `resolvePlan`
+    // handles the period-end downgrade naturally.
+    case "paused":
       return "active";
+    // `unpaid` and `incomplete` indicate transient failure (dunning,
+    // pending 3DS). Map to past_due so we keep the row and let the next
+    // event flip it back. Treating them as canceled would strip access on
+    // a brief SCA challenge during signup.
     case "past_due":
+    case "unpaid":
+    case "incomplete":
       return "past_due";
+    case "canceled":
+    case "incomplete_expired":
+      return "canceled";
     default:
       return "canceled";
   }
@@ -29,7 +71,9 @@ async function resolveSubscriptionFromEvent(
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     if (!session.subscription) return null;
-    return stripe.subscriptions.retrieve(session.subscription as string);
+    return callStripe("subscriptions.retrieve", () =>
+      stripe.subscriptions.retrieve(session.subscription as string),
+    );
   }
   if (
     event.type === "customer.subscription.updated" ||
@@ -49,7 +93,7 @@ async function resolveSubscriptionFromEvent(
       return null;
     }
     const subId = typeof subRef === "string" ? subRef : subRef.id;
-    return stripe.subscriptions.retrieve(subId);
+    return callStripe("subscriptions.retrieve", () => stripe.subscriptions.retrieve(subId));
   }
   return null;
 }
@@ -69,10 +113,12 @@ export function createBillingService() {
         if (existing?.stripeCustomerId) return existing.stripeCustomerId;
 
         const stripe = getStripe();
-        const customer = await stripe.customers.create({
-          email,
-          metadata: { userId },
-        });
+        const customer = await callStripe("customers.create", () =>
+          stripe.customers.create({
+            email,
+            metadata: { userId },
+          }),
+        );
 
         if (existing) {
           await tx
@@ -105,17 +151,19 @@ export function createBillingService() {
       const customerId = await this.findOrCreateStripeCustomer(opts.userId, opts.email);
       const stripe = getStripe();
 
-      const session = await stripe.checkout.sessions.create({
-        ui_mode: "embedded_page",
-        mode: "subscription",
-        customer: customerId,
-        line_items: [{ price: priceId, quantity: 1 }],
-        client_reference_id: opts.userId,
-        subscription_data: { metadata: { userId: opts.userId } },
-        automatic_tax: { enabled: env.NODE_ENV === "production" },
-        tax_id_collection: { enabled: env.NODE_ENV === "production" },
-        return_url: `${env.WEB_URL}/settings?tab=billing&checkout=success`,
-      });
+      const session = await callStripe("checkout.sessions.create", () =>
+        stripe.checkout.sessions.create({
+          ui_mode: "embedded_page",
+          mode: "subscription",
+          customer: customerId,
+          line_items: [{ price: priceId, quantity: 1 }],
+          client_reference_id: opts.userId,
+          subscription_data: { metadata: { userId: opts.userId } },
+          automatic_tax: { enabled: env.NODE_ENV === "production" },
+          tax_id_collection: { enabled: env.NODE_ENV === "production" },
+          return_url: `${env.WEB_URL}/settings?tab=billing&checkout=success`,
+        }),
+      );
 
       if (!session.client_secret)
         throw new AppError("server_error", "Stripe did not return a client secret", 500);
@@ -130,10 +178,12 @@ export function createBillingService() {
         throw new AppError("no_stripe_customer", "No billing account found", 404);
       }
       const stripe = getStripe();
-      const portal = await stripe.billingPortal.sessions.create({
-        customer: row.stripeCustomerId,
-        return_url: `${env.WEB_URL}/settings?tab=billing`,
-      });
+      const portal = await callStripe("billingPortal.sessions.create", () =>
+        stripe.billingPortal.sessions.create({
+          customer: row.stripeCustomerId as string,
+          return_url: `${env.WEB_URL}/settings?tab=billing`,
+        }),
+      );
       return { url: portal.url };
     },
 
