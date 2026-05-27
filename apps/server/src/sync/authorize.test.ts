@@ -1,8 +1,15 @@
 import { describe, expect, it, mock } from "bun:test";
 import { AuthError } from "@/lib/errors";
 
-// Mock DB client before any imports
-mock.module("@/db/client", () => ({ db: {} }));
+// Mock DB client before any imports. The exported `db` is a stateful object
+// that tests patch via `(_db as any).query = ...` etc. Provide a default
+// `transaction(fn)` that just invokes the fn with `db` itself — auto-join
+// paths now wrap the membership insert in a tx that re-checks blacklist.
+const dbStub: Record<string, unknown> = {
+  // biome-ignore lint/suspicious/noExplicitAny: stub
+  transaction: async (fn: (tx: any) => unknown) => fn(dbStub),
+};
+mock.module("@/db/client", () => ({ db: dbStub }));
 
 // Mock JWKS/jose
 mock.module("jose", () => ({
@@ -48,20 +55,27 @@ function makeDbMock(
   const member = opts.member !== undefined ? opts.member : ownerMember;
   const tab = opts.tab !== undefined ? opts.tab : baseTab;
 
-  return {
-    query: {
-      rooms: { findFirst: async () => room },
-      roomMembers: { findFirst: async () => member },
-      roomWhitelist: { findFirst: async () => null },
-      roomBlacklist: { findFirst: async () => null },
-      tabs: { findFirst: async () => tab },
-    },
-    insert: () => ({
-      values: () => ({
-        onConflictDoNothing: async () => opts.insertResult ?? [],
-      }),
-    }),
+  const queryBag = {
+    rooms: { findFirst: async () => room },
+    roomMembers: { findFirst: async () => member },
+    roomWhitelist: { findFirst: async () => null },
+    roomBlacklist: { findFirst: async () => null },
+    tabs: { findFirst: async () => tab },
   };
+  const insertBag = () => ({
+    values: () => ({
+      onConflictDoNothing: async () => opts.insertResult ?? [],
+    }),
+  });
+  const dbObj = {
+    query: queryBag,
+    insert: insertBag,
+    // Auto-join paths now wrap the membership insert in a transaction that
+    // re-checks the blacklist. The stub forwards the current dbObj as `tx`
+    // so query/insert behave the same inside the tx as outside.
+    transaction: async (fn: (tx: unknown) => unknown) => fn(dbObj),
+  };
+  return dbObj;
 }
 
 const { onAuthenticate } = await import("./authorize");

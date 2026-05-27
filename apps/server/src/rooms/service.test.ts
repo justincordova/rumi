@@ -52,7 +52,12 @@ function makeDb(overrides: Record<string, unknown> = {}) {
         innerJoin: () => ({
           where: async () => [],
         }),
-        where: async () => [{ count: 0 }],
+        // Returns a thenable-like that ALSO exposes `.for("update")` so a
+        // chain like `select().from().where().for("update")` resolves to an
+        // empty array while a bare `select().from().where()` still awaits
+        // to `[{ count: 0 }]`.
+        where: (..._args: unknown[]) =>
+          Object.assign((async () => [{ count: 0 }])(), { for: async () => [] as unknown[] }),
       }),
     }),
     update: () => ({
@@ -146,11 +151,15 @@ describe("createService", () => {
         maxTabsPerRoom: 3,
         maxConcurrentUsers: 5,
       }));
+      const atLimitRows = [{ id: "r1" }, { id: "r2" }, { id: "r3" }];
       const db = makeDb({
         select: () => ({
           from: () => ({
             innerJoin: () => ({ where: async () => [] }),
-            where: async () => [{ count: 3 }],
+            // The new createRoom code reads the user's existing rooms via
+            // `.for("update")`. Return 3 rows to simulate at-cap state.
+            where: (..._args: unknown[]) =>
+              Object.assign((async () => [{ count: 3 }])(), { for: async () => atLimitRows }),
           }),
         }),
       });

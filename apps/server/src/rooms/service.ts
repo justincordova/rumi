@@ -47,23 +47,28 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
       guestAccess?: "none" | "view" | "edit";
     }) {
       const plan = await getUserPlan(opts.ownerId);
-      const ownedCount = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(rooms)
-        .where(and(eq(rooms.ownerId, opts.ownerId), isNull(rooms.deletedAt)));
-      const count = ownedCount[0]?.count ?? 0;
-      if (count >= plan.maxRooms) {
-        throw new AppError(
-          "plan_limit_reached",
-          `${plan.plan === "free" ? "Free plan" : `${plan.plan} plan`} limited to ${plan.maxRooms} rooms. Upgrade for more.`,
-          403,
-        );
-      }
 
       for (let attempt = 0; attempt < 6; attempt++) {
         const slug = attempt < 5 ? generateSlug() : fallbackSlug();
         try {
           return await db.transaction(async (tx) => {
+            // Lock the user's existing rooms BEFORE counting so two
+            // concurrent createRoom calls can't both observe `count = N-1`,
+            // both pass the check, and both insert. Without this, a user
+            // can race past their plan's maxRooms cap.
+            const ownedRows = await tx
+              .select({ id: rooms.id })
+              .from(rooms)
+              .where(and(eq(rooms.ownerId, opts.ownerId), isNull(rooms.deletedAt)))
+              .for("update");
+            if (ownedRows.length >= plan.maxRooms) {
+              throw new AppError(
+                "plan_limit_reached",
+                `${plan.plan === "free" ? "Free plan" : `${plan.plan} plan`} limited to ${plan.maxRooms} rooms. Upgrade for more.`,
+                403,
+              );
+            }
+
             const [room] = await tx
               .insert(rooms)
               .values({
@@ -307,12 +312,16 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
         }
 
         const plan = await getUserPlan(userId);
-        const ownedCount = await tx
-          .select({ count: sql<number>`count(*)::int` })
+        // Lock the user's existing rooms so a concurrent createRoom (which
+        // also acquires this lock) can't sneak under the cap while we
+        // restore. The single-room lock at line 306 only protects against
+        // double-restore of THIS room — it doesn't see other rooms.
+        const ownedRows = await tx
+          .select({ id: rooms.id })
           .from(rooms)
-          .where(and(eq(rooms.ownerId, userId), isNull(rooms.deletedAt)));
-        const count = ownedCount[0]?.count ?? 0;
-        if (count >= plan.maxRooms) {
+          .where(and(eq(rooms.ownerId, userId), isNull(rooms.deletedAt)))
+          .for("update");
+        if (ownedRows.length >= plan.maxRooms) {
           throw new AppError(
             "plan_limit_reached",
             `Restoring would exceed your plan's room limit of ${plan.maxRooms}. Upgrade or hard-delete other rooms first.`,
@@ -416,24 +425,32 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
 
             const inviteePrefs = await deps.notifications.getPreferences(inviteeUserId);
             if (inviteePrefs.emailEnabled && inviteePrefs.accessGrantedEmail) {
-              void sendAccessGrantedEmail({
+              // Catch the async rejection so a transient Resend failure
+              // doesn't surface as UnhandledPromiseRejection. The send()
+              // helper already logs errors internally; this is defense in
+              // depth.
+              sendAccessGrantedEmail({
                 toUserId: inviteeUserId,
                 toEmail: lower,
                 granterName: adderDisplayName,
                 roomName: room.name ?? room.slug,
                 roomSlug: room.slug,
-              });
+              }).catch((err) =>
+                logger.error({ err, roomId: room.id }, "access-granted email failed"),
+              );
             }
           } else if (!inviteeUserId) {
             // Email-only invite (no Rumi account yet) — send the email so
             // the invitee can sign up and land in the room.
-            void sendAccessGrantedEmail({
+            sendAccessGrantedEmail({
               toUserId: "anon",
               toEmail: lower,
               granterName: adderDisplayName,
               roomName: room.name ?? room.slug,
               roomSlug: room.slug,
-            });
+            }).catch((err) =>
+              logger.error({ err, roomId: room.id }, "access-granted email failed (anon)"),
+            );
           }
         } catch (err) {
           logger.error({ err, roomId: room.id }, "add-to-whitelist side effects failed");

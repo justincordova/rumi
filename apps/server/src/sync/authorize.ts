@@ -59,7 +59,9 @@ async function authenticateJwt(token: string, parsed: { roomId?: string; tabId?:
     });
     if (!room) throw new AuthError("not_found", "Room not found");
 
-    // Check blacklist
+    // Check blacklist (initial check). The auto-join paths below re-check
+    // blacklist inside their transaction to close the window between this
+    // check and the membership insert — see comments in rooms/service.ts.
     const blacklisted = await db.query.roomBlacklist.findFirst({
       where: and(
         eq(roomBlacklist.roomId, room.id),
@@ -78,10 +80,23 @@ async function authenticateJwt(token: string, parsed: { roomId?: string; tabId?:
         if (existingByEmail) {
           return { user, roomId: room.id, tabId, readOnly: false, roomOwner: room.ownerId };
         }
-        await db
-          .insert(roomMembers)
-          .values({ roomId: room.id, userId: user.id, role: "member" })
-          .onConflictDoNothing();
+        // Wrap the membership insert in a tx that re-checks blacklist so a
+        // concurrent admin add-to-blacklist between our check at line 63 and
+        // the insert below can't leave the user with a member row in a room
+        // they're blacklisted from.
+        await db.transaction(async (tx) => {
+          const stillBlacklisted = await tx.query.roomBlacklist.findFirst({
+            where: and(
+              eq(roomBlacklist.roomId, room.id),
+              sql`lower(${roomBlacklist.email}) = lower(${user.email})`,
+            ),
+          });
+          if (stillBlacklisted) throw new AuthError("forbidden", "Access denied");
+          await tx
+            .insert(roomMembers)
+            .values({ roomId: room.id, userId: user.id, role: "member" })
+            .onConflictDoNothing();
+        });
       } else {
         // Private room — check whitelist
         const whitelisted = await db.query.roomWhitelist.findFirst({
@@ -90,14 +105,21 @@ async function authenticateJwt(token: string, parsed: { roomId?: string; tabId?:
             sql`lower(${roomWhitelist.email}) = lower(${user.email})`,
           ),
         });
-        if (whitelisted) {
-          await db
+        if (!whitelisted) throw new AuthError("forbidden", "No access to this room");
+        // Same blacklist-race protection as the open branch above.
+        await db.transaction(async (tx) => {
+          const stillBlacklisted = await tx.query.roomBlacklist.findFirst({
+            where: and(
+              eq(roomBlacklist.roomId, room.id),
+              sql`lower(${roomBlacklist.email}) = lower(${user.email})`,
+            ),
+          });
+          if (stillBlacklisted) throw new AuthError("forbidden", "Access denied");
+          await tx
             .insert(roomMembers)
             .values({ roomId: room.id, userId: user.id, role: "member" })
             .onConflictDoNothing();
-        } else {
-          throw new AuthError("forbidden", "No access to this room");
-        }
+        });
       }
     }
 

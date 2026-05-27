@@ -323,10 +323,13 @@ export function createBillingService() {
           .delete(processedWebhookEvents)
           .where(lte(processedWebhookEvents.processedAt, cutoff));
 
-        // `planChanged` drives the connection-drop side effect. On `deleted`
-        // we don't change `plan` immediately — the actual downgrade happens
-        // later when `currentPeriodEnd` passes, which a future event (or
-        // `getUserPlan` evaluation) will reflect. So no drop here.
+        // `planChanged` drives the connection-drop side effect at the
+        // webhook layer. On `customer.subscription.deleted` we deliberately
+        // don't flip the stored `plan` field — `resolvePlan` keeps paid
+        // access alive while `cancelAtPeriodEnd && periodValid`, then falls
+        // back to free naturally. So `planChanged` will be false on delete,
+        // and the webhook handler in `webhook.ts` explicitly drops on
+        // `isDeleted` regardless so the next connection re-evaluates limits.
         const planChanged = before?.plan !== next.plan;
         return { planChanged, userId };
       });
