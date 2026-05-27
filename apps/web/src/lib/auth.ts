@@ -62,16 +62,28 @@ export async function initAuth() {
   }
 
   supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user.email) {
-      useSession.getState()._set({
-        user: extractProfile(session.user),
-        token: session.access_token,
-        status: "authenticated",
-      });
-    } else {
-      if (session && !session.user.email) {
-        void supabase.auth.signOut();
+    // Wrap so an exception inside extractProfile (e.g. malformed user
+    // metadata on a legacy account) can't tank the entire auth subscription
+    // — without this guard subsequent token refreshes would silently never
+    // update useSession.
+    try {
+      if (session?.user.email) {
+        useSession.getState()._set({
+          user: extractProfile(session.user),
+          token: session.access_token,
+          status: "authenticated",
+        });
+      } else {
+        if (session && !session.user.email) {
+          // Fire-and-forget signOut can reject when the token is already
+          // revoked or the network is down; swallow so we don't surface an
+          // UnhandledPromiseRejection.
+          void supabase.auth.signOut().catch(() => {});
+        }
+        useSession.getState()._set({ user: null, token: null, status: "anonymous" });
       }
+    } catch (err) {
+      console.error("auth state change handler failed", err);
       useSession.getState()._set({ user: null, token: null, status: "anonymous" });
     }
   });

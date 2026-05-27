@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 type Consent = {
   necessary: true;
@@ -104,10 +104,15 @@ export function CookiePreferencesModal({
 }) {
   const [analytics, setAnalytics] = useState(() => getConsent()?.analytics ?? false);
   const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape so this hand-rolled modal behaves like a real dialog.
+  // Also pull focus into the dialog on open so keyboard users aren't left
+  // with focus on the underlying page where Tab cycles through hidden
+  // elements behind the overlay.
   useEffect(() => {
     if (!open) return;
+    dialogRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onOpenChange(false);
     };
@@ -132,12 +137,14 @@ export function CookiePreferencesModal({
         onClick={() => onOpenChange(false)}
         aria-label="Close"
       />
-      {/* biome-ignore lint/a11y/useSemanticElements: native <dialog> doesn't work well with our custom backdrop pattern; ARIA role is the documented fallback */}
       <div
+        ref={dialogRef}
+        // biome-ignore lint/a11y/useSemanticElements: native <dialog>'s top-layer doesn't compose with our custom backdrop button + animate-in classes
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative z-10 w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-lg animate-in zoom-in-95 fade-in duration-200"
+        tabIndex={-1}
+        className="relative z-10 w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-lg animate-in zoom-in-95 fade-in duration-200 outline-none"
       >
         <h2 id={titleId} className="text-lg font-semibold mb-1">
           Cookie preferences

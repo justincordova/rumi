@@ -1,5 +1,5 @@
 import { initAuth } from "@/lib/auth";
-import { initSentry } from "@/lib/sentry";
+import { Sentry, initSentry } from "@/lib/sentry";
 import { supabase } from "@/lib/supabase";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
@@ -31,11 +31,12 @@ async function bootstrap(root: HTMLElement) {
     // A bad/expired code throws here. Previously that prevented initAuth()
     // from running and left the entire app stuck in status: "loading" — every
     // protected route's beforeLoad checks for "anonymous" so the user never
-    // got redirected and stared at a blank screen.
+    // got redirected and stared at a blank screen. Capture to Sentry so the
+    // recovery isn't completely silent.
     try {
       await supabase.auth.exchangeCodeForSession(code);
-    } catch {
-      // fall through to initAuth() so the app boots in anonymous mode
+    } catch (err) {
+      Sentry.captureException(err, { tags: { area: "oauth-exchange" } });
     }
     params.delete("code");
     const clean = params.toString();
@@ -52,4 +53,15 @@ async function bootstrap(root: HTMLElement) {
   );
 }
 
-bootstrap(rootElement);
+// Top-level await rejection would surface as an unhandled rejection AND
+// prevent React from ever mounting (no error UI, blank screen). Catch and
+// render the router anyway so the user at least sees the landing page.
+bootstrap(rootElement).catch((err) => {
+  console.error("bootstrap failed", err);
+  Sentry.captureException(err, { tags: { area: "bootstrap" } });
+  createRoot(rootElement).render(
+    <StrictMode>
+      <RouterProvider router={router} />
+    </StrictMode>,
+  );
+});

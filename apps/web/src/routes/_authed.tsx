@@ -28,10 +28,11 @@ function AuthedLayout() {
   // hold the outlet so we don't render a stale page in the meantime.
   useEffect(() => {
     if (status !== "authenticated") {
-      navigate({
-        to: "/sign-in",
-        search: { next: window.location.pathname || "/dashboard" },
-      });
+      // Preserve query string too — without this, a user signed out from
+      // /settings?tab=billing lands back on /settings after re-auth and
+      // loses their tab selection.
+      const next = (window.location.pathname || "/dashboard") + (window.location.search || "");
+      navigate({ to: "/sign-in", search: { next } });
     }
   }, [status, navigate]);
 
