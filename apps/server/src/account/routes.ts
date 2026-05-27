@@ -49,25 +49,29 @@ export const accountRoutes: FastifyPluginAsync = async (app) => {
     // biome-ignore lint/style/noNonNullAssertion: auth plugin guarantees req.user is set for /api/ routes
     const userId = req.user!.id;
 
-    const ownedRooms = await db.query.rooms.findMany({
-      where: and(eq(rooms.ownerId, userId), isNull(rooms.deletedAt)),
-      columns: { id: true, slug: true, name: true },
-    });
+    // Single query: identify which owned rooms have other members (blocking)
+    // vs. solo (safe to soft-delete). Previous version ran one COUNT(*) per
+    // owned room — N+1 against the user's owned-room list. Max plan owns up
+    // to 50 rooms, so this collapses 51 round-trips to 1.
+    const roomsWithOtherCounts = await db
+      .select({
+        id: rooms.id,
+        slug: rooms.slug,
+        name: rooms.name,
+        otherCount: sql<number>`count(${roomMembers.userId}) filter (where ${roomMembers.userId} != ${userId})::int`,
+      })
+      .from(rooms)
+      .leftJoin(roomMembers, eq(roomMembers.roomId, rooms.id))
+      .where(and(eq(rooms.ownerId, userId), isNull(rooms.deletedAt)))
+      .groupBy(rooms.id, rooms.slug, rooms.name);
 
-    // Identify which owned rooms have other members (blocking) vs. solo
-    // (safe to soft-delete).
     const blockingRooms: Array<{ slug: string; name: string | null }> = [];
     const soloRooms: Array<{ id: string; slug: string }> = [];
-    for (const room of ownedRooms) {
-      const otherMemberCount = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(roomMembers)
-        .where(and(eq(roomMembers.roomId, room.id), sql`${roomMembers.userId} != ${userId}`));
-      const others = otherMemberCount[0]?.count ?? 0;
-      if (others > 0) {
-        blockingRooms.push({ slug: room.slug, name: room.name });
+    for (const r of roomsWithOtherCounts) {
+      if (r.otherCount > 0) {
+        blockingRooms.push({ slug: r.slug, name: r.name });
       } else {
-        soloRooms.push({ id: room.id, slug: room.slug });
+        soloRooms.push({ id: r.id, slug: r.slug });
       }
     }
 

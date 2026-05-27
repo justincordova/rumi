@@ -40,6 +40,11 @@ const envSchema = z
     message:
       "SUPABASE_SERVICE_ROLE_KEY is required in production (whitelist invitee notifications, kick auto-blacklist, member email lookups all silently no-op without it)",
     path: ["SUPABASE_SERVICE_ROLE_KEY"],
+  })
+  .refine((d) => d.NODE_ENV !== "production" || !d.STRIPE_SECRET_KEY || d.STRIPE_WEBHOOK_SECRET, {
+    message:
+      "STRIPE_WEBHOOK_SECRET is required in production when STRIPE_SECRET_KEY is set — webhook signature verification fails closed and the billing webhook returns 503 without it, so subscription updates never reach the database",
+    path: ["STRIPE_WEBHOOK_SECRET"],
   });
 
 const parsed = envSchema.safeParse(process.env);

@@ -66,8 +66,13 @@ export const tabsRoutes: FastifyPluginAsync = async (app) => {
         req.body.tabIds,
       );
       const serialized = reordered.map(serializeTab);
-      if (serialized.length > 0) {
-        void broadcastTabsReordered(app.hocuspocus, serialized[0]?.roomId ?? "", serialized);
+      // Guard explicitly: passing `""` to broadcastTabsReordered would open
+      // a Hocuspocus direct connection named `room:` which fails UUID
+      // validation in onAuthenticate but bypasses auth via openDirectConnection
+      // — it'd silently create a stray document.
+      const firstRoomId = serialized[0]?.roomId;
+      if (firstRoomId) {
+        void broadcastTabsReordered(app.hocuspocus, firstRoomId, serialized);
       }
       return { tabs: serialized };
     },

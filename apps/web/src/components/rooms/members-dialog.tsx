@@ -410,21 +410,36 @@ export function MembersDialog({
   );
 }
 
+// Permissive client-side email shape check — defense against an obvious typo
+// before paying for a round-trip. The server is the source of truth.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function AddEmailInput({
   placeholder,
   onSubmit,
 }: {
   placeholder: string;
-  onSubmit: (email: string) => void;
+  onSubmit: (email: string) => void | Promise<void>;
 }) {
   const [value, setValue] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     const trimmed = value.trim();
     if (!trimmed) return;
-    onSubmit(trimmed.toLowerCase());
-    setValue("");
+    if (!EMAIL_RE.test(trimmed)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onSubmit(trimmed.toLowerCase());
+      setValue("");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -435,12 +450,14 @@ function AddEmailInput({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={placeholder}
-          className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+          disabled={submitting}
+          className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-50"
         />
         <button
           type="submit"
           aria-label="Add email"
-          className="grid h-8 w-8 place-items-center rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shrink-0"
+          disabled={submitting}
+          className="grid h-8 w-8 place-items-center rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shrink-0 disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
         </button>
