@@ -52,8 +52,17 @@ function buildProcessor() {
 
 export async function renderMarkdown(source: string): Promise<string> {
   processor ??= buildProcessor();
-  // biome-ignore lint/suspicious/noExplicitAny: processor type is complex unified pipeline
-  const p: any = await processor;
-  const file = await p.process(source);
-  return String(file);
+  try {
+    // biome-ignore lint/suspicious/noExplicitAny: processor type is complex unified pipeline
+    const p: any = await processor;
+    const file = await p.process(source);
+    return String(file);
+  } catch (err) {
+    // Without this null, a one-time init failure (rejected `processor`
+    // promise) would poison every future call — `??=` only assigns when
+    // null/undefined, so the rejected promise sat there forever and every
+    // subsequent renderMarkdown call rejected with the same error.
+    processor = null;
+    throw err;
+  }
 }

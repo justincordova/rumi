@@ -45,23 +45,26 @@ export function createYjsStore({ doc }: { doc: Y.Doc }): {
     // Hydrate the store from whatever YKeyValue currently has. This runs
     // AFTER the provider's initial sync has populated yStore, so we get the
     // server's authoritative state — not the local defaults.
-    store.mergeRemoteChanges(() => {
-      // Wipe whatever defaults the freshly-created TLStore put in (document,
-      // page, instance, etc.) so they don't conflict with what the server
-      // sends. ensureStoreIsUsable() will recreate any session-scope records
-      // we still need locally.
-      const localDefaults = store.allRecords();
-      if (localDefaults.length > 0) {
-        store.remove(localDefaults.map((r) => r.id));
-      }
-      const remoteRecords: TLRecord[] = [];
-      for (const { val } of yStore.yarray) {
-        remoteRecords.push(val);
-      }
-      if (remoteRecords.length > 0) {
+    //
+    // For a brand-new room with no drawings yet, yStore.yarray is empty —
+    // in that case we MUST leave the freshly-created TLStore's local
+    // defaults (document, page, instance) in place, otherwise tldraw
+    // renders blank/broken because it lost the records it needs to
+    // bootstrap. Only wipe-and-replace when we have actual remote records
+    // to populate with.
+    const remoteRecords: TLRecord[] = [];
+    for (const { val } of yStore.yarray) {
+      remoteRecords.push(val);
+    }
+    if (remoteRecords.length > 0) {
+      store.mergeRemoteChanges(() => {
+        const localDefaults = store.allRecords();
+        if (localDefaults.length > 0) {
+          store.remove(localDefaults.map((r) => r.id));
+        }
         store.put(remoteRecords);
-      }
-    });
+      });
+    }
 
     const unsubs: Array<() => void> = [];
 

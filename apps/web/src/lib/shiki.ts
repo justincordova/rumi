@@ -8,6 +8,12 @@ export async function getHighlighter() {
     instance = createHighlighter({
       themes: ["github-light", "github-dark"],
       langs: ["markdown"], // others loaded on demand
+    }).catch((err) => {
+      // Reset on init failure so the next call retries. Without this, a
+      // transient CDN/WASM init error poisoned the module-level cache
+      // forever and every future getHighlighter call rejected.
+      instance = null;
+      throw err;
     });
   }
   return instance;

@@ -250,7 +250,9 @@ function TabItem({
           method: "PATCH",
           body: { name: next },
         });
-      } catch {
+      } catch (err: unknown) {
+        // biome-ignore lint/suspicious/noExplicitAny: error message extraction
+        toast.error((err as any)?.message ?? "Couldn't rename tab");
         setDraft(tab.name);
       }
     }

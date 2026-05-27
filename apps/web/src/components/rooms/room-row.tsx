@@ -71,7 +71,8 @@ export function RoomRow({
     }
   }
 
-  // Same Enter-then-blur double-submit guard as room-title.tsx.
+  // Same Enter-then-blur double-submit guard as room-title.tsx, with the
+  // same catch+toast+revert+close pattern as room-card.tsx.
   const committingRef = useRef(false);
   async function commit() {
     if (committingRef.current) return;
@@ -85,6 +86,11 @@ export function RoomRow({
         });
         updateRoom(res.room);
       }
+      setEditing(false);
+    } catch (err: unknown) {
+      // biome-ignore lint/suspicious/noExplicitAny: error message extraction
+      toast.error((err as any)?.message ?? "Couldn't rename room");
+      setDraft(title);
       setEditing(false);
     } finally {
       committingRef.current = false;

@@ -95,6 +95,10 @@ function CheckoutForm({
       );
       return clientSecret;
     } catch (err) {
+      // Reset the gate so reopening the modal after a transient failure
+      // re-attempts the request. Without this, fetchedRef stayed true
+      // forever and Stripe's EmbeddedCheckout sat idle on retry.
+      fetchedRef.current = false;
       if (err instanceof ApiError && err.code === "stripe_not_configured") {
         toast.info("Billing isn't enabled in this environment yet.");
       } else {

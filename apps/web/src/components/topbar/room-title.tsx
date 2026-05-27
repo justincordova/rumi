@@ -32,18 +32,27 @@ export function RoomTitle({ room }: { room: Room }) {
     if (committingRef.current) return;
     committingRef.current = true;
     const next = draft.trim();
-    if (next !== (room.name ?? "")) {
-      try {
-        const updated = await apiFetch<UpdateRoomResponse>(`/api/rooms/${room.slug}`, {
-          method: "PATCH",
-          body: { name: next || null },
-        });
-        updateRoom(updated.room);
-      } catch {
-        toast.error("Couldn't rename room");
-      }
+    if (next === (room.name ?? "")) {
+      // Nothing changed — just close out.
+      setEditing(false);
+      return;
     }
-    setEditing(false);
+    try {
+      const updated = await apiFetch<UpdateRoomResponse>(`/api/rooms/${room.slug}`, {
+        method: "PATCH",
+        body: { name: next || null },
+      });
+      updateRoom(updated.room);
+      setEditing(false);
+    } catch (err: unknown) {
+      // Keep the input open with the draft preserved so the user can
+      // retry — previously we closed editing even on failure and the
+      // draft was lost.
+      // biome-ignore lint/suspicious/noExplicitAny: error message extraction
+      toast.error((err as any)?.message ?? "Couldn't rename room");
+      committingRef.current = false;
+      inputRef.current?.focus();
+    }
   }
 
   if (editing) {

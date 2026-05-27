@@ -89,6 +89,15 @@ export function RoomCard({
         updateRoom(res.room);
       }
       setEditing(false);
+    } catch (err: unknown) {
+      // Without a catch the rejection was an UnhandledPromiseRejection and
+      // the user saw no signal that rename failed; the input stayed in edit
+      // mode with the failed draft. Toast + revert + close so the UI
+      // reflects truth.
+      // biome-ignore lint/suspicious/noExplicitAny: error message extraction
+      toast.error((err as any)?.message ?? "Couldn't rename room");
+      setDraft(title);
+      setEditing(false);
     } finally {
       committingRef.current = false;
     }

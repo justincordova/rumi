@@ -33,7 +33,11 @@ async function runRefresh(): Promise<{ ok: boolean }> {
     return { ok: true };
   }
   // Refresh failed — sign out exactly once and let all queued callers fail.
-  await supabase.auth.signOut();
+  // Catch supabase.auth.signOut() rejections (revoked token, network down):
+  // if we let the rejection propagate, the shared refreshInFlight promise
+  // rejects with a non-ApiError, and every queued apiFetch caller's
+  // `instanceof ApiError` check falls through.
+  await supabase.auth.signOut().catch(() => {});
   return { ok: false };
 }
 
@@ -59,7 +63,13 @@ export async function apiFetch<T>(path: string, opts: FetchOpts = {}): Promise<T
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     });
   } catch (err) {
-    // Network failure (DNS, offline, CORS preflight, abort, etc.). Without
+    // Deliberate cancellation (AbortController.abort()) must propagate as
+    // an AbortError so callers like useNotifications can distinguish it
+    // from a real network failure. Wrapping it as an ApiError would
+    // produce misleading "Network request failed" toasts on legitimate
+    // visibility-change cancellations.
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    // Real network failure (DNS, offline, CORS preflight, etc.). Without
     // this branch the raw TypeError propagates as a non-ApiError and every
     // call site's `instanceof ApiError` check falls through to a generic
     // "server error" message with no signal it's a connectivity issue.
@@ -74,6 +84,12 @@ export async function apiFetch<T>(path: string, opts: FetchOpts = {}): Promise<T
     }
     const { ok } = await refreshInFlight;
     if (ok) {
+      // If the caller's signal was aborted while we were awaiting the
+      // refresh, surface the abort instead of issuing a retry that will
+      // immediately fail. Matches the AbortError contract above.
+      if (opts.signal?.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
       return apiFetch<T>(path, { ...opts, _retried: true });
     }
     throw new ApiError("unauthorized", "Session expired", 401);

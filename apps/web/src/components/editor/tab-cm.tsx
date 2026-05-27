@@ -89,7 +89,13 @@ export function TabCm({ ydoc, provider, language, readOnly, externalViewRef }: P
       cancelled = true;
       view.destroy();
       viewRef.current = null;
-      if (externalViewRef) externalViewRef.current = null;
+      // Only null the external ref if it still points to OUR view. In React
+      // StrictMode (and edge cases with sibling effect ordering) the parent's
+      // new mount may have already assigned a replacement view before this
+      // cleanup runs — without this check we'd null a freshly-valid ref.
+      if (externalViewRef && externalViewRef.current === view) {
+        externalViewRef.current = null;
+      }
     };
   }, [ydoc, provider]); // language and readOnly reconfigure via separate effects
 
