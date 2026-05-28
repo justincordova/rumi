@@ -1,20 +1,7 @@
-import { db } from "@/db/client";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { type NotificationsService, createNotificationsService } from "@/notifications/service";
 import { Resend } from "resend";
 import { accessGrantedTemplate } from "./templates";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Lazy module-scope cache so we don't reinstantiate the service per-email.
-// `createNotificationsService(db)` only closes over `db` and returns a method
-// bag, so caching is cheap and safe.
-let _notifSvc: NotificationsService | null = null;
-function notifSvc(): NotificationsService {
-  if (!_notifSvc) _notifSvc = createNotificationsService(db);
-  return _notifSvc;
-}
 
 let _resend: Resend | null = null;
 function getResend() {
@@ -75,29 +62,16 @@ export async function sendAccessGrantedEmail(opts: {
   roomName: string;
   roomSlug: string;
 }) {
-  // For email-only invites the recipient has no Rumi account yet, so we
-  // pass `toUserId: "anon"`. `notification_preferences.user_id` is a UUID
-  // column — querying it with the string "anon" would produce a Postgres
-  // syntax error, our .catch would null prefs, and the email would be
-  // silently dropped. That's the WORST recipient to drop the email on.
+  // Callers are responsible for checking user notification preferences
+  // before invoking — see rooms/service.ts:addToWhitelist where prefs are
+  // consulted via `deps.notifications.getPreferences` for known users.
+  // Email-only invites (toUserId === "anon") have no Rumi account yet so
+  // no prefs row to consult; the email itself is the user's first contact
+  // with the product and must always go out.
   //
-  // Callers MUST do their own preference check for known users (see
-  // rooms/service.ts:addToWhitelist). The guard here is purely a
-  // belt-and-braces in case a caller forgets — only run it when toUserId
-  // looks like a real user id.
-  if (UUID_RE.test(opts.toUserId)) {
-    const prefs = await notifSvc()
-      .getPreferences(opts.toUserId)
-      .catch((err) => {
-        logger.warn({ err, toUserId: opts.toUserId }, "preference lookup failed; skipping email");
-        return null;
-      });
-    if (!prefs) return;
-    if (!prefs.emailEnabled || !prefs.accessGrantedEmail) {
-      logger.debug({ toUserId: opts.toUserId }, "access-granted email skipped by user prefs");
-      return;
-    }
-  }
+  // Email.ts deliberately does NOT import the notifications service to
+  // avoid pulling the full DB schema dependency graph into the test path,
+  // which Bun's ESM evaluation order trips on (cyclic-import quirk).
   const { toEmail, ...templateOpts } = opts;
   return send({ to: toEmail, ...accessGrantedTemplate(templateOpts) });
 }
