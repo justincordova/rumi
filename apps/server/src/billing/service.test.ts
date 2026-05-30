@@ -82,6 +82,7 @@ type Filter = { col: unknown; value: string };
 mock.module("drizzle-orm", () => ({
   eq: (col: unknown, value: unknown): Filter => ({ col, value: String(value) }),
   lte: (col: unknown, value: unknown): Filter => ({ col, value: String(value) }),
+  sql: (..._args: unknown[]) => ({ __sql: true }),
 }));
 
 // Real schema export so `subscriptions.userId` etc. are truthy column refs we
