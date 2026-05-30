@@ -128,7 +128,19 @@ export function bindCursorPresence({
 
   awareness.on("change", sync);
   // Re-sync when the local user changes pages so we drop off-page cursors.
-  const onPageChange = () => sync();
+  // `editor.on("change")` fires for EVERY store mutation — including the
+  // presence records `sync()` itself writes (each with a fresh
+  // `lastActivityTimestamp`). Calling `sync()` unconditionally here would feed
+  // back into itself (put → change → onPageChange → sync → put …) and spin a
+  // busy loop whenever a remote cursor is on the page. Gate on an actual page
+  // change so our own presence writes don't re-trigger a sync.
+  let lastPageId = editor.getCurrentPageId();
+  const onPageChange = () => {
+    const current = editor.getCurrentPageId();
+    if (current === lastPageId) return;
+    lastPageId = current;
+    sync();
+  };
   editor.on("change", onPageChange);
   sync();
 
