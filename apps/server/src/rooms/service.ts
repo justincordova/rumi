@@ -535,11 +535,19 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
       if (deps) {
         const candidate = await deps.lookupUserIdByEmail(lower).catch(() => null);
         if (candidate) {
-          const isMember = await db.query.roomMembers.findFirst({
+          const target = await db.query.roomMembers.findFirst({
             where: and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, candidate)),
-            columns: { userId: true },
+            columns: { userId: true, role: true },
           });
-          if (isMember) kickeeUserId = candidate;
+          if (target) {
+            // Blacklisting auto-kicks the matching member. An admin must not be
+            // able to use blacklist as a back door to remove a peer admin or
+            // the owner — that would bypass the role guard in `kickMember`.
+            if (adder.role === "admin" && target.role !== "member") {
+              throw new AuthError("forbidden", "Admins cannot blacklist other admins or the owner");
+            }
+            kickeeUserId = candidate;
+          }
         }
       }
 
