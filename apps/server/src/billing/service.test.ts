@@ -79,7 +79,16 @@ mock.module("@/lib/env", () => ({
 // read it back inside the stub.
 type Filter = { col: unknown; value: string };
 
+// Capture the real `drizzle-orm` exports before mocking. `mock.module` is
+// GLOBAL in Bun and leaks across test files; a partial mock (only eq/lte/sql)
+// would strip `and`/`isNull`/`desc`/etc. from any test that loads after this
+// one, surfacing as "Export named 'and' not found" depending on CI's
+// non-deterministic file ordering. Spread the real module and override only the
+// three helpers this test stubs for in-memory query routing.
+const realDrizzle = await import("drizzle-orm");
+
 mock.module("drizzle-orm", () => ({
+  ...realDrizzle,
   eq: (col: unknown, value: unknown): Filter => ({ col, value: String(value) }),
   lte: (col: unknown, value: unknown): Filter => ({ col, value: String(value) }),
   sql: (..._args: unknown[]) => ({ __sql: true }),
@@ -97,7 +106,16 @@ const processedTable = {
   processedAt: { name: "processedAt" },
 };
 
+// Capture the real schema module before mocking so we can spread its other
+// exports through. `mock.module` is GLOBAL in Bun and leaks across test files;
+// a partial mock would strip `roomWhitelist`/`tabs`/`notificationPreferences`
+// etc. from any test file that loads after this one, depending on CI's
+// non-deterministic file ordering. Spreading the real module keeps every
+// export present while we override only the two tables this test stubs.
+const realSchema = await import("@/db/schema");
+
 mock.module("@/db/schema", () => ({
+  ...realSchema,
   subscriptions: subsTable,
   processedWebhookEvents: processedTable,
 }));
