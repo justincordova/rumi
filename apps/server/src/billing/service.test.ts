@@ -79,53 +79,53 @@ mock.module("@/lib/env", () => ({
 // read it back inside the stub.
 type Filter = { col: unknown; value: string };
 
-// Capture the real `drizzle-orm` exports before mocking. `mock.module` is
-// GLOBAL in Bun and leaks across test files; a partial mock (only eq/lte/sql)
-// would strip `and`/`isNull`/`desc`/etc. from any test that loads after this
-// one, surfacing as "Export named 'and' not found" depending on CI's
-// non-deterministic file ordering. Spread the real module and override only the
-// three helpers this test stubs for in-memory query routing.
+// `mock.module` is GLOBAL in Bun and leaks across test files. Mocking shared
+// modules with PARTIAL implementations (e.g. only eq/lte) would strip the other
+// exports (`and`, `isNull`, `roomWhitelist`, ...) — or worse, feed a fake `eq`
+// into a real `and` — in every server test that loads after this one, breaking
+// CI non-deterministically (see the `0add619` env-mock fix for the same class).
+//
+// To stay leak-safe we spread the REAL modules and only wrap eq()/lte(): they
+// still return a genuine Drizzle condition (so real `and`/`or` in other files
+// keep working) with the `{ col, value }` routing info attached as extra
+// own-properties that the in-memory stub DB below reads and real Drizzle
+// ignores. Real schema tables are reused so column identity comparisons hold.
 const realDrizzle = await import("drizzle-orm");
+// Capture the real fns into locals BEFORE mocking — referencing `realDrizzle.eq`
+// inside the factory would resolve through the live (now-mocked) binding and
+// recurse infinitely.
+const realDrizzleExports = { ...realDrizzle };
+const realEq = realDrizzle.eq;
+const realLte = realDrizzle.lte;
+const schema = await import("@/db/schema");
+const subsTable = schema.subscriptions;
+const processedTable = schema.processedWebhookEvents;
 
-mock.module("drizzle-orm", () => ({
-  ...realDrizzle,
-  eq: (col: unknown, value: unknown): Filter => ({ col, value: String(value) }),
-  lte: (col: unknown, value: unknown): Filter => ({ col, value: String(value) }),
-  sql: (..._args: unknown[]) => ({ __sql: true }),
-}));
+const FILTER = Symbol("filter");
 
-// Real schema export so `subscriptions.userId` etc. are truthy column refs we
-// can identity-compare. We don't need the real Drizzle column shape — just
-// stable object references.
-const subsTable = {
-  userId: { name: "userId" },
-  stripeCustomerId: { name: "stripeCustomerId" },
-};
-const processedTable = {
-  eventId: { name: "eventId" },
-  processedAt: { name: "processedAt" },
-};
-
-// Capture the real schema module before mocking so we can spread its other
-// exports through. `mock.module` is GLOBAL in Bun and leaks across test files;
-// a partial mock would strip `roomWhitelist`/`tabs`/`notificationPreferences`
-// etc. from any test file that loads after this one, depending on CI's
-// non-deterministic file ordering. Spreading the real module keeps every
-// export present while we override only the two tables this test stubs.
-const realSchema = await import("@/db/schema");
-
-mock.module("@/db/schema", () => ({
-  ...realSchema,
-  subscriptions: subsTable,
-  processedWebhookEvents: processedTable,
-}));
-
-function isFilter(x: unknown): x is Filter {
-  return typeof x === "object" && x !== null && "col" in x && "value" in x;
+function wrapCondition(condition: unknown, col: unknown, value: unknown): unknown {
+  if (typeof condition === "object" && condition !== null) {
+    (condition as Record<symbol, Filter>)[FILTER] = { col, value: String(value) };
+  }
+  return condition;
 }
 
-function selectByFilter(filter: unknown): SubRow | null {
-  if (!isFilter(filter)) return null;
+mock.module("drizzle-orm", () => ({
+  ...realDrizzleExports,
+  eq: (col: unknown, value: unknown) => wrapCondition(realEq(col as never, value), col, value),
+  lte: (col: unknown, value: unknown) => wrapCondition(realLte(col as never, value), col, value),
+}));
+
+function getFilter(x: unknown): Filter | null {
+  if (typeof x === "object" && x !== null && FILTER in x) {
+    return (x as Record<symbol, Filter>)[FILTER];
+  }
+  return null;
+}
+
+function selectByFilter(cond: unknown): SubRow | null {
+  const filter = getFilter(cond);
+  if (!filter) return null;
   if (filter.col === subsTable.userId) {
     return subs.get(filter.value) ?? null;
   }
@@ -138,8 +138,9 @@ function selectByFilter(filter: unknown): SubRow | null {
   return null;
 }
 
-function selectProcessedByFilter(filter: unknown): { eventType: string } | null {
-  if (!isFilter(filter)) return null;
+function selectProcessedByFilter(cond: unknown): { eventType: string } | null {
+  const filter = getFilter(cond);
+  if (!filter) return null;
   if (filter.col === processedTable.eventId) {
     return processedEvents.get(filter.value) ?? null;
   }
@@ -195,9 +196,10 @@ function makeTx() {
     update: (_table: unknown) => ({
       set: (patch: Partial<SubRow>) => ({
         where: async (cond: unknown) => {
-          if (!isFilter(cond) || cond.col !== subsTable.userId) return;
-          const existing = subs.get(cond.value);
-          if (existing) subs.set(cond.value, { ...existing, ...patch });
+          const filter = getFilter(cond);
+          if (!filter || filter.col !== subsTable.userId) return;
+          const existing = subs.get(filter.value);
+          if (existing) subs.set(filter.value, { ...existing, ...patch });
         },
       }),
     }),
