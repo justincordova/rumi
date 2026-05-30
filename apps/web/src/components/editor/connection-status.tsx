@@ -24,6 +24,16 @@ export function ConnectionStatus({ status }: Props) {
     }
   }, [status]);
 
+  // Dismiss the (effectively infinite-duration) disconnect toast on unmount —
+  // e.g. navigating away from the room while still disconnected. Without this
+  // the toast lives in the app-root <Toaster> forever and stays pinned across
+  // the rest of the session.
+  useEffect(() => {
+    return () => {
+      toast.dismiss("ws-status");
+    };
+  }, []);
+
   if (status === "connected") return null;
 
   if (status === "disconnected") {
