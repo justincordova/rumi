@@ -3,7 +3,7 @@ import { processedWebhookEvents, subscriptions } from "@/db/schema";
 import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
-import { eq, lte } from "drizzle-orm";
+import { eq, lte, sql } from "drizzle-orm";
 import Stripe from "stripe";
 import { type Interval, type PaidPlan, planToPriceId, priceIdToPlan } from "./plans";
 import { getStripe } from "./stripe";
@@ -100,44 +100,44 @@ async function resolveSubscriptionFromEvent(
 
 export function createBillingService() {
   return {
-  async findOrCreateStripeCustomer(userId: string, email: string): Promise<string> {
-    return this.db.transaction(async (tx) => {
-      // Serialize concurrent calls for the same user. A row lock (FOR UPDATE) is
-      // insufficient on the first-upgrade path because no subscriptions row exists
-      // yet, so it would lock nothing and two concurrent checkouts would each create
-      // a Stripe customer. A transaction-scoped advisory lock serializes even when
-      // there is no row to lock, and is released automatically on commit/rollback.
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
+    async findOrCreateStripeCustomer(userId: string, email: string): Promise<string> {
+      return db.transaction(async (tx) => {
+        // Serialize concurrent calls for the same user. A row lock (FOR UPDATE)
+        // is insufficient on the first-upgrade path: no subscriptions row exists
+        // yet, so FOR UPDATE locks nothing and two concurrent checkout clicks
+        // would each create a Stripe customer (leaking an orphaned one) and then
+        // race on INSERT. A transaction-scoped advisory lock serializes even
+        // when there is no row to lock, and releases automatically on commit.
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
 
-      const [existing] = await tx
-        .select({ stripeCustomerId: subscriptions.stripeCustomerId })
-        .from(subscriptions)
-        .where(eq(subscriptions.userId, userId))
-        .for("update");
+        const [existing] = await tx
+          .select()
+          .from(subscriptions)
+          .where(eq(subscriptions.userId, userId))
+          .for("update");
 
-      if (existing?.stripeCustomerId) {
-        return existing.stripeCustomerId;
-      }
+        if (existing?.stripeCustomerId) return existing.stripeCustomerId;
 
-      const customer = await getStripe().customers.create({
-        email,
-        metadata: { userId },
-      });
+        const stripe = getStripe();
+        const customer = await callStripe("customers.create", () =>
+          stripe.customers.create({
+            email,
+            metadata: { userId },
+          }),
+        );
 
-      if (existing) {
-        await tx
-          .update(subscriptions)
-          .set({ stripeCustomerId: customer.id })
-          .where(eq(subscriptions.userId, userId));
-      } else {
-        await tx
-          .insert(subscriptions)
-          .values({ userId, stripeCustomerId: customer.id, plan: "free", status: "active" })
-          .onConflictDoNothing();
-      }
-
-      return customer.id;
-    });
+        if (existing) {
+          await tx
+            .update(subscriptions)
+            .set({ stripeCustomerId: customer.id, updatedAt: new Date() })
+            .where(eq(subscriptions.userId, userId));
+        } else {
+          await tx.insert(subscriptions).values({
+            userId,
+            plan: "free",
+            status: "active",
+            stripeCustomerId: customer.id,
+          });
         }
         return customer.id;
       });

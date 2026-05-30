@@ -130,6 +130,7 @@ function selectProcessedByFilter(filter: unknown): { eventType: string } | null 
 
 function makeTx() {
   return {
+    execute: async (_query: unknown) => undefined,
     select: () => ({
       from: (_table: unknown) => ({
         where: (cond: unknown) => ({
