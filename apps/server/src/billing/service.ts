@@ -100,38 +100,44 @@ async function resolveSubscriptionFromEvent(
 
 export function createBillingService() {
   return {
-    async findOrCreateStripeCustomer(userId: string, email: string): Promise<string> {
-      return db.transaction(async (tx) => {
-        // Lock the row for this user so concurrent upgrade clicks don't both
-        // pass the null-check and create two Stripe customers.
-        const [existing] = await tx
-          .select()
-          .from(subscriptions)
-          .where(eq(subscriptions.userId, userId))
-          .for("update");
+  async findOrCreateStripeCustomer(userId: string, email: string): Promise<string> {
+    return this.db.transaction(async (tx) => {
+      // Serialize concurrent calls for the same user. A row lock (FOR UPDATE) is
+      // insufficient on the first-upgrade path because no subscriptions row exists
+      // yet, so it would lock nothing and two concurrent checkouts would each create
+      // a Stripe customer. A transaction-scoped advisory lock serializes even when
+      // there is no row to lock, and is released automatically on commit/rollback.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
 
-        if (existing?.stripeCustomerId) return existing.stripeCustomerId;
+      const [existing] = await tx
+        .select({ stripeCustomerId: subscriptions.stripeCustomerId })
+        .from(subscriptions)
+        .where(eq(subscriptions.userId, userId))
+        .for("update");
 
-        const stripe = getStripe();
-        const customer = await callStripe("customers.create", () =>
-          stripe.customers.create({
-            email,
-            metadata: { userId },
-          }),
-        );
+      if (existing?.stripeCustomerId) {
+        return existing.stripeCustomerId;
+      }
 
-        if (existing) {
-          await tx
-            .update(subscriptions)
-            .set({ stripeCustomerId: customer.id, updatedAt: new Date() })
-            .where(eq(subscriptions.userId, userId));
-        } else {
-          await tx.insert(subscriptions).values({
-            userId,
-            plan: "free",
-            status: "active",
-            stripeCustomerId: customer.id,
-          });
+      const customer = await getStripe().customers.create({
+        email,
+        metadata: { userId },
+      });
+
+      if (existing) {
+        await tx
+          .update(subscriptions)
+          .set({ stripeCustomerId: customer.id })
+          .where(eq(subscriptions.userId, userId));
+      } else {
+        await tx
+          .insert(subscriptions)
+          .values({ userId, stripeCustomerId: customer.id, plan: "free", status: "active" })
+          .onConflictDoNothing();
+      }
+
+      return customer.id;
+    });
         }
         return customer.id;
       });
