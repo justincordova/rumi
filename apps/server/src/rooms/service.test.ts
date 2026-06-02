@@ -843,6 +843,35 @@ describe("createService", () => {
       const svc = createService(makeDb() as any);
       await expect(svc.kickMember("test", "same-id", "same-id")).rejects.toBeInstanceOf(AppError);
     });
+
+    it("fails the kick when the kickee email cannot be resolved", async () => {
+      let memberCalls = 0;
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => {
+              memberCalls++;
+              if (memberCalls === 1)
+                return { roomId: "room-id", userId: "kicker-id", role: "owner" };
+              if (memberCalls === 2)
+                return { roomId: "room-id", userId: "kickee-id", role: "member" };
+              return null;
+            },
+            findMany: async () => [],
+          },
+        },
+      });
+      const mockDeps = {
+        // Profile lookup fails — email cannot be resolved.
+        getUserProfile: async () => null,
+      };
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any, mockDeps as any);
+      await expect(svc.kickMember("test", "kicker-id", "kickee-id")).rejects.toBeInstanceOf(
+        AppError,
+      );
+    });
   });
 
   describe("leaveRoom", () => {

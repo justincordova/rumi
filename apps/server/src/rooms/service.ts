@@ -694,11 +694,24 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
         throw new AuthError("forbidden", "Admins cannot kick other admins or owners");
       }
 
-      // Get kickee email for blacklist
+      // Get kickee email for blacklist. The kick MUST blacklist the kickee
+      // (documented invariant: "Kick auto-blacklists"). If the profile/email
+      // lookup fails, performing a "soft kick" that only removes the member
+      // row lets the kicked user immediately rejoin an open room (or stay
+      // whitelisted in a private one). So when deps are wired but the email
+      // can't be resolved, fail the kick so the client can retry rather than
+      // silently leaving the ban incomplete.
       let kickeeEmail: string | null = null;
       if (deps) {
         const profile = await deps.getUserProfile(kickeeId).catch(() => null);
         kickeeEmail = profile?.email?.toLowerCase() ?? null;
+        if (!kickeeEmail) {
+          throw new AppError(
+            "server_error",
+            "Could not resolve member email to complete kick",
+            503,
+          );
+        }
       }
 
       await db.transaction(async (tx) => {
