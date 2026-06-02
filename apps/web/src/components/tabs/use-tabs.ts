@@ -1,5 +1,5 @@
 import type { TabSummary } from "@rumi/protocol";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type * as Y from "yjs";
 
 export function useTabs(opts: {
@@ -12,8 +12,19 @@ export function useTabs(opts: {
     opts.initialTabId ?? opts.initialTabs[0]?.id ?? null,
   );
 
+  // Keep a stable ref to the latest loader-provided tabs so the control-doc
+  // effect can read them without re-subscribing on every render.
+  const initialTabsRef = useRef(opts.initialTabs);
+  initialTabsRef.current = opts.initialTabs;
+
   useEffect(() => {
     if (!opts.controlDoc) return;
+    // The component is reused across room navigations (the route is not keyed
+    // on room id), so `initialTabs` is only the *first* room's lazy initial
+    // state. When the control doc swaps to a new room, reset to that room's
+    // loader tabs first — otherwise an as-yet-empty new control doc leaves the
+    // previous room's tabs on screen until its first non-empty broadcast.
+    setTabs(initialTabsRef.current);
     const arr = opts.controlDoc.getArray<TabSummary>("tabs");
     const sync = () => {
       const next = arr.toArray();
