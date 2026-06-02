@@ -87,14 +87,20 @@ function hasAuthToken(req: IncomingMessage): boolean {
   // The Hocuspocus client (`@hocuspocus/provider`) sends its auth token as a
   // protocol-level message AFTER the WebSocket handshake — so at upgrade time
   // it isn't visible here unless the client also surfaces it some other way.
-  // Our web client mirrors the JWT into the `?token=` query param specifically
-  // so this check works (see apps/web/src/components/editor/yjs-doc-cache.ts).
+  // Our web client sets a non-secret `?auth=1` presence flag specifically so
+  // this check works without leaking the JWT into request URLs/logs (see
+  // apps/web/src/components/editor/yjs-doc-cache.ts).
   if (req.url) {
     try {
       // The base only matters because URL needs an absolute form; we never
       // use the origin. Parsing properly avoids substring-match bypasses
-      // (e.g. `?other=token=eyJfake`).
+      // (e.g. `?other=auth=1`).
       const parsed = new URL(req.url, "http://x");
+      if (parsed.searchParams.get("auth") === "1") return true;
+      // Legacy: older clients mirrored the JWT into `?token=`. Honor the
+      // shape check during rolling deploys so they keep the higher cap.
+      // (Carries no security weight — it only selects which bucket cap
+      // applies, and the cap is bounded either way; see checkGuestRateLimit.)
       const tok = parsed.searchParams.get("token");
       if (tok && JWT_SHAPE.test(tok)) return true;
     } catch {
