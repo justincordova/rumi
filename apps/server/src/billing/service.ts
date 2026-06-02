@@ -218,6 +218,21 @@ export function createBillingService() {
           return { planChanged: false, userId: null };
         }
 
+        // Serialize all webhook upserts for the same Stripe customer. The
+        // per-event-id idempotency claim above only stops the *same* event
+        // from running twice — it does nothing for two *different* events for
+        // the same customer (e.g. `customer.subscription.updated` and
+        // `invoice.paid` delivered together, or a retry overlapping a fresh
+        // delivery). Without this lock both transactions read `before`
+        // independently and race on `onConflictDoUpdate` (last-writer-wins),
+        // which can also defeat the out-of-order guard below since the late
+        // event may have snapshotted `before` before the other committed.
+        // A transaction-scoped advisory lock on the customer id (same pattern
+        // as findOrCreateStripeCustomer) forces them to run in series.
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended(${sub.customer as string}, 0))`,
+        );
+
         // Resolve userId from subscription metadata, fallback to customer lookup.
         // Cross-validate the two: Stripe metadata is set by us in
         // `subscription_data.metadata`, but is editable in the Stripe Portal.
