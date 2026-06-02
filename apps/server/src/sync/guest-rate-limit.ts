@@ -2,8 +2,18 @@ import type { IncomingMessage } from "node:http";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
-/** Max guest WS connection attempts per IP per minute. */
+/** Max guest (no token) WS connection attempts per IP per minute. */
 const LIMIT = 10;
+/**
+ * Max attempts per IP per minute for upgrades that carry a JWT-shaped token.
+ * The shape check is NOT a signature verification (that happens later in
+ * `onAuthenticate`), so an attacker can mint a JWT-shaped string and would
+ * otherwise get an unbounded exemption. A legitimate authenticated client
+ * opens at most a handful of sockets (control doc + one per tab) per page
+ * load, so this higher-but-bounded ceiling leaves them ample headroom while
+ * still capping a forged-token flood.
+ */
+const AUTHED_LIMIT = 60;
 /** Window length. */
 const WINDOW_MS = 60_000;
 /** How often we sweep stale buckets out of the map. */
@@ -113,9 +123,13 @@ export function checkGuestRateLimit(req: IncomingMessage): {
   allowed: boolean;
   retryAfterSeconds: number;
 } {
-  if (hasAuthToken(req)) return { allowed: true, retryAfterSeconds: 0 };
-
   startCleanup();
+
+  // A JWT-shaped token gets a higher cap but is NEVER fully exempt: the shape
+  // sniff is bypassable (no signature verification here), so a blanket
+  // exemption would let an attacker rotate forged tokens for unlimited
+  // upgrade attempts and defeat the only per-IP defense for raw WS upgrades.
+  const limit = hasAuthToken(req) ? AUTHED_LIMIT : LIMIT;
 
   const ip = ipFor(req);
   const now = Date.now();
@@ -125,9 +139,9 @@ export function checkGuestRateLimit(req: IncomingMessage): {
     buckets.set(ip, bucket);
   }
   bucket.count += 1;
-  if (bucket.count > LIMIT) {
+  if (bucket.count > limit) {
     const retryAfterSeconds = Math.ceil((bucket.resetAt - now) / 1000);
-    logger.warn({ ip, count: bucket.count }, "guest ws rate limit exceeded");
+    logger.warn({ ip, count: bucket.count, limit }, "ws rate limit exceeded");
     return { allowed: false, retryAfterSeconds };
   }
   return { allowed: true, retryAfterSeconds: 0 };

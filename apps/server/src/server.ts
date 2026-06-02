@@ -213,10 +213,11 @@ if (import.meta.main) {
       return;
     }
 
-    // Rate-limit unauthenticated upgrade attempts per IP. Authenticated
-    // upgrades (Bearer token in sec-websocket-protocol or query string)
-    // skip this. @fastify/rate-limit doesn't apply to raw upgrade events
-    // so this is the only line of defense.
+    // Rate-limit upgrade attempts per IP. Upgrades carrying a JWT-shaped
+    // token get a higher cap but are never fully exempt (the shape is not
+    // verified here, so a blanket exemption would be trivially forged).
+    // @fastify/rate-limit doesn't apply to raw upgrade events so this is the
+    // only line of defense.
     const { allowed, retryAfterSeconds } = checkGuestRateLimit(request);
     if (!allowed) {
       socket.write(
