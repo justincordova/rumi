@@ -68,6 +68,29 @@ describe("resolvePlan", () => {
     expect(result.plan).toBe("pro");
   });
 
+  it("keeps access for past_due even after the period has elapsed (dunning)", () => {
+    const result = resolvePlan({
+      plan: "pro",
+      status: "past_due",
+      cancelAtPeriodEnd: false,
+      trialEndsAt: null,
+      currentPeriodEnd: pastDate,
+    });
+    expect(result.plan).toBe("pro");
+  });
+
+  it("keeps access for active subscription with no currentPeriodEnd set", () => {
+    const result = resolvePlan({
+      plan: "pro",
+      status: "active",
+      cancelAtPeriodEnd: false,
+      trialEndsAt: null,
+      currentPeriodEnd: null,
+    });
+    expect(result.plan).toBe("pro");
+    expect(result.maxRooms).toBe(PLAN_LIMITS.pro.maxRooms);
+  });
+
   it("preserves paid plan when status='canceled' but period not yet ended", () => {
     const result = resolvePlan({
       plan: "pro",

@@ -31,9 +31,27 @@ export function resolvePlan(row: SubscriptionRow | null): PlanLimits {
   if (!row) return { plan: "free", ...PLAN_LIMITS.free };
 
   const now = new Date();
-  const inTrial = row.trialEndsAt && row.trialEndsAt > now;
   const periodValid = row.currentPeriodEnd && row.currentPeriodEnd > now;
   const isActive = row.status === "active" || row.status === "past_due";
+
+  // An `active`/`past_due` subscription is entitled without requiring
+  // `currentPeriodEnd` to be in the future. Two reasons:
+  //   1. `past_due` is the dunning grace period — Stripe keeps retrying
+  //      payment after the period elapses, and the documented intent
+  //      (billing/service.ts mapStripeStatus) is to keep access alive until
+  //      the subscription is actually canceled. Requiring `periodValid` here
+  //      would strip access the moment a renewal payment was late.
+  //   2. `currentPeriodEnd` can legitimately be null on a freshly-created
+  //      active row (the field moved to subscription items in Stripe SDK v22
+  //      and is read with optional chaining), which would otherwise drop a
+  //      paying customer to free.
+  //
+  // Exception: when the subscription is `active` but scheduled to cancel at
+  // period end (`cancelAtPeriodEnd`), the period boundary is the only signal
+  // we have locally that the paid window has closed. If we never received the
+  // period-end webhook, honoring `cancelAtPeriodEnd` + period keeps us from
+  // granting access indefinitely on a sub that should have lapsed.
+  const activeEntitled = isActive && (!row.cancelAtPeriodEnd || periodValid);
 
   // A subscription that's been canceled (status='canceled') keeps paid
   // access until the end of the already-paid-for billing period. The
@@ -43,7 +61,7 @@ export function resolvePlan(row: SubscriptionRow | null): PlanLimits {
   // contradicts the documented behavior in AGENTS.md.
   const canceledButValid = row.status === "canceled" && periodValid;
 
-  const stillEntitled = (isActive && (inTrial || periodValid)) || canceledButValid;
+  const stillEntitled = activeEntitled || canceledButValid;
   if (stillEntitled) {
     const limits = PLAN_LIMITS[row.plan as PlanType] ?? PLAN_LIMITS.free;
     return { plan: row.plan as PlanType, ...limits };
