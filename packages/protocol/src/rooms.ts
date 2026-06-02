@@ -82,12 +82,12 @@ export const AddToBlacklistBody = z.object({
 // Tab CRUD shapes
 export const CreateTabBody = z.object({
   type: TabType,
-  language: z.string().nullable().optional(),
+  language: z.string().max(50).nullable().optional(),
   name: z.string().trim().min(1).max(100).optional(),
 });
 export const UpdateTabBody = z.object({
   name: z.string().trim().max(100).optional(),
-  language: z.string().nullable().optional(),
+  language: z.string().max(50).nullable().optional(),
 });
 export const ReorderTabsBody = z.object({
   tabIds: z
