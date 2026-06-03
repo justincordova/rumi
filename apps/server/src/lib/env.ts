@@ -61,9 +61,13 @@ if (!parsed.success) {
 export const env = parsed.data;
 export type Env = typeof env;
 
-if (env.NODE_ENV === "production" && env.WEB_URL.includes("localhost")) {
+if (
+  env.NODE_ENV === "production" &&
+  (env.WEB_URL.includes("localhost") || env.PUBLIC_API_URL.includes("localhost"))
+) {
   console.warn(
-    "WARNING: WEB_URL contains 'localhost' in production — emails will contain broken links.",
+    "WARNING: WEB_URL/PUBLIC_API_URL contains 'localhost' in production — emails will contain " +
+      "broken links (PUBLIC_API_URL also breaks RFC 8058 one-click unsubscribe).",
   );
 }
 
