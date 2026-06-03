@@ -92,7 +92,14 @@ export function bindCursorPresence({
 
       let presenceId = presenceIds.get(clientId);
       if (!presenceId) {
-        presenceId = InstancePresenceRecordType.createId(userId);
+        // Key the store record id by awareness clientId, not just userId.
+        // createId(userId) is deterministic, so the same authenticated user
+        // connected from two tabs/devices (two clientIds, one user_id) would
+        // collide on a single record: their cursors would overwrite each other,
+        // and disconnecting/leaving-page in one session would remove the other
+        // still-live session's cursor. userId is still carried on the record
+        // (below) for color/name grouping.
+        presenceId = InstancePresenceRecordType.createId(`${userId}:${clientId}`);
         presenceIds.set(clientId, presenceId);
       }
 
