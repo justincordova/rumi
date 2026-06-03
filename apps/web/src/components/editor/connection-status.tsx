@@ -18,8 +18,12 @@ export function ConnectionStatus({ status }: Props) {
     if (prev !== "disconnected" && status === "disconnected") {
       toast.warning("Disconnected — retrying", { id: "ws-status", duration: 999999 });
     }
-    // Dismiss the toast when reconnected.
-    if (prev === "disconnected" && status === "connected") {
+    // Dismiss the toast whenever we reach "connected". The reconnect sequence
+    // is disconnected → connecting → connected, so gating dismiss on a direct
+    // disconnected → connected transition never fired and left the
+    // infinite-duration toast pinned for the rest of the session. Dismissing
+    // an absent toast id is a no-op, so this is safe on every connected.
+    if (status === "connected") {
       toast.dismiss("ws-status");
     }
   }, [status]);
