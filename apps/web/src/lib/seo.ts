@@ -42,6 +42,10 @@ export function useSeoMeta(opts: SeoOptions = {}) {
     document.title = title;
 
     const canonicalUrl = resolveCanonical(canonical);
+    // og:image / twitter:image MUST be absolute — link-preview crawlers
+    // (Slack, Discord, Facebook, iMessage, Twitter) do not resolve relative
+    // paths, so a leading-slash default would render no preview image.
+    const ogImageUrl = resolveCanonical(ogImage);
 
     const canonicalEl = document.createElement("link");
     canonicalEl.rel = "canonical";
@@ -56,11 +60,11 @@ export function useSeoMeta(opts: SeoOptions = {}) {
       { attr: "property", key: "og:description", content: description },
       { attr: "property", key: "og:type", content: "website" },
       { attr: "property", key: "og:url", content: canonicalUrl },
-      { attr: "property", key: "og:image", content: ogImage },
+      { attr: "property", key: "og:image", content: ogImageUrl },
       { attr: "name", key: "twitter:card", content: "summary_large_image" },
       { attr: "name", key: "twitter:title", content: title },
       { attr: "name", key: "twitter:description", content: description },
-      { attr: "name", key: "twitter:image", content: ogImage },
+      { attr: "name", key: "twitter:image", content: ogImageUrl },
     ];
     if (noindex) metas.push({ attr: "name", key: "robots", content: "noindex" });
 
