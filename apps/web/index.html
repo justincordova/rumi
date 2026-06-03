@@ -9,11 +9,20 @@
       (function () {
         try {
           var raw = localStorage.getItem('rumi-prefs');
-          var theme = raw ? (JSON.parse(raw).state || {}).theme : 'dark';
-          if (theme === 'system') {
-            theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          var pref = raw ? (JSON.parse(raw).state || {}).theme : 'dark';
+          pref = pref || 'dark';
+          // Seed next-themes' own storage key so it hydrates with the user's
+          // actual preference instead of falling back to its defaultTheme and
+          // momentarily overwriting the attribute we set below (theme flash for
+          // non-default themes). next-themes is configured with the same key.
+          if (!localStorage.getItem('rumi-theme')) {
+            localStorage.setItem('rumi-theme', pref);
           }
-          document.documentElement.dataset.theme = theme || 'dark';
+          var resolved = pref;
+          if (resolved === 'system') {
+            resolved = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          document.documentElement.dataset.theme = resolved;
         } catch (_) {
           document.documentElement.dataset.theme = 'dark';
         }

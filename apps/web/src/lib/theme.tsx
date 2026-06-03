@@ -44,6 +44,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     <TypedNextThemesProvider
       attribute="data-theme"
       defaultTheme="dark"
+      storageKey="rumi-theme"
       enableSystem
       disableTransitionOnChange
     >
