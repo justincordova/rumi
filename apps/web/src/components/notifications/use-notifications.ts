@@ -96,11 +96,14 @@ export function useNotifications() {
 
   async function markRead(ids: string[]) {
     const now = new Date().toISOString();
-    setItems((cur) => {
-      const prevUnread = cur.filter((n) => ids.includes(n.id) && !n.readAt).length;
-      setUnreadCount((c) => Math.max(0, c - prevUnread));
-      return cur.map((n) => (ids.includes(n.id) ? { ...n, readAt: now } : n));
-    });
+    // Compute the decrement and call both setters at the top level. Calling
+    // setUnreadCount from inside the setItems updater makes the updater impure,
+    // so React StrictMode (which invokes updaters twice in dev) would
+    // double-decrement the unread count.
+    const idSet = new Set(ids);
+    const newlyRead = items.filter((n) => idSet.has(n.id) && !n.readAt).length;
+    setItems((cur) => cur.map((n) => (idSet.has(n.id) ? { ...n, readAt: now } : n)));
+    setUnreadCount((c) => Math.max(0, c - newlyRead));
     try {
       await apiFetch("/api/notifications/read", { method: "POST", body: { ids } });
     } catch {
