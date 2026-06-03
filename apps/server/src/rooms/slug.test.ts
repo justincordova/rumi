@@ -14,6 +14,16 @@ describe("generateSlug", () => {
     const b = generateSlug();
     expect(a).not.toBe(b);
   });
+
+  it("varies the numeric suffix across calls (entropy not frozen at module load)", () => {
+    const suffixes = new Set<string>();
+    for (let i = 0; i < 40; i++) {
+      const parts = generateSlug().split("-");
+      suffixes.add(parts[parts.length - 1] as string);
+    }
+    // A frozen module-level NumberDictionary would yield exactly one suffix.
+    expect(suffixes.size).toBeGreaterThan(1);
+  });
 });
 
 describe("fallbackSlug", () => {
