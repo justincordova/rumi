@@ -364,6 +364,17 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
       // `wasNew` is false when an existing whitelist row is reused so we
       // don't re-spam the invitee on every admin click.
       const { entry: created, wasNew } = await db.transaction(async (tx) => {
+        // Serialize against the inverse mutation (addToBlacklist / kickMember)
+        // for the same room+email. Both writers delete-from-one-list then
+        // insert-into-the-other in opposite orders; under READ COMMITTED they
+        // can interleave so neither delete sees the other's uncommitted insert,
+        // leaving the email on BOTH lists (which silently denies access since
+        // the blacklist wins everywhere). A transaction-scoped advisory lock
+        // keyed on room+email forces them to run in series.
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${room.id}:${lower}`}, 0))`,
+        );
+
         // Remove from blacklist if present (mutual exclusion)
         await tx
           .delete(roomBlacklist)
@@ -554,6 +565,13 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
       // All mutations in one tx so a crash mid-flow can't leave the user
       // on the whitelist, in room_members, AND off the blacklist.
       return await db.transaction(async (tx) => {
+        // Serialize against addToWhitelist for the same room+email so the two
+        // delete-then-insert flows can't interleave and leave the email on
+        // both lists (see the matching lock in addToWhitelist).
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${room.id}:${lower}`}, 0))`,
+        );
+
         // Remove from whitelist if present (mutual exclusion)
         await tx
           .delete(roomWhitelist)
@@ -715,6 +733,15 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
       }
 
       await db.transaction(async (tx) => {
+        // Serialize the blacklist/whitelist mutation against addToWhitelist for
+        // the same room+email (same advisory-lock key) so a concurrent
+        // whitelist add can't interleave and leave the email on both lists.
+        if (kickeeEmail) {
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${room.id}:${kickeeEmail}`}, 0))`,
+          );
+        }
+
         await tx
           .delete(roomMembers)
           .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, kickeeId)));

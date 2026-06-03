@@ -29,6 +29,7 @@ const planMod = await import("@/rooms/plan");
 // Minimal stub for a Drizzle-like query interface
 function makeDb(overrides: Record<string, unknown> = {}) {
   const base = {
+    execute: async (_query: unknown) => undefined,
     insert: () => ({
       values: () => ({
         returning: async () => [
@@ -478,6 +479,64 @@ describe("createService", () => {
       expect(result.email).toBe("a@b.com");
     });
 
+    it("acquires an advisory lock to serialize against blacklist adds", async () => {
+      let executeCalls = 0;
+      const base = makeDb({
+        execute: async (_q: unknown) => {
+          executeCalls++;
+          return undefined;
+        },
+        insert: () => ({
+          values: () => ({
+            returning: async () => [
+              { id: "whitelist-id", roomId: "room-id", email: "a@b.com", createdAt: new Date() },
+            ],
+          }),
+        }),
+        query: {
+          ...makeDb().query,
+          rooms: {
+            findFirst: async () => ({
+              id: "room-id",
+              slug: "test",
+              ownerId: "user-id",
+              visibility: "private",
+              guestAccess: "none",
+              deletedAt: null,
+            }),
+          },
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "user-id",
+              role: "owner" as const,
+            }),
+          },
+          roomWhitelist: { findFirst: async () => null, findMany: async () => [] },
+          roomBlacklist: { findFirst: async () => null, findMany: async () => [] },
+        },
+      });
+      const mockDeps = {
+        notifications: {
+          recordNotification: async () => ({}),
+          getPreferences: async () => ({
+            emailEnabled: true,
+            accessGrantedEmail: true,
+            inviteAcceptedEmail: true,
+          }),
+          listNotifications: async () => ({ notifications: [], unreadCount: 0 }),
+          markRead: async () => {},
+          updatePreferences: async () => ({}),
+        },
+        lookupUserIdByEmail: async () => null,
+        getUserProfile: async () => ({ email: "owner@test.com", displayName: "Owner" }),
+      };
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(base as any, mockDeps as any);
+      await svc.addToWhitelist("test", "user-id", "a@b.com");
+      expect(executeCalls).toBeGreaterThan(0);
+    });
+
     it("returns existing whitelist entry on duplicate", async () => {
       const existing = {
         id: "whitelist-id",
@@ -773,6 +832,7 @@ describe("createService", () => {
       const db = makeDb({
         transaction: async (fn: (tx: unknown) => unknown) => {
           const tx = {
+            execute: async (_query: unknown) => undefined,
             delete: () => ({
               where: () => ({
                 returning: async () => [{ id: "bl-id" }],
