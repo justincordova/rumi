@@ -33,8 +33,13 @@ function pickNonEmpty(...vs: (string | null | undefined)[]): string | null {
 
 export function extractProfile(u: SupabaseUser): SessionUser {
   const m = (u.user_metadata ?? {}) as Record<string, string | null | undefined>;
-  const identities = (u.app_metadata?.identities as Array<{ provider: string }> | undefined) ?? [];
-  const provider = identities[0]?.provider ?? null;
+  // Identities live on the TOP-LEVEL `user.identities` field — app_metadata
+  // only carries `provider`/`providers` strings. Reading identities from
+  // app_metadata always produced [], rendering every provider as unlinked in
+  // the settings Linked Accounts section.
+  const identities = (u.identities ?? []).map((i) => ({ provider: i.provider }));
+  const provider =
+    identities[0]?.provider ?? (u.app_metadata?.provider as string | undefined) ?? null;
   return {
     id: u.id,
     email: (u.email ?? "").toLowerCase(),
