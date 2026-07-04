@@ -219,6 +219,21 @@ describe("rooms routes", () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it("GET /api/rooms/trash without auth — returns 401, not 500", async () => {
+    // Regression: the optional-auth slug pattern used to capture the static
+    // "trash" segment, letting anonymous requests reach a handler that
+    // dereferences req.user and crashes.
+    const res = await app.inject({ method: "GET", url: "/api/rooms/trash" });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("GET /api/rooms/:slug with a query string still gets optional auth", async () => {
+    // Regression: raw-URL regex matching missed URLs with query strings,
+    // flipping anonymous room reads from optional-auth to 401.
+    const res = await app.inject({ method: "GET", url: "/api/rooms/test-slug?x=1" });
+    expect(res.statusCode).not.toBe(401);
+  });
+
   it("POST /:slug/whitelist — adds to whitelist with 201", async () => {
     const res = await app.inject({
       method: "POST",

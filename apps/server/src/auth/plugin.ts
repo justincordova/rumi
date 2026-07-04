@@ -10,23 +10,30 @@ declare module "fastify" {
   }
 }
 
-const PUBLIC_ROUTES: ReadonlyArray<{ method: string; pattern: RegExp; optional: boolean }> = [
+// Public/optional-auth routes matched against the ROUTE PATTERN
+// (`req.routeOptions.url`), not the raw request URL. Raw-URL regexes broke in
+// two ways: query strings made patterns miss (e.g. `GET /api/rooms/slug?x=1`
+// flipped from optional-auth to required-auth), and static sibling routes
+// were captured by parametric patterns (`/api/rooms/trash` matched the
+// `[a-z0-9-]+` slug pattern, reaching a handler that assumes `req.user`).
+// Routing runs before onRequest in Fastify, so routeOptions is available.
+const PUBLIC_ROUTES: ReadonlyArray<{ method: string; route: string; optional: boolean }> = [
   // GET /api/rooms/:slug — try to read Bearer but continue anonymously on failure
-  { method: "GET", pattern: /^\/api\/rooms\/[a-z0-9-]+$/, optional: true },
+  { method: "GET", route: "/api/rooms/:slug", optional: true },
   // POST /api/billing/webhook — fully public; Stripe signature is the auth
-  { method: "POST", pattern: /^\/api\/billing\/webhook$/, optional: false },
-  // POST /api/notifications/unsubscribe — public; HMAC-signed token replaces JWT.
-  // Pattern is anchored so a future sibling route (e.g. /unsubscribe-all) is
-  // not silently exposed as unauthenticated. Allow an optional trailing slash
-  // since Fastify normalizes both (ignoreTrailingSlash defaults on).
-  { method: "POST", pattern: /^\/api\/notifications\/unsubscribe\/?(?:\?|$)/, optional: false },
+  { method: "POST", route: "/api/billing/webhook", optional: false },
+  // POST /api/notifications/unsubscribe — public; HMAC-signed token replaces JWT
+  { method: "POST", route: "/api/notifications/unsubscribe", optional: false },
 ];
 
 const authPlugin: FastifyPluginAsync = async (app) => {
   app.addHook("onRequest", async (req, _reply) => {
     if (!req.url.startsWith("/api/")) return;
 
-    const matched = PUBLIC_ROUTES.find((r) => r.method === req.method && r.pattern.test(req.url));
+    const routeUrl = req.routeOptions?.url;
+    const matched = routeUrl
+      ? PUBLIC_ROUTES.find((r) => r.method === req.method && r.route === routeUrl)
+      : undefined;
 
     // Fully public — skip auth entirely (webhook uses Stripe signature instead)
     if (matched && !matched.optional) return;
