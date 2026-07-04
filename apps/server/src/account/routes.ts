@@ -8,6 +8,7 @@ import {
   rooms,
   subscriptions,
 } from "@/db/schema";
+import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { UpdateAccountBody } from "@rumi/protocol";
@@ -130,16 +131,27 @@ export const accountRoutes: FastifyPluginAsync = async (app) => {
     // Drop any active WS connections for this user.
     app.dropUserConnections(userId);
 
-    // Best-effort: schedule the supabase user record deletion. If the admin
-    // API call fails (no service role key, transient error), the DB cleanup
-    // above is still done and the next sign-in will fail anyway because
-    // there's no row to authenticate against.
+    // Delete the Supabase user record. This is NOT best-effort: auth is
+    // JWKS-based (`verifyJwt`), so no local DB row is consulted at sign-in —
+    // if the identity survives, the user can keep signing in and using the
+    // app even though we just told them their account was deleted, and their
+    // PII stays in Supabase with no retry mechanism. When the admin API is
+    // configured but the delete fails, surface the failure so the client can
+    // retry; the local cleanup above is idempotent (solo rooms are already
+    // soft-deleted and excluded from the re-run's blocking check).
     const removed = await deleteUser(userId);
     if (!removed) {
-      logger.warn(
-        { userId },
-        "supabase user delete returned non-ok or service role key missing; relying on DB cleanup",
-      );
+      if (env.SUPABASE_SERVICE_ROLE_KEY) {
+        logger.error({ userId }, "supabase user delete failed after local cleanup");
+        throw new AppError(
+          "account_delete_incomplete",
+          "Your data was removed but your sign-in identity could not be deleted. Please try again.",
+          502,
+        );
+      }
+      // Dev stub: no service-role key configured — identity deletion is not
+      // possible locally; proceed so the flow is testable.
+      logger.warn({ userId }, "service role key missing; supabase identity not deleted (dev)");
     }
 
     logger.info(
