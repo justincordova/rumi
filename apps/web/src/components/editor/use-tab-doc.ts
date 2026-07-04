@@ -5,7 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { type CacheEntry, type Status, acquireDoc, releaseDoc } from "./yjs-doc-cache";
 
 export function useTabDoc({ tabId }: { tabId: string }) {
-  const token = useSession((s) => s.token) ?? getGuestId();
+  // Key the cache by the stable identity (userId or guest UUID), never the
+  // JWT — token refreshes must not tear down live docs. The provider pulls
+  // the current credential via getToken on every (re)connection.
+  const userId = useSession((s) => s.user?.id ?? null);
   const user = useSession((s) => s.user);
   // Keep a stable ref to the latest user so the acquire effect can read it
   // without re-running when user changes.
@@ -20,10 +23,18 @@ export function useTabDoc({ tabId }: { tabId: string }) {
   const [, setNonce] = useState(0);
 
   useEffect(() => {
-    const key = `tab|${tabId}|${token}`;
+    const identity = userId ?? getGuestId();
+    const key = `tab|${tabId}|${identity}`;
     const onStatus = (s: Status) => setStatus(s);
     const onReadOnly = (r: boolean) => setReadOnly(r);
-    const entry = acquireDoc({ key, documentName: tabId, token, onStatus, onReadOnly });
+    const entry = acquireDoc({
+      key,
+      documentName: tabId,
+      getToken: () => useSession.getState().token ?? getGuestId(),
+      authed: userId !== null,
+      onStatus,
+      onReadOnly,
+    });
     entryRef.current = entry;
     // Set awareness immediately on provider creation so it's available before
     // the first awareness broadcast.
@@ -33,7 +44,7 @@ export function useTabDoc({ tabId }: { tabId: string }) {
       releaseDoc({ key, onStatus, onReadOnly });
       setReadOnly(false);
     };
-  }, [tabId, token]);
+  }, [tabId, userId]);
 
   // Push awareness whenever the user identity changes, without rebuilding the provider.
   useEffect(() => {

@@ -7,7 +7,6 @@ import { useTabs } from "@/components/tabs/use-tabs";
 import { TopBar } from "@/components/topbar";
 import { ApiError, apiFetch } from "@/lib/api";
 import { useSession } from "@/lib/auth";
-import { getGuestId } from "@/lib/guest";
 import { useSeoMeta } from "@/lib/seo";
 import { useRoomsStore } from "@/stores/rooms";
 import type { GetRoomResponse as GetRoomResponseType } from "@rumi/protocol";
@@ -78,9 +77,7 @@ function RoomPage() {
   const navigate = Route.useNavigate();
   const isGuest = useSession((s) => s.status !== "authenticated");
 
-  const token = useSession((s) => s.token) ?? getGuestId();
-
-  const control = useRoomControlDoc({ roomId: room.id, token });
+  const control = useRoomControlDoc({ roomId: room.id });
   const { tabs, activeTabId, setActiveTabId } = useTabs({
     initialTabs,
     controlDoc: control.ydoc,

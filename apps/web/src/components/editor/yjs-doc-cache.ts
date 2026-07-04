@@ -13,22 +13,33 @@ export interface CacheEntry {
   pendingDestroy: ReturnType<typeof setTimeout> | null;
 }
 
-// Module-level cache keyed by `${kind}|${name}|${token}`. React StrictMode dev
-// mode synchronously unmounts and remounts components; without a cache we'd
-// destroy and recreate the Y.Doc + provider on every mount, racing against
-// WebSocket sync and orphaning observers (notably tldraw's). Reference
-// counting + a deferred destroy lets the immediate remount reuse the live
-// instance.
+// Module-level cache keyed by `${kind}|${name}|${identity}` where identity is
+// the stable userId (or guest UUID) — NOT the JWT value. Supabase refreshes
+// the access token roughly hourly; a token-derived key would tear down and
+// rebuild every live Y.Doc + WebSocket on each refresh (visible reconnect
+// flicker, readOnly reset, and any locally-buffered Yjs updates discarded
+// with the destroyed doc). React StrictMode dev mode synchronously unmounts
+// and remounts components; without a cache we'd destroy and recreate the
+// Y.Doc + provider on every mount, racing against WebSocket sync and
+// orphaning observers (notably tldraw's). Reference counting + a deferred
+// destroy lets the immediate remount reuse the live instance.
 const cache = new Map<string, CacheEntry>();
 
 export function acquireDoc(opts: {
   key: string;
   documentName: string;
-  token: string;
+  /**
+   * Called by the provider on every (re)connection, so a post-refresh socket
+   * re-authenticates with the CURRENT credential instead of the one captured
+   * at doc creation.
+   */
+  getToken: () => string;
+  /** True only for signed-in sessions — drives the non-secret `auth=1` flag. */
+  authed: boolean;
   onStatus: (s: Status) => void;
   onReadOnly: (r: boolean) => void;
 }): CacheEntry {
-  const { key, documentName, token, onStatus, onReadOnly } = opts;
+  const { key, documentName, getToken, authed, onStatus, onReadOnly } = opts;
   const existing = cache.get(key);
   if (existing) {
     if (existing.pendingDestroy) {
@@ -57,7 +68,7 @@ export function acquireDoc(opts: {
   const provider = new HocuspocusProvider({
     url: wsUrl,
     name: documentName,
-    token,
+    token: getToken,
     // Surface a NON-SECRET presence flag (not the token value) as a URL query
     // param so the server's pre-handshake guest rate limiter
     // (`checkGuestRateLimit` / `hasAuthToken`) can tell this is an
@@ -65,8 +76,10 @@ export function acquireDoc(opts: {
     // in proxy/LB access logs and browser history, so we must not put the JWT
     // there. Hocuspocus's own auth flow uses the `token` option above (sent as
     // a post-handshake auth message over WSS), which is where the real
-    // credential travels.
-    parameters: token ? { auth: "1" } : {},
+    // credential travels. Gate on `authed`, not token truthiness — guests
+    // always have a truthy guest-UUID token, and flagging them `auth=1` would
+    // hand every guest the higher authenticated rate-limit cap.
+    parameters: authed ? { auth: "1" } : {},
     document: ydoc,
     onStatus: ({ status: s }: { status: Status }) => {
       for (const fn of statusListeners) fn(s);

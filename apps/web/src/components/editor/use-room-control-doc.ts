@@ -4,7 +4,11 @@ import { getGuestId } from "@/lib/guest";
 import { useEffect, useRef, useState } from "react";
 import { type CacheEntry, type Status, acquireDoc, releaseDoc } from "./yjs-doc-cache";
 
-export function useRoomControlDoc({ roomId, token: tokenProp }: { roomId: string; token: string }) {
+export function useRoomControlDoc({ roomId }: { roomId: string }) {
+  // Key the cache by the stable identity (userId or guest UUID), never the
+  // JWT — token refreshes must not tear down live docs. The provider pulls
+  // the current credential via getToken on every (re)connection.
+  const userId = useSession((s) => s.user?.id ?? null);
   const user = useSession((s) => s.user);
   // Keep a stable ref to the latest user so the acquire effect can read it
   // without re-running when user changes.
@@ -17,14 +21,16 @@ export function useRoomControlDoc({ roomId, token: tokenProp }: { roomId: string
   const [, setNonce] = useState(0);
 
   useEffect(() => {
-    const key = `room|${roomId}|${tokenProp}`;
+    const identity = userId ?? getGuestId();
+    const key = `room|${roomId}|${identity}`;
     const documentName = `room:${roomId}`;
     const onStatus = (s: Status) => setStatus(s);
     const onReadOnly = (r: boolean) => setReadOnly(r);
     const entry = acquireDoc({
       key,
       documentName,
-      token: tokenProp,
+      getToken: () => useSession.getState().token ?? getGuestId(),
+      authed: userId !== null,
       onStatus,
       onReadOnly,
     });
@@ -36,7 +42,7 @@ export function useRoomControlDoc({ roomId, token: tokenProp }: { roomId: string
       releaseDoc({ key, onStatus, onReadOnly });
       setReadOnly(false);
     };
-  }, [roomId, tokenProp]);
+  }, [roomId, userId]);
 
   // Also update awareness when the user identity changes (e.g. after sign-in).
   useEffect(() => {
