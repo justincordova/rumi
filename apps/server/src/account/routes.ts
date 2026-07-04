@@ -12,7 +12,7 @@ import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { UpdateAccountBody } from "@rumi/protocol";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 
@@ -111,6 +111,33 @@ export const accountRoutes: FastifyPluginAsync = async (app) => {
 
     await db.transaction(async (tx) => {
       const now = new Date();
+      // Re-verify no "solo" room gained a member since the pre-check above.
+      // The Stripe cancel between the check and this tx can take seconds, and
+      // open rooms auto-join on GET /api/rooms/:slug — soft-deleting a room
+      // that just gained a member would orphan them in a room nobody can
+      // restore (restore is owner-only and the owner is being deleted).
+      if (soloRooms.length > 0) {
+        const gained = await tx
+          .select({ roomId: roomMembers.roomId })
+          .from(roomMembers)
+          .where(
+            and(
+              inArray(
+                roomMembers.roomId,
+                soloRooms.map((r) => r.id),
+              ),
+              ne(roomMembers.userId, userId),
+            ),
+          )
+          .limit(1);
+        if (gained.length > 0) {
+          throw new AppError(
+            "ownership_transfer_required",
+            "A room gained members while deleting. Transfer ownership and try again.",
+            409,
+          );
+        }
+      }
       // Soft-delete every solo-owned room.
       for (const room of soloRooms) {
         await tx
