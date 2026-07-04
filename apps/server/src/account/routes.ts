@@ -144,7 +144,7 @@ export const accountRoutes: FastifyPluginAsync = async (app) => {
       if (env.SUPABASE_SERVICE_ROLE_KEY) {
         logger.error({ userId }, "supabase user delete failed after local cleanup");
         throw new AppError(
-          "account_delete_incomplete",
+          "supabase_admin_unavailable",
           "Your data was removed but your sign-in identity could not be deleted. Please try again.",
           502,
         );
