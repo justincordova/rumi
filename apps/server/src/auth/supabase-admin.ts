@@ -14,8 +14,13 @@ export async function lookupUserIdByEmail(email: string): Promise<string | null>
   try {
     const origin = new URL(env.SUPABASE_JWT_ISSUER).origin;
     const lower = email.toLowerCase();
+    // GoTrue's admin `filter` param is a plain substring (ILIKE) match on
+    // email/phone — NOT PostgREST `column.op.value` syntax. Passing
+    // `email.eq.<addr>` matches nothing, silently breaking every consumer
+    // (whitelist notifications, blacklist auto-kick, email dedup on WS auth).
+    // Pass the bare address and rely on the exact-match post-filter below.
     const res = (await fetch(
-      `${origin}/auth/v1/admin/users?per_page=100&filter=email.eq.${encodeURIComponent(lower)}`,
+      `${origin}/auth/v1/admin/users?per_page=100&filter=${encodeURIComponent(lower)}`,
       {
         headers: {
           apikey: env.SUPABASE_SERVICE_ROLE_KEY,
