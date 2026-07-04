@@ -194,8 +194,13 @@ if (import.meta.main) {
   const wss = new WebSocketServer({ noServer: true });
 
   app.server.on("upgrade", (request, socket, head) => {
-    const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
-    if (url.pathname !== "/ws") {
+    // Parse only the pathname — do NOT construct a URL from the Host header.
+    // `new URL(path, `http://${host}`)` throws synchronously on a malformed or
+    // missing Host (e.g. `Host: a b`), and an uncaught exception in a raw
+    // 'upgrade' listener kills the process. This runs before any auth or rate
+    // limiting, so it must never throw on attacker-controlled input.
+    const pathname = (request.url ?? "/").split("?")[0];
+    if (pathname !== "/ws") {
       socket.destroy();
       return;
     }
