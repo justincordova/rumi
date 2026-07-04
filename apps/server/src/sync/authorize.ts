@@ -34,7 +34,7 @@ export async function onAuthenticate(payload: onAuthenticatePayload) {
   if (token?.startsWith("eyJ")) {
     return authenticateJwt(token, parsed);
   }
-  return authenticateGuest(parsed);
+  return authenticateGuest(parsed, token);
 }
 
 async function authenticateJwt(token: string, parsed: { roomId?: string; tabId?: string }) {
@@ -133,7 +133,7 @@ async function authenticateJwt(token: string, parsed: { roomId?: string; tabId?:
   }
 }
 
-async function authenticateGuest(parsed: { roomId?: string; tabId?: string }) {
+async function authenticateGuest(parsed: { roomId?: string; tabId?: string }, token?: string) {
   let tabId: string | null = null;
   let roomId: string;
 
@@ -158,9 +158,18 @@ async function authenticateGuest(parsed: { roomId?: string; tabId?: string }) {
 
   const readOnly = room.guestAccess === "view";
 
-  logger.debug({ roomId: room.id, tabId, readOnly }, "ws guest authenticated");
+  // The web client sends its per-browser guest UUID as the connect token for
+  // anonymous sessions. Adopt it as a stable identity for concurrent-user
+  // counting so one guest with the control doc + several tab docs open counts
+  // as one participant, not one per socket. Namespaced with "guest:" so a
+  // client-supplied value can never collide with (or impersonate) a verified
+  // userId in the counting sets. Non-UUID tokens fall back to undefined —
+  // per-socket counting, the conservative direction.
+  const guestId = token && UUID_RE.test(token) ? `guest:${token.toLowerCase()}` : undefined;
 
-  return { isGuest: true, roomId: room.id, tabId, readOnly, roomOwner: room.ownerId };
+  logger.debug({ roomId: room.id, tabId, readOnly, guestId }, "ws guest authenticated");
+
+  return { isGuest: true, guestId, roomId: room.id, tabId, readOnly, roomOwner: room.ownerId };
 }
 
 async function findMemberByEmail(

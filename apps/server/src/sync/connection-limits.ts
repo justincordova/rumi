@@ -23,21 +23,17 @@ export async function enforceConnectionLimits(
   data: onAuthenticatePayload,
   identity: ConnectingIdentity,
 ) {
-  // Only enforce on control doc connections (room:<roomId>). Tab doc
-  // connections are spawned after the control doc and share the same room —
-  // counting them would double-count users.
-  if (!data.documentName.startsWith("room:")) return;
-
-  const { roomId, roomOwner, userId } = identity;
+  const { roomId, roomOwner, userId, guestId } = identity;
+  const selfId = userId ?? guestId ?? null;
 
   const allDocs = Array.from(data.instance.documents.values());
 
   // --- Concurrent users per room ---
-  // Count unique users across ALL documents for this room (control + tabs)
-  // by looking at each connection's context (set when its own auth finished).
-  // The connecting user is NOT yet in `instance.documents` — they become the
-  // Nth, so `>= maxConcurrentUsers` is correct.
-  const ownerPlan = await getUserPlan(roomOwner);
+  // Enforced on EVERY document connection (control doc + tab docs). Enforcing
+  // only on the control doc let a custom client connect straight to tab
+  // documents — which is all editing requires — with unlimited concurrency.
+  // The self-exclusion below keeps the web client's normal flow (control doc
+  // first, then one connection per open tab) from double-counting.
   const uniqueUsers = new Set<string>();
   for (const doc of allDocs) {
     for (const conn of doc.getConnections()) {
@@ -48,12 +44,21 @@ export async function enforceConnectionLimits(
       uniqueUsers.add(uid);
     }
   }
-  if (uniqueUsers.size >= ownerPlan.maxConcurrentUsers) {
-    throw new AppError(
-      "plan_limit_reached",
-      "Room is full. The owner needs to upgrade for more concurrent users.",
-      403,
-    );
+  // If the connecting identity is already counted (second browser tab, a
+  // reconnect racing its stale socket, or a tab doc following the control
+  // doc), admitting it adds no new unique user — never reject it, even at
+  // capacity. Only a genuinely new identity is checked against the cap; it
+  // would become the (N+1)th, so `>= maxConcurrentUsers` is correct.
+  const alreadyPresent = selfId !== null && uniqueUsers.has(selfId);
+  if (!alreadyPresent) {
+    const ownerPlan = await getUserPlan(roomOwner);
+    if (uniqueUsers.size >= ownerPlan.maxConcurrentUsers) {
+      throw new AppError(
+        "plan_limit_reached",
+        "Room is full. The owner needs to upgrade for more concurrent users.",
+        403,
+      );
+    }
   }
 
   // --- Rooms open simultaneously (JWT users only) ---
@@ -71,7 +76,8 @@ export async function enforceConnectionLimits(
       }
     }
   }
-  if (userRooms.size >= MAX_ROOMS_OPEN) {
+  // Reconnecting to an already-open room opens no new room — skip the check.
+  if (!userRooms.has(roomId) && userRooms.size >= MAX_ROOMS_OPEN) {
     throw new AppError("room_limit", "Too many rooms open. Close some tabs and try again.", 403);
   }
 }

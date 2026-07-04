@@ -118,8 +118,59 @@ describe("enforceConnectionLimits", () => {
     await expect(enforceConnectionLimits(payload, makeIdentity())).resolves.toBeUndefined();
   });
 
-  it("skips enforcement for tab doc connections", async () => {
-    const payload = makePayload({ documentName: "tab-uuid-123" });
+  it("enforces the concurrent-user cap on tab doc connections too", async () => {
+    // A custom client connecting straight to a tab document (bypassing the
+    // control doc) must still be counted — editing only requires tab docs.
+    planMod.getUserPlan.mockImplementationOnce(async () => ({
+      plan: "free",
+      maxRooms: 3,
+      maxTabsPerRoom: 3,
+      maxConcurrentUsers: 2,
+    }));
+    const conns = [
+      makeConnection({ roomId: "room-1", user: { id: "user-a" } }),
+      makeConnection({ roomId: "room-1", user: { id: "user-b" } }),
+    ];
+    const docs = new Map([["room:room-1", makeDoc(conns)]]);
+    const payload = makePayload({ documentName: "tab-uuid-123", instance: { documents: docs } });
+    await expect(enforceConnectionLimits(payload, makeIdentity())).rejects.toBeInstanceOf(AppError);
+  });
+
+  it("admits an identity that is already counted, even at capacity", async () => {
+    // Reconnect / second browser tab / tab doc following the control doc:
+    // user-1 is already present, so admitting them adds no unique user.
+    planMod.getUserPlan.mockImplementationOnce(async () => ({
+      plan: "free",
+      maxRooms: 3,
+      maxTabsPerRoom: 3,
+      maxConcurrentUsers: 2,
+    }));
+    const conns = [
+      makeConnection({ roomId: "room-1", user: { id: "user-1" } }),
+      makeConnection({ roomId: "room-1", user: { id: "user-b" } }),
+    ];
+    const docs = new Map([["room:room-1", makeDoc(conns)]]);
+    const payload = makePayload({ instance: { documents: docs } });
+    await expect(enforceConnectionLimits(payload, makeIdentity())).resolves.toBeUndefined();
+  });
+
+  it("counts a guest with multiple docs open as one user via guestId", async () => {
+    planMod.getUserPlan.mockImplementationOnce(async () => ({
+      plan: "free",
+      maxRooms: 3,
+      maxTabsPerRoom: 3,
+      maxConcurrentUsers: 2,
+    }));
+    // One guest holds the control doc + two tab docs (3 sockets, 1 identity).
+    const guestCtx = { roomId: "room-1", guestId: "guest:abc" };
+    const docs = new Map([
+      ["room:room-1", makeDoc([makeConnection(guestCtx)])],
+      ["tab-1", makeDoc([makeConnection(guestCtx)])],
+      ["tab-2", makeDoc([makeConnection(guestCtx)])],
+    ]);
+    const payload = makePayload({ instance: { documents: docs } });
+    // A new signed-in user connects: 1 guest + them = 2 → exactly at cap after
+    // admit, but the guest counted once so uniqueUsers.size is 1 → allowed.
     await expect(enforceConnectionLimits(payload, makeIdentity())).resolves.toBeUndefined();
   });
 
@@ -132,13 +183,24 @@ describe("enforceConnectionLimits", () => {
     await expect(enforceConnectionLimits(payload, makeIdentity())).resolves.toBeUndefined();
   });
 
-  it("throws room_limit when at rooms-open limit", async () => {
+  it("throws room_limit when opening a NEW room at the rooms-open limit", async () => {
+    const userRooms = Array.from({ length: 10 }, (_, i) =>
+      makeConnection({ roomId: `room-${i + 100}`, user: { id: "user-1" } }),
+    );
+    const docs = new Map(userRooms.map((c, i) => [`room:room-${i + 100}`, makeDoc([c])]));
+    const payload = makePayload({ instance: { documents: docs } });
+    // Connecting to room-1, which is NOT among the 10 open rooms.
+    await expect(enforceConnectionLimits(payload, makeIdentity())).rejects.toBeInstanceOf(AppError);
+  });
+
+  it("allows reconnecting to an already-open room at the rooms-open limit", async () => {
     const userRooms = Array.from({ length: 10 }, (_, i) =>
       makeConnection({ roomId: `room-${i}`, user: { id: "user-1" } }),
     );
     const docs = new Map(userRooms.map((c, i) => [`room:room-${i}`, makeDoc([c])]));
     const payload = makePayload({ instance: { documents: docs } });
-    await expect(enforceConnectionLimits(payload, makeIdentity())).rejects.toBeInstanceOf(AppError);
+    // room-1 is among the open rooms — no new room is opened.
+    await expect(enforceConnectionLimits(payload, makeIdentity())).resolves.toBeUndefined();
   });
 
   it("skips rooms-open check for guest users", async () => {

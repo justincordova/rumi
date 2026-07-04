@@ -47,6 +47,7 @@ export function buildHocuspocus() {
         roomId: result.roomId,
         roomOwner: result.roomOwner,
         userId: "user" in result ? result.user.id : undefined,
+        guestId: "guestId" in result ? result.guestId : undefined,
       });
       return result;
     },
