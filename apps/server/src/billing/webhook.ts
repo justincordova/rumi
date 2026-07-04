@@ -55,7 +55,14 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
         env.STRIPE_WEBHOOK_SECRET,
       );
     } catch (err) {
-      logger.warn({ err }, "webhook signature verification failed");
+      // Log the message ONLY. StripeSignatureVerificationError carries the
+      // signature header and the entire raw payload as enumerable properties,
+      // which pino's error serializer would copy into the log — leaking full
+      // customer PII on every event during a webhook-secret mismatch, and
+      // handing unauthenticated callers (this route is public and rate-limit
+      // exempt) an amplified log-flooding primitive.
+      const reason = err instanceof Error ? err.message : String(err);
+      logger.warn({ reason }, "webhook signature verification failed");
       // 400 — Stripe does not retry signature failures
       return reply.code(400).send({ error: "invalid_signature" });
     }
