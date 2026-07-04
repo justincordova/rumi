@@ -794,6 +794,60 @@ describe("createService", () => {
         svc.addToBlacklist("test", "user-id", "owner@test.com", "owner@test.com"),
       ).rejects.toBeInstanceOf(AppError);
     });
+
+    it("fails closed when admin adder and owner profile lookup fails", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "admin-id",
+              role: "admin" as const,
+            }),
+          },
+        },
+      });
+      const mockDeps = {
+        getUserProfile: async () => null, // lookup failure / missing key
+        lookupUserIdByEmail: async () => null,
+      };
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any, mockDeps as any);
+      await expect(svc.addToBlacklist("test", "admin-id", "victim@test.com")).rejects.toMatchObject(
+        { statusCode: 503 },
+      );
+    });
+
+    it("fails closed when admin adder and email reverse-lookup throws", async () => {
+      const db = makeDb({
+        query: {
+          ...makeDb().query,
+          roomMembers: {
+            findFirst: async () => ({
+              roomId: "room-id",
+              userId: "admin-id",
+              role: "admin" as const,
+            }),
+          },
+        },
+      });
+      const mockDeps = {
+        getUserProfile: async () => ({
+          email: "owner@test.com",
+          displayName: "Owner",
+          avatarUrl: null,
+        }),
+        lookupUserIdByEmail: async () => {
+          throw new Error("admin api down");
+        },
+      };
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any, mockDeps as any);
+      await expect(svc.addToBlacklist("test", "admin-id", "victim@test.com")).rejects.toMatchObject(
+        { statusCode: 503 },
+      );
+    });
   });
 
   describe("removeFromBlacklist", () => {

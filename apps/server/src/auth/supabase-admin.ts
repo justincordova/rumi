@@ -9,35 +9,41 @@ interface MinimalResponse {
   json(): Promise<unknown>;
 }
 
+/**
+ * Reverse-lookup a user id by email. Returns null when the service-role key
+ * isn't configured (graceful dev stub) or when no user matches. THROWS on
+ * transport/HTTP failures so callers that use the result as a security guard
+ * (e.g. addToBlacklist's admin-vs-admin check) can fail closed instead of
+ * treating an outage as "no such user". Callers that are fine with
+ * best-effort semantics attach `.catch(() => null)` at the call site.
+ */
 export async function lookupUserIdByEmail(email: string): Promise<string | null> {
   if (!env.SUPABASE_SERVICE_ROLE_KEY) return null;
-  try {
-    const origin = new URL(env.SUPABASE_JWT_ISSUER).origin;
-    const lower = email.toLowerCase();
-    // GoTrue's admin `filter` param is a plain substring (ILIKE) match on
-    // email/phone — NOT PostgREST `column.op.value` syntax. Passing
-    // `email.eq.<addr>` matches nothing, silently breaking every consumer
-    // (whitelist notifications, blacklist auto-kick, email dedup on WS auth).
-    // Pass the bare address and rely on the exact-match post-filter below.
-    const res = (await fetch(
-      `${origin}/auth/v1/admin/users?per_page=100&filter=${encodeURIComponent(lower)}`,
-      {
-        headers: {
-          apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-        },
+  const origin = new URL(env.SUPABASE_JWT_ISSUER).origin;
+  const lower = email.toLowerCase();
+  // GoTrue's admin `filter` param is a plain substring (ILIKE) match on
+  // email/phone — NOT PostgREST `column.op.value` syntax. Passing
+  // `email.eq.<addr>` matches nothing, silently breaking every consumer
+  // (whitelist notifications, blacklist auto-kick, email dedup on WS auth).
+  // Pass the bare address and rely on the exact-match post-filter below.
+  const res = (await fetch(
+    `${origin}/auth/v1/admin/users?per_page=100&filter=${encodeURIComponent(lower)}`,
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
       },
-    )) as unknown as MinimalResponse;
-    if (!res.ok) return null;
-    const data = (await res.json()) as {
-      users: Array<{ id: string; email?: string }>;
-    };
-    const match = data.users.find((u) => u.email?.toLowerCase() === lower);
-    return match?.id ?? null;
-  } catch (err) {
-    logger.debug({ err, email }, "supabase admin lookup failed");
-    return null;
+    },
+  )) as unknown as MinimalResponse;
+  if (!res.ok) {
+    logger.debug({ email }, "supabase admin lookup returned non-ok status");
+    throw new Error("supabase admin user lookup failed");
   }
+  const data = (await res.json()) as {
+    users: Array<{ id: string; email?: string }>;
+  };
+  const match = data.users.find((u) => u.email?.toLowerCase() === lower);
+  return match?.id ?? null;
 }
 
 // In-process LRU for getUserProfile results. listMembers, addToWhitelist,

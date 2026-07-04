@@ -526,13 +526,22 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
         }
       }
 
-      // Check if trying to blacklist the owner
-      if (adder.role === "admin") {
-        // Admins can't blacklist owners
-        const ownerProfile = deps
-          ? await deps.getUserProfile(room.ownerId).catch(() => null)
-          : null;
-        if (ownerProfile && ownerProfile.email.toLowerCase() === lower) {
+      // Check if trying to blacklist the owner. This is a security guard, so
+      // it must fail CLOSED: if the owner's profile can't be resolved while
+      // an admin is the actor, reject the request instead of proceeding —
+      // otherwise a transient admin-API failure lets an admin blacklist the
+      // owner's email and lock them out of their own room (blacklist is
+      // checked before membership everywhere). Mirrors kickMember's 503.
+      if (adder.role === "admin" && deps) {
+        const ownerProfile = await deps.getUserProfile(room.ownerId).catch(() => null);
+        if (!ownerProfile) {
+          throw new AppError(
+            "server_error",
+            "Could not verify the target of this blacklist entry — try again",
+            503,
+          );
+        }
+        if (ownerProfile.email.toLowerCase() === lower) {
           throw new AuthError("forbidden", "Cannot blacklist the room owner");
         }
       }
@@ -544,7 +553,24 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
       // Max-plan room).
       let kickeeUserId: string | null = null;
       if (deps) {
-        const candidate = await deps.lookupUserIdByEmail(lower).catch(() => null);
+        let candidate: string | null;
+        try {
+          candidate = await deps.lookupUserIdByEmail(lower);
+        } catch (err) {
+          // Admins rely on this lookup for the peer-admin guard below — fail
+          // closed for them. Owners have full authority over every member, so
+          // a failed lookup only skips the auto-kick; the blacklist entry
+          // itself still locks the target out on next auth.
+          if (adder.role === "admin") {
+            logger.warn({ err, roomId: room.id }, "blacklist target lookup failed");
+            throw new AppError(
+              "server_error",
+              "Could not verify the target of this blacklist entry — try again",
+              503,
+            );
+          }
+          candidate = null;
+        }
         if (candidate) {
           const target = await db.query.roomMembers.findFirst({
             where: and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, candidate)),
