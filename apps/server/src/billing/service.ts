@@ -276,6 +276,19 @@ export function createBillingService() {
           return { planChanged: false, userId: null };
         }
 
+        // A deletion event for a customer we have no row for: either the
+        // account was deleted (row wiped by account/routes.ts) or the
+        // subscription never belonged to this app. Recreating a canceled row
+        // from the metadata fallback would resurrect billing state for a
+        // nonexistent user — skip.
+        if (!dbUserId && event.type === "customer.subscription.deleted") {
+          logger.info(
+            { eventId: event.id, customer: sub.customer },
+            "webhook: deletion for unknown customer, skipping",
+          );
+          return { planChanged: false, userId: null };
+        }
+
         const priceId = sub.items.data[0]?.price.id ?? null;
         const planInfo = priceId ? priceIdToPlan(priceId) : null;
         if (priceId && !planInfo) {
