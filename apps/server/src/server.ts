@@ -185,13 +185,25 @@ export async function buildServer() {
 }
 
 if (import.meta.main) {
+  // Hocuspocus's debounced store path fires hook promises without awaiting
+  // them (useDebounce → setTimeout(run)), so a re-thrown persistence error
+  // (see sync/persistence.ts) surfaces as an unhandled rejection. Log it
+  // through our logger instead of relying on runtime default behavior —
+  // and never let it crash the process.
+  process.on("unhandledRejection", (reason) => {
+    logger.error({ err: reason }, "unhandled promise rejection");
+    if (env.SENTRY_DSN) Sentry.captureException(reason);
+  });
+
   const app = await buildServer();
 
   await app.ready();
 
   // Attach HTTP-upgrade listener for Hocuspocus WebSocket connections.
-  // All WebSocket connections go through /ws path.
-  const wss = new WebSocketServer({ noServer: true });
+  // All WebSocket connections go through /ws path. maxPayload bounds a single
+  // WS frame (ws default is 100 MiB) — Yjs updates for our documents are far
+  // below this; oversized frames terminate the offending connection only.
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 * 1024 });
 
   app.server.on("upgrade", (request, socket, head) => {
     // Parse only the pathname — do NOT construct a URL from the Host header.
