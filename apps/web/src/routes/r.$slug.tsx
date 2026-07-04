@@ -103,7 +103,13 @@ function RoomPage() {
 
   return (
     <div className="flex h-screen flex-col">
-      <TopBar room={room} status={control.status} provider={control.provider} isGuest={isGuest} />
+      <TopBar
+        room={room}
+        status={control.status}
+        provider={control.provider}
+        isGuest={isGuest}
+        role={role}
+      />
       {isGuest && <GuestBanner slug={room.slug} readOnly={control.readOnly} />}
       <TabBar
         tabs={tabs}

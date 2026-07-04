@@ -509,7 +509,15 @@ function MemberRow({
       </span>
     );
 
-  const showMenu = !isSelf && isViewerAdmin && member.role !== "owner";
+  // Server rule (kickMember): owners can kick anyone but themselves; admins
+  // can kick members only — never peer admins. Don't render a menu whose only
+  // action is guaranteed to fail with a 403 toast.
+  const canKick =
+    isViewerAdmin &&
+    !isSelf &&
+    member.role !== "owner" &&
+    (isViewerOwner || member.role === "member");
+  const showMenu = canKick || (isViewerOwner && !isSelf && member.role !== "owner");
 
   return (
     <li className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted/50">
@@ -566,14 +574,16 @@ function MemberRow({
                 Transfer ownership
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={() => onKick()}
-              className="text-destructive focus:text-destructive focus:bg-destructive/10"
-            >
-              <UserMinus className="h-4 w-4" />
-              Remove from room
-            </DropdownMenuItem>
+            {isViewerOwner && canKick && <DropdownMenuSeparator />}
+            {canKick && (
+              <DropdownMenuItem
+                onSelect={() => onKick()}
+                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+              >
+                <UserMinus className="h-4 w-4" />
+                Remove from room
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}

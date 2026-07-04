@@ -14,6 +14,7 @@ interface Props {
   tab: TabSummary;
   readOnly: boolean;
   roomSlug: string;
+  canManageTabs?: boolean;
 }
 
 function countLines(s: string): number {
@@ -21,7 +22,7 @@ function countLines(s: string): number {
   return s.length === 0 ? 1 : s.split("\n").length;
 }
 
-export function CodeTab({ ydoc, provider, tab, readOnly, roomSlug }: Props) {
+export function CodeTab({ ydoc, provider, tab, readOnly, roomSlug, canManageTabs }: Props) {
   const ytext = ydoc.getText("content");
   // Subscribe to Y.Text changes so the line count updates as the user types
   // (or peers edit). Previously the value was computed once per render and
@@ -39,7 +40,12 @@ export function CodeTab({ ydoc, provider, tab, readOnly, roomSlug }: Props) {
     <div className="flex h-full flex-col">
       <div className="h-10 bg-surface/60 border-b border-border px-3 flex items-center gap-3 shrink-0">
         <span className="text-[11px] font-medium text-muted-foreground truncate">{tab.name}</span>
-        <LanguagePicker roomSlug={roomSlug} tabId={tab.id} value={tab.language} />
+        <LanguagePicker
+          roomSlug={roomSlug}
+          tabId={tab.id}
+          value={tab.language}
+          canManage={canManageTabs}
+        />
         <span className="ml-auto text-[11px] text-muted-foreground tabular-nums">
           {lineCount} line{lineCount === 1 ? "" : "s"} · {langName}
         </span>

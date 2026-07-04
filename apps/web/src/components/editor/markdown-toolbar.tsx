@@ -16,9 +16,10 @@ interface Props {
   viewRef?: React.RefObject<EditorView | null>;
   roomSlug: string;
   ytext: Y.Text;
+  canManageTabs?: boolean;
 }
 
-export function MarkdownToolbar({ tab, readOnly, viewRef, roomSlug, ytext }: Props) {
+export function MarkdownToolbar({ tab, readOnly, viewRef, roomSlug, ytext, canManageTabs }: Props) {
   function dispatch(fn: (view: EditorView) => boolean) {
     if (viewRef?.current) fn(viewRef.current);
   }
@@ -56,7 +57,12 @@ export function MarkdownToolbar({ tab, readOnly, viewRef, roomSlug, ytext }: Pro
         ))}
       </div>
       <div className="ml-auto flex items-center gap-1">
-        <LanguagePicker roomSlug={roomSlug} tabId={tab.id} value={tab.language} />
+        <LanguagePicker
+          roomSlug={roomSlug}
+          tabId={tab.id}
+          value={tab.language}
+          canManage={canManageTabs}
+        />
         <ViewModeToggle tabId={tab.id} />
         <ExportMenu
           options={[

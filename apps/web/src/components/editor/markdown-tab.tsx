@@ -15,9 +15,10 @@ interface Props {
   tab: TabSummary;
   readOnly: boolean;
   roomSlug: string;
+  canManageTabs?: boolean;
 }
 
-export function MarkdownTab({ ydoc, provider, tab, readOnly, roomSlug }: Props) {
+export function MarkdownTab({ ydoc, provider, tab, readOnly, roomSlug, canManageTabs }: Props) {
   const ytext = ydoc.getText("content");
   const mode = useViewMode(tab.id); // "split" | "rendered" | "source"
   const viewRef = useRef<EditorView | null>(null);
@@ -55,6 +56,7 @@ export function MarkdownTab({ ydoc, provider, tab, readOnly, roomSlug }: Props) 
         viewRef={viewRef}
         roomSlug={roomSlug}
         ytext={ytext}
+        canManageTabs={canManageTabs}
       />
       <div
         className={

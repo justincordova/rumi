@@ -21,13 +21,20 @@ export function TabEditor({
     );
   }
 
-  return <TabEditorInner tab={tab} roomSlug={roomSlug} />;
+  return <TabEditorInner tab={tab} roomSlug={roomSlug} role={role} />;
 }
 
 // Separate component so hooks are called unconditionally.
-function TabEditorInner({ tab, roomSlug }: { tab: TabSummary; roomSlug: string }) {
+function TabEditorInner({
+  tab,
+  roomSlug,
+  role,
+}: { tab: TabSummary; roomSlug: string; role?: Role | null }) {
   const { ydoc, provider, readOnly } = useTabDoc({ tabId: tab.id });
   if (!ydoc || !provider) return <EditorSkeleton />;
+
+  // Language change is structural — admin+ only on the server (updateTab).
+  const canManageTabs = role === "owner" || role === "admin";
 
   if (tab.language === "markdown") {
     return (
@@ -37,10 +44,18 @@ function TabEditorInner({ tab, roomSlug }: { tab: TabSummary; roomSlug: string }
         tab={tab}
         readOnly={readOnly}
         roomSlug={roomSlug}
+        canManageTabs={canManageTabs}
       />
     );
   }
   return (
-    <CodeTab ydoc={ydoc} provider={provider} tab={tab} readOnly={readOnly} roomSlug={roomSlug} />
+    <CodeTab
+      ydoc={ydoc}
+      provider={provider}
+      tab={tab}
+      readOnly={readOnly}
+      roomSlug={roomSlug}
+      canManageTabs={canManageTabs}
+    />
   );
 }

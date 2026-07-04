@@ -32,12 +32,17 @@ interface TopBarProps {
   status?: "connecting" | "connected" | "disconnected";
   provider?: HocuspocusProvider | null;
   isGuest?: boolean;
+  role?: "owner" | "admin" | "member" | null;
 }
 
-export function TopBar({ room, status, provider, isGuest }: TopBarProps) {
+export function TopBar({ room, status, provider, isGuest, role }: TopBarProps) {
   const theme = usePrefs((s) => s.theme);
   const setTheme = usePrefs((s) => s.setTheme);
   const [membersOpen, setMembersOpen] = useState(false);
+  // Rename / visibility / guest access are owner-only on the server
+  // (updateRoom rejects everyone else) — don't render dead controls that walk
+  // members through a prompt only to fail with a toast.
+  const isOwner = role === "owner";
 
   return (
     <header className="h-14 border-b border-border bg-surface/80 backdrop-blur-md sticky top-0 z-10">
@@ -90,12 +95,16 @@ export function TopBar({ room, status, provider, isGuest }: TopBarProps) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" sideOffset={16} className="w-52">
-                    <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Room
-                    </DropdownMenuLabel>
-                    <RenameRoomItem room={room} />
-                    <VisibilitySelector room={room} />
-                    <DropdownMenuSeparator />
+                    {isOwner && (
+                      <>
+                        <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          Room
+                        </DropdownMenuLabel>
+                        <RenameRoomItem room={room} />
+                        <VisibilitySelector room={room} />
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
                     <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
                       Appearance
                     </DropdownMenuLabel>
@@ -138,8 +147,12 @@ export function TopBar({ room, status, provider, isGuest }: TopBarProps) {
                     Room
                   </DropdownMenuLabel>
                   <DropdownMenuItem onSelect={() => setMembersOpen(true)}>Members</DropdownMenuItem>
-                  <RenameRoomItem room={room} />
-                  <VisibilitySelector room={room} />
+                  {isOwner && (
+                    <>
+                      <RenameRoomItem room={room} />
+                      <VisibilitySelector room={room} />
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
                     Appearance

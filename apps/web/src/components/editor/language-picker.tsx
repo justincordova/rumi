@@ -14,10 +14,24 @@ interface Props {
   roomSlug: string;
   tabId: string;
   value: string | null;
+  /**
+   * Language change is a structural mutation — admin+ only on the server
+   * (updateTab). When false, render a static label instead of a dropdown
+   * that's guaranteed to fail with a toast.
+   */
+  canManage?: boolean;
 }
 
-export function LanguagePicker({ roomSlug, tabId, value }: Props) {
+export function LanguagePicker({ roomSlug, tabId, value, canManage = true }: Props) {
   const displayName = value ? (LANGUAGES[value]?.name ?? value) : "Plain text";
+
+  if (!canManage) {
+    return (
+      <span className="inline-flex h-6 items-center px-2 text-[11px] text-muted-foreground">
+        {displayName}
+      </span>
+    );
+  }
 
   async function select(language: string | null) {
     try {
