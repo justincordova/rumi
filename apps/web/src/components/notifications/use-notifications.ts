@@ -59,7 +59,13 @@ export function useNotifications() {
         timeoutId = null;
         if (stopped) return;
         const token = useSession.getState().token;
-        if (!token) return;
+        if (!token) {
+          // Token can be momentarily absent (refresh in flight). Keep the
+          // chain alive — returning without rescheduling would freeze the
+          // bell for the rest of the tab's life unless visibility changes.
+          scheduleNext();
+          return;
+        }
         if (document.visibilityState === "visible") {
           void refetch().finally(() => {
             if (!stopped) scheduleNext();
