@@ -190,11 +190,23 @@ export function createTabsService(db: DbClient) {
 
         await tx.delete(tabs).where(eq(tabs.id, tabId));
 
-        // Re-pack ordinals so they stay contiguous.
+        // Re-pack ordinals so they stay contiguous. Two phases, because the
+        // (room_id, ordinal) unique index is non-deferrable and Postgres
+        // checks it per-row DURING the update — a single `ordinal = ordinal-1`
+        // statement fails with a 23505 whenever heap order visits row t+2
+        // before t+1 (common after reorders rewrite tuples). Phase 1 parks the
+        // shifted rows in the negative band (collision-free since ordinals
+        // are unique and >= 0), phase 2 settles them into the vacated slots.
+        // Same trick as reorderTabs' TEMP_BASE dance.
         await tx.execute(sql`
           UPDATE ${tabs}
-          SET ordinal = ordinal - 1
+          SET ordinal = -ordinal
           WHERE room_id = ${room.id} AND ordinal > ${target.ordinal}
+        `);
+        await tx.execute(sql`
+          UPDATE ${tabs}
+          SET ordinal = -ordinal - 1
+          WHERE room_id = ${room.id} AND ordinal < 0
         `);
 
         return { tabId, roomId: room.id };
