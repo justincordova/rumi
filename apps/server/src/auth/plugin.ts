@@ -24,6 +24,9 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; route: string; optional: bo
   { method: "POST", route: "/api/billing/webhook", optional: false },
   // POST /api/notifications/unsubscribe — public; HMAC-signed token replaces JWT
   { method: "POST", route: "/api/notifications/unsubscribe", optional: false },
+  // GET /api/notifications/unsubscribe — public confirmation page for the
+  // in-body email link; the button POSTs to the route above
+  { method: "GET", route: "/api/notifications/unsubscribe", optional: false },
 ];
 
 const authPlugin: FastifyPluginAsync = async (app) => {

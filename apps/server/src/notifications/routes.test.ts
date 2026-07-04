@@ -21,6 +21,7 @@ mock.module("@/lib/env", () => ({
     WEB_ORIGIN: "http://localhost:5173",
     WEB_URL: "http://localhost:5173",
     PUBLIC_API_URL: "http://localhost:3000",
+    UNSUBSCRIBE_HMAC_SECRET: "test-secret-that-is-at-least-32-chars!!",
   },
 }));
 
@@ -176,6 +177,37 @@ describe("notification routes", () => {
         url: "/api/notifications/unsubscribe?token=invalid",
       });
       expect(res.statusCode).toBe(400);
+    });
+  });
+
+  describe("GET /api/notifications/unsubscribe", () => {
+    it("returns 400 for missing or invalid token", async () => {
+      const missing = await app.inject({
+        method: "GET",
+        url: "/api/notifications/unsubscribe",
+      });
+      expect(missing.statusCode).toBe(400);
+      const invalid = await app.inject({
+        method: "GET",
+        url: "/api/notifications/unsubscribe?token=invalid",
+      });
+      expect(invalid.statusCode).toBe(400);
+    });
+
+    it("serves a confirmation page with a POST form and does NOT unsubscribe", async () => {
+      mockNotifications.updatePreferences.mockClear();
+      const { signUnsubscribeToken } = await import("@/notifications/unsubscribe");
+      const token = signUnsubscribeToken("user-id", "all");
+      expect(token).not.toBeNull();
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/notifications/unsubscribe?token=${token}`,
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.headers["content-type"]).toContain("text/html");
+      expect(res.body).toContain('method="post"');
+      // GET must be side-effect free — prefetchers hit these links.
+      expect(mockNotifications.updatePreferences).not.toHaveBeenCalled();
     });
   });
 });

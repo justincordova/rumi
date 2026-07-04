@@ -35,6 +35,32 @@ function serializeNotification(row: {
 export const notificationRoutes: FastifyPluginAsync = async (app) => {
   const typed = app.withTypeProvider<ZodTypeProvider>();
 
+  // Humans clicking the in-body "Unsubscribe" link in an email issue a GET.
+  // Serve a confirmation page whose button POSTs the token — never unsubscribe
+  // directly on GET, or mail-client link prefetchers and security scanners
+  // would silently unsubscribe users. The RFC 8058 one-click flow (mail
+  // clients) POSTs straight to the handler below.
+  app.get("/unsubscribe", { config: { rateLimit: false } }, async (req, reply) => {
+    const token = (req.query as { token?: string }).token;
+    const decoded = token ? verifyUnsubscribeToken(token) : null;
+    if (!token || !decoded) {
+      return reply
+        .code(400)
+        .type("text/html")
+        .send(
+          "<!doctype html><html><body><h1>Invalid link</h1><p>This unsubscribe link is invalid or has expired.</p></body></html>",
+        );
+    }
+    // Token round-trips via the form action's query string. Only HMAC-verified
+    // tokens reach this point, and they're base64url — but escape anyway.
+    const escaped = token.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    return reply
+      .type("text/html")
+      .send(
+        `<!doctype html><html><body><h1>Unsubscribe</h1><p>Click below to stop receiving these emails.</p><form method="post" action="/api/notifications/unsubscribe?token=${escaped}"><button type="submit">Unsubscribe</button></form></body></html>`,
+      );
+  });
+
   app.post("/unsubscribe", { config: { rateLimit: false } }, async (req, reply) => {
     const token = (req.query as { token?: string }).token;
     if (!token)
