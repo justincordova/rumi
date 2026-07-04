@@ -68,7 +68,10 @@ export const CreateRoomBody = z.object({
   guestAccess: GuestAccess.optional(),
 });
 export const UpdateRoomBody = z.object({
-  name: z.string().trim().max(100).nullable().optional(),
+  // min(1) after trim: `null` is the way to clear a name; an empty string
+  // would persist a blank-but-non-null name that create forbids and the UI's
+  // null-fallback rendering can't catch.
+  name: z.string().trim().min(1).max(100).nullable().optional(),
   visibility: Visibility.optional(),
   guestAccess: GuestAccess.optional(),
 });
