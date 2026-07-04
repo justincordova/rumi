@@ -196,6 +196,26 @@ export function createBillingService() {
     async upsertSubscriptionFromEvent(
       event: Stripe.Event,
     ): Promise<{ planChanged: boolean; userId: string | null }> {
+      // Resolve the subscription BEFORE opening the transaction. For
+      // `checkout.session.completed` and `invoice.paid` this performs a
+      // Stripe network round-trip; doing it inside the tx pins one of the
+      // few pooled connections for the full duration of Stripe latency —
+      // a handful of concurrent webhook deliveries during a Stripe slowdown
+      // would starve every other DB query in the process (room routes, WS
+      // auth). The event-id idempotency claim below still protects against
+      // duplicate work; worst case a duplicate delivery costs one redundant
+      // Stripe read before bailing at the claim.
+      const sub = await resolveSubscriptionFromEvent(event);
+      if (!sub) {
+        // Nothing to record for this event, but still claim the event id so
+        // retries of a no-op event short-circuit.
+        await db
+          .insert(processedWebhookEvents)
+          .values({ eventId: event.id, eventType: event.type })
+          .onConflictDoNothing();
+        return { planChanged: false, userId: null };
+      }
+
       return db.transaction(async (tx) => {
         // Acquire idempotency lock by inserting first — Postgres serializes
         // concurrent insertions of the same primary key. The losing tx gets
@@ -210,11 +230,6 @@ export function createBillingService() {
           .onConflictDoNothing()
           .returning({ eventId: processedWebhookEvents.eventId });
         if (claimed.length === 0) {
-          return { planChanged: false, userId: null };
-        }
-
-        const sub = await resolveSubscriptionFromEvent(event);
-        if (!sub) {
           return { planChanged: false, userId: null };
         }
 
