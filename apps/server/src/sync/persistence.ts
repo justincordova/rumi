@@ -32,7 +32,15 @@ export function buildDatabaseExtension() {
       try {
         await storeDocument(tabId, state);
       } catch (err) {
+        // Do NOT swallow. If the final debounced store fails while the last
+        // client is disconnecting, Hocuspocus would treat a swallowed error as
+        // success, evict the in-memory doc, and every unsaved edit would be
+        // permanently lost. On rejection, Hocuspocus skips unloadDocument
+        // (storeDocumentHooks only unloads in the resolve path), so the doc —
+        // and its state — stays in memory and is reused by the next
+        // connection. Mirrors the deliberate re-throw in `fetch` above.
         logger.error({ err, tabId }, "failed to persist document state");
+        throw err;
       }
     },
   });
