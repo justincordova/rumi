@@ -48,6 +48,14 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
     }) {
       const plan = await getUserPlan(opts.ownerId);
 
+      // Enforce the `private ⇒ guestAccess='none'` invariant on create, same
+      // as updateRoom does on patch. Without this, `{ visibility: "private",
+      // guestAccess: "edit" }` produced a room that enforced the whitelist
+      // against signed-in users while letting anonymous guests read/edit —
+      // guests would get strictly more access than non-whitelisted members.
+      const visibility = opts.visibility ?? "open";
+      const guestAccess = visibility === "private" ? "none" : (opts.guestAccess ?? "none");
+
       for (let attempt = 0; attempt < 6; attempt++) {
         const slug = attempt < 5 ? generateSlug() : fallbackSlug();
         try {
@@ -75,8 +83,8 @@ export function createService(db: DbClient, deps?: ServiceDeps) {
                 slug,
                 name: opts.name ?? null,
                 ownerId: opts.ownerId,
-                visibility: opts.visibility ?? "open",
-                guestAccess: opts.guestAccess ?? "none",
+                visibility,
+                guestAccess,
               })
               .returning();
             await tx.insert(roomMembers).values({

@@ -183,6 +183,38 @@ describe("createService", () => {
       const result = await svc.createRoom({ ownerId: "user-id" });
       expect(result.slug).toBe("test-slug");
     });
+
+    it("coerces guestAccess to none when created private", async () => {
+      const inserted: Array<Record<string, unknown>> = [];
+      const db = makeDb({
+        insert: () => ({
+          values: (v: Record<string, unknown>) => {
+            inserted.push(v);
+            return {
+              returning: async () => [
+                {
+                  id: "room-id",
+                  slug: "test-slug",
+                  name: null,
+                  ownerId: "user-id",
+                  visibility: "private",
+                  guestAccess: "none",
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                  deletedAt: null,
+                },
+              ],
+              onConflictDoNothing: async () => [],
+            };
+          },
+        }),
+      });
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+      const svc = createService(db as any);
+      await svc.createRoom({ ownerId: "user-id", visibility: "private", guestAccess: "edit" });
+      const roomInsert = inserted.find((v) => "visibility" in v);
+      expect(roomInsert?.guestAccess).toBe("none");
+    });
   });
 
   describe("getRoomBySlug", () => {
