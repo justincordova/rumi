@@ -43,6 +43,15 @@ export async function lookupUserIdByEmail(email: string): Promise<string | null>
     users: Array<{ id: string; email?: string }>;
   };
   const match = data.users.find((u) => u.email?.toLowerCase() === lower);
+  // The substring filter can over-match (any address CONTAINING the target).
+  // If a full page came back without an exact match, the real match may be on
+  // a later page — that's ambiguous, not "no such user". Callers use null as
+  // a definitive negative (e.g. the admin-vs-admin blacklist guard), so treat
+  // truncation as a failure and let security-sensitive callers fail closed.
+  if (!match && data.users.length >= 100) {
+    logger.warn({ email: lower }, "supabase admin lookup page full without exact match");
+    throw new Error("supabase admin user lookup ambiguous (page truncated)");
+  }
   return match?.id ?? null;
 }
 
