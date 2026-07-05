@@ -81,7 +81,10 @@ export function RoomCard({
     committingRef.current = true;
     const next = draft.trim();
     try {
-      if (next !== (room.name ?? "")) {
+      // Compare against the displayed title (name || slug), not `room.name`.
+      // The draft is seeded from `title`, so for a null-name room a no-change
+      // blur would otherwise send PATCH { name: slug } — an unintended write.
+      if (next !== title && next !== (room.name ?? "")) {
         const res = await apiFetch<UpdateRoomResponse>(`/api/rooms/${room.slug}`, {
           method: "PATCH",
           body: { name: next || null },

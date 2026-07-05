@@ -32,7 +32,9 @@ export function RoomTitle({ room }: { room: Room }) {
     if (committingRef.current) return;
     committingRef.current = true;
     const next = draft.trim();
-    if (next === (room.name ?? "")) {
+    // Compare against the displayed title (name || slug), not `room.name`, so
+    // a no-change blur on a null-name room doesn't PATCH name to the slug.
+    if (next === title || next === (room.name ?? "")) {
       // Nothing changed — just close out.
       setEditing(false);
       return;

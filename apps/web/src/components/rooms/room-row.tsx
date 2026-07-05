@@ -79,7 +79,9 @@ export function RoomRow({
     committingRef.current = true;
     const next = draft.trim();
     try {
-      if (next !== (room.name ?? "")) {
+      // Compare against the displayed title (name || slug), not `room.name`,
+      // so a no-change blur on a null-name room doesn't PATCH name to the slug.
+      if (next !== title && next !== (room.name ?? "")) {
         const res = await apiFetch<UpdateRoomResponse>(`/api/rooms/${room.slug}`, {
           method: "PATCH",
           body: { name: next || null },
