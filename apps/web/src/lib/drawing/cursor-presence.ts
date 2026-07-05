@@ -15,17 +15,22 @@ const POINTER_THROTTLE_MS = 75;
  * Camera, selection, and other presence dimensions stay local to each user
  * (cursor-only v1 — see docs/designs/pre-launch-hardening.md §4.1).
  *
- * Returns a cleanup function. Safe to call when readOnly: the local pointer
- * subscription is skipped, but remote cursors still render.
+ * Returns a cleanup function. Safe to call when readOnly: the outbound pointer
+ * broadcast is gated dynamically, but remote cursors always render.
+ *
+ * `readOnly` is read via a getter, not captured once, because tldraw's
+ * `onMount` fires before the server's `session` stateless message may have
+ * arrived — a view-only user mounted as writable would otherwise broadcast
+ * their cursor for the whole session (and vice versa).
  */
 export function bindCursorPresence({
   editor,
   provider,
-  readOnly,
+  getReadOnly,
 }: {
   editor: Editor;
   provider: HocuspocusProvider;
-  readOnly: boolean;
+  getReadOnly: () => boolean;
 }): () => void {
   const awareness = provider.awareness;
   if (!awareness) return () => {};
@@ -33,7 +38,7 @@ export function bindCursorPresence({
   const cleanups: Array<() => void> = [];
 
   // ── Outbound: throttle local pointer → awareness ─────────────────────────
-  if (!readOnly) {
+  {
     let lastSent = 0;
     let pending: ReturnType<typeof setTimeout> | null = null;
 
@@ -49,6 +54,9 @@ export function bindCursorPresence({
     };
 
     const onChange = () => {
+      // Gate on the CURRENT readOnly value so a late-arriving session message
+      // takes effect without rebinding.
+      if (getReadOnly()) return;
       const now = Date.now();
       const since = now - lastSent;
       if (since >= POINTER_THROTTLE_MS) {

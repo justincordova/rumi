@@ -50,6 +50,12 @@ function DrawingTabInner({ tab, ydoc, provider, readOnly, role }: InnerProps) {
   const editorRef = useRef<Editor | null>(null);
   const canManageBackground = role === "owner" || role === "admin";
 
+  // Live readOnly for the cursor-presence binding. onMount captures values
+  // once, but readOnly arrives asynchronously via the session message; the
+  // getter lets the outbound cursor gate read the current value.
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
+
   // Grid/background state is persisted in a Y.Map<string> on the tab doc so
   // that all users see the same background and it survives page reloads.
   const backgroundMap = useMemo(() => ydoc.getMap<string>(BACKGROUND_KEY), [ydoc]);
@@ -278,7 +284,11 @@ function DrawingTabInner({ tab, ydoc, provider, readOnly, role }: InnerProps) {
           // dispose unbindStore before re-raising.
           let unbindCursors: () => void;
           try {
-            unbindCursors = bindCursorPresence({ editor, provider, readOnly });
+            unbindCursors = bindCursorPresence({
+              editor,
+              provider,
+              getReadOnly: () => readOnlyRef.current,
+            });
           } catch (err) {
             unbindStore();
             throw err;
