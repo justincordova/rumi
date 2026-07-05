@@ -4,6 +4,7 @@ import { RoomCard } from "@/components/rooms/room-card";
 import { RoomRow } from "@/components/rooms/room-row";
 import { RouteError } from "@/components/route-error";
 import { TopBar } from "@/components/topbar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -179,6 +180,14 @@ function DashboardPage() {
                   className={viewMode === "grid" ? "h-40 rounded-xl" : "h-14 rounded-lg"}
                 />
               ))}
+            </div>
+          )}
+          {status === "error" && (
+            <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+              <p className="text-muted-foreground text-[15px]">Couldn't load your rooms.</p>
+              <Button variant="outline" className="mt-4" onClick={() => void fetch()}>
+                Retry
+              </Button>
             </div>
           )}
           {status === "ready" && rooms.length > 0 && displayed.length === 0 && search && (
