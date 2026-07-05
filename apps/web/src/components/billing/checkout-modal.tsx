@@ -80,32 +80,34 @@ function CheckoutForm({
   interval: Interval;
   onSuccess: () => void;
 }) {
-  // fetchedRef prevents double-firing in React strict mode.
-  // A new useCallback identity (when plan/interval change) naturally resets the gate
-  // because EmbeddedCheckoutProvider remounts when fetchClientSecret changes.
-  const fetchedRef = useRef(false);
+  // Cache the in-flight promise instead of a boolean gate. StrictMode double-
+  // fires EmbeddedCheckoutProvider's effect in dev: the discarded first run
+  // must not consume the only secret and leave the surviving run with "".
+  // Reusing the same promise gives both runs the real secret. On failure we
+  // THROW (Stripe's contract) so the provider shows its error state instead
+  // of rendering a blank pane from a "" resolution, and clear the cache so a
+  // reopen retries. A new useCallback identity (plan/interval change) remounts
+  // the provider and resets this ref.
+  const promiseRef = useRef<Promise<string> | null>(null);
 
-  const fetchClientSecret = useCallback(async () => {
-    if (fetchedRef.current) return "";
-    fetchedRef.current = true;
-    try {
-      const { clientSecret } = await apiFetch<EmbeddedCheckoutResponse>(
-        "/api/billing/checkout/embedded",
-        { method: "POST", body: { plan, interval } },
-      );
-      return clientSecret;
-    } catch (err) {
-      // Reset the gate so reopening the modal after a transient failure
-      // re-attempts the request. Without this, fetchedRef stayed true
-      // forever and Stripe's EmbeddedCheckout sat idle on retry.
-      fetchedRef.current = false;
-      if (err instanceof ApiError && err.code === "stripe_not_configured") {
-        toast.info("Billing isn't enabled in this environment yet.");
-      } else {
-        toast.error("Couldn't start checkout. Please try again.");
-      }
-      return "";
-    }
+  const fetchClientSecret = useCallback(() => {
+    if (promiseRef.current) return promiseRef.current;
+    const p = apiFetch<EmbeddedCheckoutResponse>("/api/billing/checkout/embedded", {
+      method: "POST",
+      body: { plan, interval },
+    })
+      .then((res) => res.clientSecret)
+      .catch((err) => {
+        promiseRef.current = null;
+        if (err instanceof ApiError && err.code === "stripe_not_configured") {
+          toast.info("Billing isn't enabled in this environment yet.");
+        } else {
+          toast.error("Couldn't start checkout. Please try again.");
+        }
+        throw err;
+      });
+    promiseRef.current = p;
+    return p;
   }, [plan, interval]);
 
   return (
