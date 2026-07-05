@@ -15,7 +15,6 @@ export function PricingSection() {
   const { status } = useSession();
   const authenticated = status === "authenticated";
   const subscription = useSubscriptionStore((s) => s.subscription);
-  const subStatus = useSubscriptionStore((s) => s.status);
   const fetchSub = useSubscriptionStore((s) => s.fetch);
   const pollUntilPlanChange = useSubscriptionStore((s) => s.pollUntilPlanChange);
   const [checkoutPlan, setCheckoutPlan] = useState<"pro" | "max" | null>(null);
@@ -23,9 +22,13 @@ export function PricingSection() {
 
   const plan = (subscription?.plan as PlanKey) ?? "free";
 
+  // Fetch on mount/sign-in; also retry a previous failure so a paid user
+  // isn't shown Free-plan CTAs after one transient blip. Reads status via
+  // getState in the effect body so a persistent outage can't retry-loop.
   useEffect(() => {
-    if (authenticated && subStatus === "idle") void fetchSub();
-  }, [authenticated, subStatus, fetchSub]);
+    const s = useSubscriptionStore.getState().status;
+    if (authenticated && (s === "idle" || s === "error")) void fetchSub();
+  }, [authenticated, fetchSub]);
 
   function handleUpgrade(targetPlan: "pro" | "max") {
     setCheckoutPlan(targetPlan);

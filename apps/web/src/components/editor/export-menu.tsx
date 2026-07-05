@@ -28,10 +28,14 @@ export function ExportMenu({ options }: Props) {
   const status = useSubscriptionStore((s) => s.status);
   const fetchSub = useSubscriptionStore((s) => s.fetch);
 
-  // Lazy fetch on first mount so the gate has accurate plan info.
+  // Lazy fetch on first mount so the gate has accurate plan info. Also retry
+  // a previous failure (status "error") — otherwise one transient network
+  // blip downgrades a paid user to the Free gate for the rest of the session.
+  // Mount-only so a persistent outage can't retry-loop.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliberate mount-only retry
   useEffect(() => {
-    if (status === "idle") void fetchSub();
-  }, [status, fetchSub]);
+    if (status === "idle" || status === "error") void fetchSub();
+  }, []);
 
   const plan = subscription?.plan ?? "free";
   const isPaid = plan !== "free";

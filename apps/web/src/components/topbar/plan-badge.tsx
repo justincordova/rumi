@@ -23,9 +23,13 @@ export function PlanBadge() {
   const [checkoutPlan, setCheckoutPlan] = useState<"pro" | "max" | null>(null);
   const embeddedEnabled = Boolean(env.VITE_STRIPE_PUBLISHABLE_KEY);
 
+  // Fetch on mount; also retry a previous failure so one transient blip
+  // doesn't pin the badge to "Free" for the whole session. Mount-only so a
+  // persistent outage can't retry-loop.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliberate mount-only retry
   useEffect(() => {
-    if (subStatus === "idle") void fetchSub();
-  }, [subStatus, fetchSub]);
+    if (subStatus === "idle" || subStatus === "error") void fetchSub();
+  }, []);
 
   if (subStatus === "idle" || subStatus === "loading") {
     return <div className="h-6 w-20 rounded-full bg-muted animate-pulse" />;

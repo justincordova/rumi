@@ -228,6 +228,7 @@ function NotificationsSection() {
   }, []);
 
   async function update(patch: Partial<NotificationPrefs>) {
+    const prev = prefs;
     const optimistic = { ...(prefs ?? DEFAULT_PREFS), ...patch };
     setPrefs(optimistic);
     try {
@@ -237,6 +238,9 @@ function NotificationsSection() {
       );
       setPrefs(res.preferences);
     } catch {
+      // Roll back to the pre-optimistic state so the toggle doesn't stay
+      // flipped while the server still holds the old value.
+      setPrefs(prev);
       toast.error("Couldn't update preferences");
     }
   }
@@ -601,16 +605,24 @@ function BillingTab() {
   const [checkoutInterval, setCheckoutInterval] = useState<"monthly" | "yearly">("monthly");
   const embeddedEnabled = Boolean(env.VITE_STRIPE_PUBLISHABLE_KEY);
 
+  // Fetch on mount; also retry a previous failure so the billing tab doesn't
+  // show Free-plan state for a paid user after one transient blip.
+  // Mount-only so a persistent outage can't retry-loop.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliberate mount-only retry
   useEffect(() => {
-    if (subStatus === "idle") void fetchSub();
-  }, [subStatus, fetchSub]);
+    if (subStatus === "idle" || subStatus === "error") void fetchSub();
+  }, []);
 
   const checkoutRef = useRef(checkout);
   useEffect(() => {
     const initial = checkoutRef.current;
     if (initial === "success") {
       toast.success("You're now subscribed. Welcome to your new plan!");
-      void pollUntilPlanChange("free");
+      // Poll from the plan we currently hold, not a hardcoded "free" — a
+      // pro→max upgrade would otherwise exit on the first tick (pro !== free)
+      // before the webhook flips the plan, leaving a stale badge.
+      const fromPlan = useSubscriptionStore.getState().subscription?.plan ?? "free";
+      void pollUntilPlanChange(fromPlan);
       navigate({ to: "/settings", search: { tab: "billing", checkout: undefined }, replace: true });
     } else if (initial === "cancel") {
       toast.info("Checkout canceled — you're still on the Free plan.");
