@@ -118,18 +118,19 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
           </div>
 
           <div className="px-5 pb-4 space-y-2.5">
-            <div className="flex h-9 rounded-lg bg-muted p-1 gap-0.5">
+            <div className="flex h-9 rounded-lg bg-muted p-1 gap-0.5" aria-label="Room visibility">
               {VISIBILITY_OPTIONS.map((opt) => {
                 const active = visibility === opt.value;
                 return (
                   <button
                     key={opt.value}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => {
                       setVisibility(opt.value);
                       if (opt.value === "private") setGuestAccess("none");
                     }}
-                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-md text-[13px] font-medium transition-all duration-150 ${
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-md text-[13px] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       active
                         ? "bg-surface text-foreground shadow-xs"
                         : "text-muted-foreground hover:text-foreground/70"
@@ -151,15 +152,16 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
                     Guest access
                   </span>
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1" aria-label="Guest access">
                   {GUEST_ACCESS_OPTIONS.map((opt) => {
                     const active = guestAccess === opt.value;
                     return (
                       <button
                         key={opt.value}
                         type="button"
+                        aria-pressed={active}
                         onClick={() => setGuestAccess(opt.value)}
-                        className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors ${
+                        className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           active
                             ? "bg-primary/10 text-primary"
                             : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -187,7 +189,7 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
               type="button"
               onClick={submit}
               disabled={submitting}
-              className="inline-flex items-center justify-center h-8 px-4 rounded-md bg-primary text-primary-foreground text-[13px] font-medium transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none"
+              className="inline-flex items-center justify-center h-8 px-4 rounded-md bg-primary text-primary-foreground text-[13px] font-medium transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 disabled:pointer-events-none"
             >
               {submitting ? "Creating\u2026" : "Create room"}
             </button>
