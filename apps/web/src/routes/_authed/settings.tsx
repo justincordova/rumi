@@ -96,7 +96,7 @@ function SettingsPage() {
         <button
           type="button"
           onClick={goBack}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="flex items-center gap-1.5 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Back
@@ -111,7 +111,8 @@ function SettingsPage() {
                 key={t.value}
                 type="button"
                 onClick={() => setTab(t.value)}
-                className={`flex items-center gap-1.5 flex-1 justify-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                aria-current={tab === t.value ? "page" : undefined}
+                className={`flex items-center gap-1.5 flex-1 justify-center px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   tab === t.value
                     ? "bg-surface text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -161,7 +162,8 @@ function AppearanceSection() {
               key={t}
               type="button"
               onClick={() => setTheme(t)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              aria-pressed={theme === t}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 theme === t
                   ? "bg-foreground text-background shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -294,7 +296,7 @@ function AccountTab() {
         <button
           type="button"
           onClick={signOut}
-          className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <LogOut className="h-4 w-4" />
           Sign out
@@ -533,7 +535,7 @@ function DangerZoneSection() {
                       search: { tab: undefined },
                     });
                   }}
-                  className="text-primary hover:underline underline-offset-2"
+                  className="rounded-sm text-primary hover:underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {r.name ?? r.slug}
                 </button>
