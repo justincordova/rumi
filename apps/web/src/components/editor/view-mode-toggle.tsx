@@ -48,7 +48,14 @@ export function ViewModeToggle({ tabId }: Props) {
   const Icon = ICONS[mode];
 
   return (
-    <Button variant="ghost" size="icon" onClick={cycle} title={LABELS[mode]} className="h-7 w-7">
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={cycle}
+      title={LABELS[mode]}
+      aria-label={`${LABELS[mode]} — switch view`}
+      className="h-7 w-7"
+    >
       <Icon className="h-4 w-4" />
     </Button>
   );

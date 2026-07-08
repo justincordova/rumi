@@ -33,7 +33,13 @@ export function ShareButton({ room }: { room: Room }) {
   if (room.visibility !== "open") return null;
 
   return (
-    <Button variant="ghost" size="icon" onClick={handleCopy} className="h-8 w-8">
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={handleCopy}
+      className="h-8 w-8"
+      aria-label={copied ? "Link copied" : "Copy room link"}
+    >
       <Icon className="h-4 w-4" />
     </Button>
   );
