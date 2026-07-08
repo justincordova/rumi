@@ -40,7 +40,11 @@ export function MarkdownToolbar({ tab, readOnly, viewRef, roomSlug, ytext, canMa
   ];
 
   return (
-    <div className="min-h-10 border-b border-border bg-surface/60 px-2 flex flex-wrap items-center gap-1 shrink-0 py-1 sm:py-0">
+    <div
+      className="min-h-10 border-b border-border bg-surface/60 px-2 flex flex-wrap items-center gap-1 shrink-0 py-1 sm:py-0"
+      role="toolbar"
+      aria-label="Formatting"
+    >
       <div className="flex items-center gap-0.5 flex-wrap">
         {buttons.map(({ Icon, title, action }) => (
           <Button
@@ -49,6 +53,7 @@ export function MarkdownToolbar({ tab, readOnly, viewRef, roomSlug, ytext, canMa
             size="icon"
             className="h-7 w-7 rounded-md"
             title={title}
+            aria-label={title}
             disabled={readOnly}
             onClick={() => dispatch(action)}
           >

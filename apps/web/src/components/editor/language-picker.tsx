@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { apiFetch } from "@/lib/api";
 import { LANGUAGES } from "@/lib/markdown/languages";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -52,10 +52,22 @@ export function LanguagePicker({ roomSlug, tabId, value, canManage = true }: Pro
           <ChevronDown className="h-3 w-3" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuItem onSelect={() => select(null)}>Plain text</DropdownMenuItem>
+      <DropdownMenuContent align="end" className="max-h-72 w-40">
+        <DropdownMenuItem onSelect={() => select(null)} className="gap-2">
+          {value === null ? (
+            <Check className="h-3.5 w-3.5" />
+          ) : (
+            <span className="w-3.5" aria-hidden />
+          )}
+          Plain text
+        </DropdownMenuItem>
         {Object.entries(LANGUAGES).map(([id, lang]) => (
-          <DropdownMenuItem key={id} onSelect={() => select(id)}>
+          <DropdownMenuItem key={id} onSelect={() => select(id)} className="gap-2">
+            {value === id ? (
+              <Check className="h-3.5 w-3.5" />
+            ) : (
+              <span className="w-3.5" aria-hidden />
+            )}
             {lang.name}
           </DropdownMenuItem>
         ))}
