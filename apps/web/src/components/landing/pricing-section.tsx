@@ -58,11 +58,15 @@ export function PricingSection() {
         <p className="mt-2 text-muted-foreground text-[15px]">
           Start free, upgrade when you need more.
         </p>
-        <div className="mt-5 inline-flex items-center gap-2 rounded-lg border border-border bg-muted/50 p-1">
+        <div
+          className="mt-5 inline-flex items-center gap-2 rounded-lg border border-border bg-muted/50 p-1"
+          aria-label="Billing interval"
+        >
           <button
             type="button"
             onClick={() => setInterval("monthly")}
-            className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+            aria-pressed={interval === "monthly"}
+            className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               interval === "monthly"
                 ? "bg-surface text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
@@ -73,7 +77,8 @@ export function PricingSection() {
           <button
             type="button"
             onClick={() => setInterval("yearly")}
-            className={`relative rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+            aria-pressed={interval === "yearly"}
+            className={`relative rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               interval === "yearly"
                 ? "bg-surface text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"

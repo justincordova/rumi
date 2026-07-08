@@ -9,7 +9,10 @@ export function LandingNav() {
   return (
     <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md">
       <div className="flex h-14 items-center justify-between px-4 lg:px-8">
-        <Link to="/" className="flex items-center gap-2">
+        <Link
+          to="/"
+          className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        >
           <img src={logoT} alt="Rumi" className="h-7 w-7" />
           <span className="font-display text-[15px] font-semibold tracking-tight">Rumi</span>
         </Link>
@@ -17,14 +20,14 @@ export function LandingNav() {
         <nav className="hidden items-center gap-2 md:flex">
           <a
             href="/pricing"
-            className="rounded-full px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="rounded-full px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Pricing
           </a>
           <Link
             to="/sign-in"
             search={{ next: "/dashboard" }}
-            className="rounded-full px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="rounded-full px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Sign in
           </Link>
@@ -32,7 +35,9 @@ export function LandingNav() {
 
         <button
           type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden"
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileOpen}
+          className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
           onClick={() => setMobileOpen(!mobileOpen)}
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -44,7 +49,7 @@ export function LandingNav() {
           <div className="flex flex-col gap-2">
             <a
               href="/pricing"
-              className="rounded-full px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground text-center"
+              className="rounded-full px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setMobileOpen(false)}
             >
               Pricing
@@ -52,7 +57,7 @@ export function LandingNav() {
             <Link
               to="/sign-in"
               search={{ next: "/dashboard" }}
-              className="rounded-full px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground text-center"
+              className="rounded-full px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setMobileOpen(false)}
             >
               Sign in
