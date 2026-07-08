@@ -105,7 +105,7 @@ function TrashRow({ room, onRestored }: { room: TrashedRoom; onRestored: () => v
         type="button"
         onClick={restore}
         disabled={pending}
-        className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-50"
+        className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50"
       >
         {pending ? "Restoring…" : "Restore"}
       </button>

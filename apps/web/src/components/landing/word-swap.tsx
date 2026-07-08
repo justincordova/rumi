@@ -14,6 +14,13 @@ export function WordSwap({
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
+    // Respect reduced-motion: don't cycle words automatically (WCAG 2.2.2).
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
     const id = setInterval(() => {
       setVisible(false);
       timerRef.current = setTimeout(() => {
