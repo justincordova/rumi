@@ -24,12 +24,13 @@ export function GuestBanner({ slug, readOnly }: Props) {
       <button
         type="button"
         onClick={() => signInWithProvider("github", `/r/${slug}`)}
-        className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+        className="rounded-sm text-sm font-medium text-primary hover:text-primary/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         Sign in
       </button>
       <button
         type="button"
+        aria-label="Dismiss"
         onClick={() => {
           setDismissed(true);
           try {
@@ -38,7 +39,7 @@ export function GuestBanner({ slug, readOnly }: Props) {
             // storage unavailable — banner reappears on refresh
           }
         }}
-        className="ml-2 text-muted-foreground hover:text-foreground transition-colors"
+        className="ml-2 grid h-6 w-6 place-items-center rounded text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <X className="h-3.5 w-3.5" />
       </button>

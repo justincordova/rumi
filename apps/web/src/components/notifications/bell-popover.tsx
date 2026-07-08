@@ -10,7 +10,12 @@ export function BellPopover() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 relative"
+          aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        >
           <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
             <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />
@@ -24,7 +29,7 @@ export function BellPopover() {
             <button
               type="button"
               onClick={markAllRead}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              className="rounded-sm text-[11px] text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Mark all as read
             </button>
