@@ -18,18 +18,24 @@ function PrivacyPage() {
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-border">
         <div className="mx-auto max-w-3xl px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link
+            to="/"
+            className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
             <img src={logoT} alt="Rumi" className="h-5 w-5" />
             <span className="font-display text-sm font-semibold tracking-tight">Rumi</span>
           </Link>
           <nav className="flex items-center gap-4 text-xs text-muted-foreground">
-            <Link to="/terms" className="hover:text-foreground transition-colors">
+            <Link
+              to="/terms"
+              className="rounded-sm hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               Terms
             </Link>
             <Link
               to="/sign-in"
               search={{ next: "/dashboard" }}
-              className="hover:text-foreground transition-colors"
+              className="rounded-sm hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Sign in
             </Link>
