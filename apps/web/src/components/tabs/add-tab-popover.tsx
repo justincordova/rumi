@@ -26,6 +26,7 @@ export function AddTabPopover({ onAdd, atCap, onAtCapClick }: Props) {
         className="h-7 w-7 rounded-md shrink-0"
         onClick={onAtCapClick}
         title="Tab limit reached — upgrade for more"
+        aria-label="Tab limit reached — upgrade for more"
       >
         <Plus className="h-4 w-4" />
       </Button>
@@ -35,7 +36,13 @@ export function AddTabPopover({ onAdd, atCap, onAtCapClick }: Props) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md shrink-0" title="Add tab">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 rounded-md shrink-0"
+          title="Add tab"
+          aria-label="Add tab"
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
@@ -46,7 +53,7 @@ export function AddTabPopover({ onAdd, atCap, onAtCapClick }: Props) {
         <button
           type="button"
           onClick={() => select("tab")}
-          className="w-full flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted transition-colors text-left"
+          className="w-full flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface shrink-0">
             <FileText className="h-4 w-4 text-primary" />
@@ -59,7 +66,7 @@ export function AddTabPopover({ onAdd, atCap, onAtCapClick }: Props) {
         <button
           type="button"
           onClick={() => select("drawing")}
-          className="w-full flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted transition-colors text-left"
+          className="w-full flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface shrink-0">
             <PenLine className="h-4 w-4 text-primary" />

@@ -269,7 +269,7 @@ function TabItem({
       }}
       aria-selected={isActive}
       className={cn(
-        "group relative flex h-9 max-w-[200px] min-w-[120px] cursor-pointer items-center gap-2 rounded-t-lg border border-b-0 px-3 text-[13px] transition-all",
+        "group relative flex h-9 max-w-[200px] min-w-[120px] cursor-pointer items-center gap-2 rounded-t-lg border border-b-0 px-3 text-[13px] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         isActive
           ? "border-border bg-background text-foreground shadow-xs"
           : "border-transparent bg-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -317,7 +317,7 @@ function TabItem({
           type="button"
           onClick={(e) => onClose(e, tab.id)}
           className={cn(
-            "grid h-4 w-4 place-items-center rounded-sm text-muted-foreground transition-all hover:bg-border-strong hover:text-foreground shrink-0",
+            "grid h-4 w-4 place-items-center rounded-sm text-muted-foreground transition-all hover:bg-border-strong hover:text-foreground shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:opacity-100",
             isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100",
           )}
           title="Close tab"
