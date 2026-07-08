@@ -133,7 +133,7 @@ export function CookiePreferencesModal({
     <div className={open ? "fixed inset-0 z-50 flex items-center justify-center" : "hidden"}>
       <button
         type="button"
-        className="fixed inset-0 bg-black/80 animate-in fade-in duration-200 cursor-default"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 cursor-default"
         onClick={() => onOpenChange(false)}
         aria-label="Close"
       />
