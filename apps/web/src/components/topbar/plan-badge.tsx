@@ -32,7 +32,7 @@ export function PlanBadge() {
   }, []);
 
   if (subStatus === "idle" || subStatus === "loading") {
-    return <div className="h-6 w-20 rounded-full bg-muted animate-pulse" />;
+    return <div className="h-6 w-20 rounded-full bg-muted animate-pulse-soft" />;
   }
 
   const plan = (subscription?.plan as "free" | "pro" | "max") ?? "free";

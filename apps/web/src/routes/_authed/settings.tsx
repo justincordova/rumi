@@ -668,7 +668,7 @@ function BillingTab() {
   if (!loaded) {
     return (
       <div className="space-y-4">
-        <div className="border rounded-xl p-5 space-y-4 animate-pulse">
+        <div className="border rounded-xl p-5 space-y-4 animate-pulse-soft">
           <div className="h-4 w-24 rounded bg-muted" />
           <div className="h-3 w-48 rounded bg-muted" />
           <div className="flex items-center justify-between">
@@ -676,7 +676,7 @@ function BillingTab() {
             <div className="h-8 w-24 rounded-md bg-muted" />
           </div>
         </div>
-        <div className="border rounded-xl p-5 space-y-4 animate-pulse">
+        <div className="border rounded-xl p-5 space-y-4 animate-pulse-soft">
           <div className="h-4 w-16 rounded bg-muted" />
           <div className="h-3 w-64 rounded bg-muted" />
           <div className="h-8 w-32 rounded-md bg-muted" />
