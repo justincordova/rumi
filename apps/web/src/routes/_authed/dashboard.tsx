@@ -17,7 +17,7 @@ import { useSession } from "@/lib/auth";
 import { useSeoMeta } from "@/lib/seo";
 import { type RoomSort, type ViewMode, useRoomsStore } from "@/stores/rooms";
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowDownAZ, Check, LayoutGrid, List, Plus, Search } from "lucide-react";
+import { ArrowDownAZ, Check, LayoutGrid, List, Plus, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/_authed/dashboard")({
@@ -91,7 +91,7 @@ function DashboardPage() {
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
                       <ArrowDownAZ className="h-3.5 w-3.5" />
                       {sort === "updated"
@@ -126,7 +126,7 @@ function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setCreateOpen(true)}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   New room
@@ -137,7 +137,7 @@ function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setCreateOpen(true)}
-                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground shrink-0"
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background shrink-0"
               >
                 <Plus className="h-3.5 w-3.5" />
                 New room
@@ -147,13 +147,14 @@ function DashboardPage() {
 
           {rooms.length > 0 && status !== "loading" && (
             <div className="animate-fade-in flex items-center gap-3">
-              <div className="flex-1 flex items-center gap-2 h-9 rounded-lg border border-border bg-surface/80 px-3">
+              <div className="flex-1 flex items-center gap-2 h-9 rounded-lg border border-border bg-surface/80 px-3 transition-shadow focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
                 <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search rooms…"
+                  aria-label="Search rooms"
                   className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 />
                 {search && (
@@ -161,9 +162,9 @@ function DashboardPage() {
                     type="button"
                     onClick={() => setSearch("")}
                     aria-label="Clear search"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    className="grid h-5 w-5 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <span className="text-xs">&#x2715;</span>
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
@@ -245,7 +246,7 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode
         onClick={() => onChange("grid")}
         aria-label="Grid view"
         aria-pressed={mode === "grid"}
-        className={`grid h-7 w-7 place-items-center rounded-[5px] transition-colors ${mode === "grid" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+        className={`grid h-7 w-7 place-items-center rounded-[5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${mode === "grid" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
       >
         <LayoutGrid className="h-3.5 w-3.5" />
       </button>
@@ -254,7 +255,7 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode
         onClick={() => onChange("list")}
         aria-label="List view"
         aria-pressed={mode === "list"}
-        className={`grid h-7 w-7 place-items-center rounded-[5px] transition-colors ${mode === "list" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+        className={`grid h-7 w-7 place-items-center rounded-[5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${mode === "list" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
       >
         <List className="h-3.5 w-3.5" />
       </button>
