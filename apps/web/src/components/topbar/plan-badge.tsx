@@ -61,7 +61,8 @@ export function PlanBadge() {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors ${
+            aria-label={`${label} plan — view details`}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
               isPaid
                 ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15"
                 : "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/30"
@@ -118,14 +119,14 @@ export function PlanBadge() {
                   onClick={() =>
                     navigate({ to: "/settings", search: { tab: "billing", checkout: undefined } })
                   }
-                  className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="rounded-sm text-[12px] text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   Manage billing
                 </button>
                 <button
                   type="button"
                   onClick={() => navigate({ to: "/pricing" })}
-                  className="text-[12px] text-primary hover:text-primary/80 transition-colors"
+                  className="rounded-sm text-[12px] text-primary hover:text-primary/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   View plans
                 </button>
@@ -144,7 +145,7 @@ export function PlanBadge() {
                       navigate({ to: "/pricing" });
                     }
                   }}
-                  className="w-full rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="w-full rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover"
                 >
                   Upgrade to Pro
                 </button>
@@ -152,7 +153,7 @@ export function PlanBadge() {
                   <button
                     type="button"
                     onClick={() => navigate({ to: "/pricing" })}
-                    className="w-full text-center text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                    className="w-full rounded-sm text-center text-[11px] text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     View all plans
                   </button>
