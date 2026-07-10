@@ -105,7 +105,8 @@ export function RoomRow({
     <div
       role="button"
       tabIndex={0}
-      className="group flex items-center gap-4 rounded-lg border border-border bg-surface px-4 py-3 transition-all duration-150 hover:border-border-strong hover:shadow-sm cursor-pointer"
+      aria-label={`Open room ${title}`}
+      className="group flex items-center gap-4 rounded-lg border border-border bg-surface px-4 py-3 transition-all duration-150 hover:border-border-strong hover:shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       onClick={() => {
         if (!editing && !menuOpen && !deleteOpen) {
           navigate({ to: "/r/$slug", params: { slug: room.slug }, search: { tab: undefined } });
@@ -113,6 +114,7 @@ export function RoomRow({
       }}
       onKeyDown={(e) => {
         if (!editing && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
           navigate({ to: "/r/$slug", params: { slug: room.slug }, search: { tab: undefined } });
         }
       }}

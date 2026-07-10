@@ -112,7 +112,8 @@ export function RoomCard({
     <div
       role="button"
       tabIndex={0}
-      className="group relative rounded-xl border border-border bg-surface p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md cursor-pointer"
+      aria-label={`Open room ${title}`}
+      className="group relative rounded-xl border border-border bg-surface p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       onClick={() => {
         if (!editing && !menuOpen && !deleteOpen) {
           navigate({ to: "/r/$slug", params: { slug: room.slug }, search: { tab: undefined } });
@@ -120,6 +121,7 @@ export function RoomCard({
       }}
       onKeyDown={(e) => {
         if (!editing && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
           navigate({ to: "/r/$slug", params: { slug: room.slug }, search: { tab: undefined } });
         }
       }}
