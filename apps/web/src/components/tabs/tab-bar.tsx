@@ -265,7 +265,10 @@ function TabItem({
       tabIndex={0}
       onClick={() => !editing && onSelect(tab.id)}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onSelect(tab.id);
+        if (!editing && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onSelect(tab.id);
+        }
       }}
       aria-selected={isActive}
       className={cn(
@@ -295,6 +298,7 @@ function TabItem({
             }
           }}
           onClick={(e) => e.stopPropagation()}
+          aria-label="Tab name"
           className="min-w-0 flex-1 bg-transparent text-[13px] font-medium outline-none"
         />
       ) : (
