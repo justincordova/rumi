@@ -162,11 +162,11 @@ export function PricingSection() {
                       </span>
                     </div>
                   ) : p.key === "free" ? (
-                    <Link to="/sign-in" search={{ next: "/dashboard" }}>
-                      <Button variant="outline" size="sm" className="w-full">
+                    <Button asChild variant="outline" size="sm" className="w-full">
+                      <Link to="/sign-in" search={{ next: "/dashboard" }}>
                         Get started
-                      </Button>
-                    </Link>
+                      </Link>
+                    </Button>
                   ) : authenticated ? (
                     <Button
                       variant={isPro ? "default" : "outline"}
@@ -177,11 +177,16 @@ export function PricingSection() {
                       Upgrade
                     </Button>
                   ) : (
-                    <Link to="/sign-in" search={{ next: `/pricing?plan=${p.key}` }}>
-                      <Button variant={isPro ? "default" : "outline"} size="sm" className="w-full">
+                    <Button
+                      asChild
+                      variant={isPro ? "default" : "outline"}
+                      size="sm"
+                      className="w-full"
+                    >
+                      <Link to="/sign-in" search={{ next: `/pricing?plan=${p.key}` }}>
                         Upgrade
-                      </Button>
-                    </Link>
+                      </Link>
+                    </Button>
                   )}
                 </div>
               </div>

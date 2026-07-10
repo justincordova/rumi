@@ -46,13 +46,12 @@ export function Hero() {
           Markdown, code, and drawings in shared rooms. No setup, no merge conflicts.
         </p>
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
-          <Link to="/sign-in" search={{ next: "/dashboard" }}>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center h-11 rounded-lg px-8 text-[15px] font-semibold text-white transition-all duration-200 hover:brightness-110 hover:shadow-[0_0_24px_rgba(136,57,239,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background bg-gradient-to-r from-[#8839ef] via-[#ea76cb] to-[#8839ef] dark:from-[#cba6f7] dark:via-[#f5c2e7] dark:to-[#cba6f7] dark:text-[#11111b]"
-            >
-              Start for free
-            </button>
+          <Link
+            to="/sign-in"
+            search={{ next: "/dashboard" }}
+            className="inline-flex items-center justify-center h-11 rounded-lg px-8 text-[15px] font-semibold text-white transition-all duration-200 hover:brightness-110 hover:shadow-[0_0_24px_rgba(136,57,239,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background bg-gradient-to-r from-[#8839ef] via-[#ea76cb] to-[#8839ef] dark:from-[#cba6f7] dark:via-[#f5c2e7] dark:to-[#cba6f7] dark:text-[#11111b]"
+          >
+            Start for free
           </Link>
           <button
             type="button"
