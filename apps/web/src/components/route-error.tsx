@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { Sentry } from "@/lib/sentry";
 import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -10,13 +11,21 @@ interface Props {
   /** Optional path to navigate "home" to. Defaults to /dashboard. */
   homePath?: string;
   homeLabel?: string;
+  /**
+   * When true, offer a hard page reload instead of a router link. Used by the
+   * app-root boundary, where a corrupted router state may make in-app
+   * navigation unreliable.
+   */
+  showReload?: boolean;
 }
 
 /**
  * Reusable route-level error boundary fallback.
  *
  * TanStack Router's `errorComponent` mounts this when a child throws. Reports
- * to Sentry and offers a way out (retry or home).
+ * to Sentry and offers a way out (retry or home). Also used by the app-root
+ * error boundary via `showReload` so every "Something went wrong" screen looks
+ * and behaves identically.
  */
 export function RouteError({
   error,
@@ -24,6 +33,7 @@ export function RouteError({
   boundary,
   homePath = "/dashboard",
   homeLabel = "Back to dashboard",
+  showReload = false,
 }: Props) {
   useEffect(() => {
     Sentry.captureException(error, { tags: { boundary } });
@@ -33,22 +43,21 @@ export function RouteError({
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
       <h1 className="text-2xl font-display font-semibold tracking-tight">Something went wrong</h1>
       <p className="text-sm text-muted-foreground max-w-md">
-        We hit an unexpected error on this page. Try again, or head back home.
+        {showReload
+          ? "We hit an unexpected error. Try again, or reload the page."
+          : "We hit an unexpected error on this page. Try again, or head back home."}
       </p>
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
-        >
+        <Button variant="outline" onClick={reset}>
           Try again
-        </button>
-        <Link
-          to={homePath}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          {homeLabel}
-        </Link>
+        </Button>
+        {showReload ? (
+          <Button onClick={() => window.location.reload()}>Reload page</Button>
+        ) : (
+          <Button asChild>
+            <Link to={homePath}>{homeLabel}</Link>
+          </Button>
+        )}
       </div>
     </div>
   );
