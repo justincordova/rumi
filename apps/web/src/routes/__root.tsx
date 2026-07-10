@@ -5,7 +5,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { maybeLoadAnalytics } from "@/lib/analytics";
 import { ThemeProvider } from "@/lib/theme";
 import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router";
-import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 export const Route = createRootRoute({
@@ -31,7 +30,7 @@ function RootLayout() {
     <ThemeProvider>
       <TooltipProvider delayDuration={150}>
         <Outlet />
-        <ThemedToaster />
+        <Toaster />
         {!hideCookieBanner && (
           <>
             <CookieBanner onManagePreferences={() => setCookiePrefsOpen(true)} />
@@ -45,24 +44,4 @@ function RootLayout() {
 
 function RootErrorBoundary({ error, reset }: { error: Error; reset: () => void }) {
   return <RouteError error={error} reset={reset} boundary="root" showReload />;
-}
-
-// Sonner toaster bound to next-themes + design tokens
-function ThemedToaster() {
-  const { theme } = useTheme();
-  return (
-    <Toaster
-      theme={theme as "light" | "dark" | "system"}
-      position="bottom-right"
-      closeButton
-      toastOptions={{
-        classNames: {
-          toast: "group bg-background text-foreground border-border shadow-lg",
-          description: "text-muted-foreground",
-          actionButton: "bg-primary text-primary-foreground",
-          cancelButton: "bg-muted text-muted-foreground",
-        },
-      }}
-    />
-  );
 }
