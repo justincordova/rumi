@@ -143,6 +143,7 @@ export function RoomCard({
                 }
               }}
               onClick={(e) => e.stopPropagation()}
+              aria-label="Room name"
               className="w-full border border-border bg-surface rounded-md px-2 py-1 text-[15px] font-semibold ring-2 ring-ring/30 outline-none"
             />
           ) : (

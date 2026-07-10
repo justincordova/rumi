@@ -71,6 +71,7 @@ export function RoomTitle({ room }: { room: Room }) {
             setEditing(false);
           }
         }}
+        aria-label="Room name"
         className="border border-border bg-surface rounded-md px-2.5 py-1 text-sm font-medium ring-2 ring-ring/30 outline-none"
       />
     );

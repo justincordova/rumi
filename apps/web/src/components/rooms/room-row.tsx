@@ -134,6 +134,7 @@ export function RoomRow({
               }
             }}
             onClick={(e) => e.stopPropagation()}
+            aria-label="Room name"
             className="w-64 border border-border bg-surface rounded-md px-2 py-1 text-sm font-medium ring-2 ring-ring/30 outline-none"
           />
         ) : (
