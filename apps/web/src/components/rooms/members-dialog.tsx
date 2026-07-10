@@ -308,7 +308,7 @@ export function MembersDialog({
                             type="button"
                             onClick={() => removeWhitelistEntry(w.id)}
                             aria-label={`Remove ${w.email} from whitelist`}
-                            className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             <X className="h-4 w-4" />
                           </button>
@@ -328,7 +328,8 @@ export function MembersDialog({
                         key={opt.value}
                         type="button"
                         onClick={() => setGuestAccess(opt.value)}
-                        className={`flex-1 rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                        aria-pressed={room.guestAccess === opt.value}
+                        className={`flex-1 rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
                           room.guestAccess === opt.value
                             ? "bg-foreground text-background"
                             : "bg-muted text-muted-foreground hover:text-foreground"
@@ -366,8 +367,8 @@ export function MembersDialog({
                         <button
                           type="button"
                           onClick={() => removeBlacklistEntry(b.id)}
-                          className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                          title="Remove from blacklist"
+                          aria-label={`Remove ${b.email} from blacklist`}
+                          className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -450,6 +451,7 @@ function AddEmailInput({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={placeholder}
+          aria-label={placeholder.replace(/…$/, "")}
           disabled={submitting}
           className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-50"
         />
@@ -457,7 +459,7 @@ function AddEmailInput({
           type="submit"
           aria-label="Add email"
           disabled={submitting}
-          className="grid h-8 w-8 place-items-center rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shrink-0 disabled:opacity-50"
+          className="grid h-8 w-8 place-items-center rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shrink-0 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <Plus className="h-4 w-4" />
         </button>
@@ -550,7 +552,7 @@ function MemberRow({
             <button
               type="button"
               aria-label={`Member options for ${name}`}
-              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <MoreVertical className="h-4 w-4" />
             </button>
@@ -591,7 +593,7 @@ function MemberRow({
         <button
           type="button"
           onClick={onLeave}
-          className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+          className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
         >
           Leave
         </button>
