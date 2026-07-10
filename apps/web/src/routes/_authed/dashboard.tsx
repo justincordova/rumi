@@ -69,7 +69,7 @@ function DashboardPage() {
         <div className="absolute inset-0 grid-dots opacity-20 pointer-events-none" />
 
         <div className="relative max-w-5xl w-full mx-auto px-6 py-10 space-y-8">
-          <div className="animate-fade-in flex items-end justify-between gap-4">
+          <div className="animate-fade-in flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-3xl font-display font-semibold tracking-tight">
                 {greeting},{" "}
