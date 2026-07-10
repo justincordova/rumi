@@ -106,6 +106,7 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Room name"
+              aria-label="Room name"
               maxLength={100}
               className="w-full bg-transparent text-lg font-medium tracking-tight text-foreground placeholder:text-muted-foreground/60 outline-none ring-0 focus:ring-0 border-0 focus:border-0 caret-primary"
             />
@@ -118,7 +119,8 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
           </div>
 
           <div className="px-5 pb-4 space-y-2.5">
-            <div className="flex h-9 rounded-lg bg-muted p-1 gap-0.5" aria-label="Room visibility">
+            <fieldset className="m-0 flex h-9 gap-0.5 rounded-lg border-0 bg-muted p-1">
+              <legend className="sr-only">Room visibility</legend>
               {VISIBILITY_OPTIONS.map((opt) => {
                 const active = visibility === opt.value;
                 return (
@@ -141,18 +143,18 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
                   </button>
                 );
               })}
-            </div>
+            </fieldset>
             <p className="text-[12px] text-muted-foreground/60 leading-snug">{activeDesc}</p>
 
             {visibility === "open" && (
-              <div className="pt-1">
-                <div className="flex items-center gap-1.5 mb-2">
+              <fieldset className="m-0 border-0 p-0 pt-1">
+                <legend className="mb-2 flex items-center gap-1.5 p-0">
                   <Users className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="text-[12px] font-medium text-muted-foreground">
                     Guest access
                   </span>
-                </div>
-                <div className="flex flex-col gap-1" aria-label="Guest access">
+                </legend>
+                <div className="flex flex-col gap-1">
                   {GUEST_ACCESS_OPTIONS.map((opt) => {
                     const active = guestAccess === opt.value;
                     return (
@@ -180,7 +182,7 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
                     );
                   })}
                 </div>
-              </div>
+              </fieldset>
             )}
           </div>
 

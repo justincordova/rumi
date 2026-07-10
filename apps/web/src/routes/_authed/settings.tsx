@@ -348,8 +348,14 @@ function ProfileSection() {
       </div>
       <div className="space-y-3">
         <div>
-          <span className="text-sm text-muted-foreground mb-1.5 block">Display name</span>
+          <label
+            htmlFor="settings-display-name"
+            className="text-sm text-muted-foreground mb-1.5 block"
+          >
+            Display name
+          </label>
           <Input
+            id="settings-display-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={commit}
