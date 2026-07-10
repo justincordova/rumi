@@ -18,7 +18,12 @@ export function BellPopover() {
         >
           <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />
+            <span
+              aria-hidden
+              className="absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground tabular-nums shadow-xs ring-2 ring-surface"
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
           )}
         </Button>
       </PopoverTrigger>
