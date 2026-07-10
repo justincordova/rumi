@@ -120,6 +120,10 @@ export function RoomCard({
         }
       }}
       onKeyDown={(e) => {
+        // Only navigate when the card itself is focused — not when the event
+        // bubbles up from a descendant control (menu trigger, rename input,
+        // Accept/Decline buttons).
+        if (e.target !== e.currentTarget) return;
         if (!editing && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
           navigate({ to: "/r/$slug", params: { slug: room.slug }, search: { tab: undefined } });

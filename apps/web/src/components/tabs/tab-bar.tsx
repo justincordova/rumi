@@ -265,6 +265,8 @@ function TabItem({
       tabIndex={0}
       onClick={() => !editing && onSelect(tab.id)}
       onKeyDown={(e) => {
+        // Ignore key events bubbling up from the rename input or close button.
+        if (e.target !== e.currentTarget) return;
         if (!editing && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
           onSelect(tab.id);
