@@ -7,14 +7,19 @@ const dropUserConnections = mock((_userId: string) => {});
 // duplicate, but here we just verify the route invokes the service correctly).
 const upsertCalls: { eventId: string }[] = [];
 
-mock.module("@/billing/service", () => ({
-  createBillingService: () => ({
-    upsertSubscriptionFromEvent: async (event: { id: string }) => {
-      upsertCalls.push({ eventId: event.id });
-      return { planChanged: true, userId: "user_1" };
-    },
-  }),
-}));
+// NOTE: do NOT `mock.module("@/billing/service", ...)` here. `mock.module` is
+// global in Bun and persists across test files, so stubbing the whole module
+// would hand `billing/service.test.ts` this fake `createBillingService` instead
+// of the real implementation it is written to exercise. The webhook route reads
+// the service off the Fastify instance (`app.billingService`), so we swap that
+// decorator in `beforeAll` — the same runtime-override trick already used for
+// `dropUserConnections` below.
+const billingServiceStub = {
+  upsertSubscriptionFromEvent: async (event: { id: string }) => {
+    upsertCalls.push({ eventId: event.id });
+    return { planChanged: true, userId: "user_1" };
+  },
+};
 
 // Stripe webhook signature verification stub — accepts a fixed "good"
 // signature and rejects everything else, mimicking the real SDK contract
@@ -72,6 +77,10 @@ beforeAll(async () => {
   // Replace the real dropUserConnections decorator with our spy.
   // @ts-expect-error — overriding a Fastify decorator at runtime
   app.dropUserConnections = dropUserConnections;
+  // Replace the real billing service with the stub above so the route test
+  // stays at the route layer and never touches Stripe or the database.
+  // @ts-expect-error — overriding a Fastify decorator at runtime (partial stub)
+  app.billingService = billingServiceStub;
 });
 
 afterEach(() => {

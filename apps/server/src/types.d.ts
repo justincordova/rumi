@@ -1,3 +1,4 @@
+import type { BillingService } from "@/billing/service";
 import type { NotificationsService } from "@/notifications/service";
 import type { Service } from "@/rooms/service";
 import type { TabsService } from "@/rooms/tabs.service";
@@ -8,6 +9,7 @@ declare module "fastify" {
     notifications: NotificationsService;
     service: Service;
     tabsService: TabsService;
+    billingService: BillingService;
     hocuspocus: Hocuspocus;
     dropRoomConnections: (roomId: string) => Promise<void>;
     closeTabConnections: (tabId: string) => void;

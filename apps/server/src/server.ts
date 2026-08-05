@@ -2,6 +2,7 @@ import { accountRoutes } from "@/account/routes";
 import authPlugin from "@/auth/plugin";
 import { getUserProfile, lookupUserIdByEmail } from "@/auth/supabase-admin";
 import { billingRoutes } from "@/billing/routes";
+import { createBillingService } from "@/billing/service";
 import { webhookRoutes } from "@/billing/webhook";
 import { closeDb, db } from "@/db/client";
 import { tabs as tabsTable } from "@/db/schema";
@@ -76,6 +77,7 @@ export async function buildServer() {
     }),
   );
   app.decorate("tabsService", createTabsService(db));
+  app.decorate("billingService", createBillingService());
 
   // Real Hocuspocus-backed implementations.
   app.decorate("closeTabConnections", (tabId: string) => {

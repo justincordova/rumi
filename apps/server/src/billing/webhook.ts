@@ -3,7 +3,6 @@ import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import type { FastifyPluginAsync } from "fastify";
 import type Stripe from "stripe";
-import { createBillingService } from "./service";
 import { getStripe, isStripeConfigured } from "./stripe";
 
 const HANDLED_EVENTS = new Set([
@@ -21,8 +20,6 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
   app.addContentTypeParser("application/json", { parseAs: "buffer" }, (_req, body, done) =>
     done(null, body),
   );
-
-  const service = createBillingService();
 
   // Webhook is exempted from the global rate limit. Stripe sends from a known
   // IP range; under heavy event bursts (replays after an outage, bulk Portal
@@ -72,7 +69,7 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
     }
 
     try {
-      const result = await service.upsertSubscriptionFromEvent(event);
+      const result = await app.billingService.upsertSubscriptionFromEvent(event);
       if (result.userId) {
         const isDeleted = event.type === "customer.subscription.deleted";
         if (result.planChanged || isDeleted) {
