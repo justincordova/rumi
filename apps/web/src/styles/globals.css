@@ -36,8 +36,13 @@
   --color-accent-foreground: #8839ef;
   --color-destructive: #d20f39;
   --color-destructive-foreground: #ffffff;
-  --color-success: #40a02b;
-  --color-warning: #df8e1d;
+  /* Darkened from Catppuccin Latte's #40a02b / #df8e1d, which are used for
+     11px status labels ("Live", "Read only", "Pending") on their own 10% tint
+     and measured 2.84:1 and 2.30:1 there — the least readable text in the app.
+     Same hue and saturation, dropped in value until the worst pairing (label
+     on its own tint) clears 5:1. */
+  --color-success: #2b6b1d;
+  --color-warning: #815211;
   --color-border: #ccd0da;
   --color-border-strong: #bcc0cc;
   /* Catppuccin Latte `overlay2`. This token draws the only visible boundary of
@@ -156,6 +161,11 @@
   --color-ring: #cba6f7;
   --color-popover: #1e1e2e;
   --color-popover-foreground: #cdd6f4;
+  /* These had no dark override at all, so the Latte values leaked onto Mocha
+     surfaces: the "Live" label measured 4.29:1 on its own tint. These are the
+     Mocha green and yellow the rest of the dark palette is drawn from. */
+  --color-success: #a6e3a1;
+  --color-warning: #f9e2af;
 
   --gradient-subtle: radial-gradient(circle at 30% 0%, #cba6f726, transparent 60%);
   --gradient-brand: linear-gradient(135deg, #cba6f7, #f5c2e7);
