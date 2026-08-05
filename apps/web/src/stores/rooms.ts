@@ -86,13 +86,21 @@ export const useRoomsStore = create<RoomsState>()(
       addRoom: (room) =>
         set((s) => ({ rooms: sortRooms([{ ...room, pendingAccess: false }, ...s.rooms], s.sort) })),
       removeRoom: (slug) => set({ rooms: get().rooms.filter((r) => r.slug !== slug) }),
+      // Upsert, not map. The store is only populated by the dashboard's
+      // `fetch()`, so on a direct `/r/<slug>` load (bookmark, refresh, shared
+      // link) `rooms` is empty and a plain map silently discarded the PATCH
+      // response — leaving the room page rendering the stale loader copy after
+      // a successful rename / visibility / guest-access change. Every caller
+      // passes the result of an owner-only PATCH, so the viewer is a confirmed
+      // member and `pendingAccess: false` is correct.
       updateRoom: (room) =>
-        set((s) => ({
-          rooms: sortRooms(
-            s.rooms.map((r) => (r.slug === room.slug ? { ...r, ...room } : r)),
-            s.sort,
-          ),
-        })),
+        set((s) => {
+          const known = s.rooms.some((r) => r.slug === room.slug);
+          const next = known
+            ? s.rooms.map((r) => (r.slug === room.slug ? { ...r, ...room } : r))
+            : [...s.rooms, { ...room, pendingAccess: false }];
+          return { rooms: sortRooms(next, s.sort) };
+        }),
       removeTrashedRoom: (slug) => set({ trashed: get().trashed.filter((r) => r.slug !== slug) }),
     }),
     {

@@ -1,5 +1,27 @@
-import { describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { Room } from "@rumi/protocol";
+
+// Same shapes the other web tests use. `mock.module` is global in Bun, so the
+// values must match apps/web/src/components/editor/use-tab-doc.test.ts.
+mock.module("@/lib/env", () => ({
+  env: {
+    VITE_API_URL: "http://localhost:3000",
+    VITE_SUPABASE_URL: "https://test.supabase.co",
+    VITE_SUPABASE_PUBLISHABLE_KEY: "test-publishable-key",
+    VITE_WS_URL: "ws://localhost:3000/ws",
+  },
+}));
+
+mock.module("@/lib/supabase", () => ({
+  supabase: {
+    auth: {
+      getSession: async () => ({ data: { session: null } }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
+  },
+}));
+
+const { useRoomsStore } = await import("./rooms");
 
 type RoomEntry = Room & { pendingInvite: boolean };
 
@@ -76,5 +98,53 @@ describe("sortRooms", () => {
     const sorted = sortRooms(withNull, "name");
     expect(sorted[0].slug).toBe("alpha");
     expect(sorted[1].slug).toBe("zulu");
+  });
+});
+
+describe("useRoomsStore.updateRoom", () => {
+  const room: Room = {
+    id: "00000000-0000-0000-0000-000000000001",
+    slug: "test-room",
+    name: "Test Room",
+    ownerId: "00000000-0000-0000-0000-000000000002",
+    visibility: "open",
+    guestAccess: "none",
+    createdAt: "2025-01-01T00:00:00Z",
+    updatedAt: "2025-01-01T00:00:00Z",
+  };
+
+  beforeEach(() => {
+    useRoomsStore.setState({ rooms: [], sort: "updated" });
+  });
+
+  it("patches a room already in the list", () => {
+    useRoomsStore.setState({ rooms: [{ ...room, pendingAccess: false }] });
+
+    useRoomsStore.getState().updateRoom({ ...room, visibility: "private" });
+
+    const rooms = useRoomsStore.getState().rooms;
+    expect(rooms).toHaveLength(1);
+    expect(rooms[0]?.visibility).toBe("private");
+  });
+
+  it("inserts a room that isn't in the list yet", () => {
+    // Direct `/r/<slug>` load never populates the store, so a plain map would
+    // silently drop the PATCH response and leave the room page stale.
+    useRoomsStore.getState().updateRoom({ ...room, visibility: "private" });
+
+    const rooms = useRoomsStore.getState().rooms;
+    expect(rooms).toHaveLength(1);
+    expect(rooms[0]?.slug).toBe("test-room");
+    expect(rooms[0]?.visibility).toBe("private");
+    expect(rooms[0]?.pendingAccess).toBe(false);
+  });
+
+  it("does not duplicate on repeated updates", () => {
+    useRoomsStore.getState().updateRoom({ ...room, name: "One" });
+    useRoomsStore.getState().updateRoom({ ...room, name: "Two" });
+
+    const rooms = useRoomsStore.getState().rooms;
+    expect(rooms).toHaveLength(1);
+    expect(rooms[0]?.name).toBe("Two");
   });
 });
