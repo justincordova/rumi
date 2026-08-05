@@ -1,6 +1,17 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* Bind Tailwind's `dark:` variant to the app's own theme attribute.
+   Theme is driven by next-themes via `data-theme` on <html> (lib/theme.tsx,
+   plus the pre-hydration bootstrap in index.html). Tailwind v4's default
+   `dark:` compiles to `@media (prefers-color-scheme: dark)`, i.e. the OS
+   setting — which the app never consults except when the user picks
+   "system". The two disagree for anyone whose OS theme differs from their
+   Rumi theme, and the default Rumi theme is dark, so a light-mode OS was the
+   common case: `dark:prose-invert` on the markdown preview never applied and
+   the rendered pane drew light-mode prose colors on the dark surface. */
+@custom-variant dark ([data-theme="dark"] &);
+
 @source inline("bg-destructive text-destructive-foreground hover:bg-destructive/90 bg-secondary text-secondary-foreground hover:bg-secondary/80 bg-destructive/10 bg-destructive/20 focus:bg-destructive/10 focus:bg-destructive/20");
 
 /* Tailwind v4 design tokens — canonical declarations */
