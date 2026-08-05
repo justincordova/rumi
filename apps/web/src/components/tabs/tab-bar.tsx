@@ -323,7 +323,12 @@ function TabItem({
           type="button"
           onClick={(e) => onClose(e, tab.id)}
           className={cn(
-            "grid h-4 w-4 place-items-center rounded-sm text-muted-foreground transition-all hover:bg-border-strong hover:text-foreground shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:opacity-100",
+            // The glyph is 16x16, under the 24x24 minimum, and it sits directly
+            // against the tab-select target — a mis-tap closed the tab instead
+            // of switching to it. The ::after overlay grows the hit area to
+            // 28x28 without changing the tab's layout or the glyph's size.
+            "relative grid h-4 w-4 place-items-center rounded-sm text-muted-foreground transition-all hover:bg-border-strong hover:text-foreground shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:opacity-100",
+            "after:absolute after:-inset-1.5 after:content-['']",
             isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100",
           )}
           title="Close tab"
