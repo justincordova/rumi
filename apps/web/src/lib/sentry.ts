@@ -15,6 +15,16 @@ export function initSentry(): void {
     sendDefaultPii: false,
     beforeSend(event) {
       if (event.user?.email) event.user.email = "<redacted>";
+      // Drop the query string from the captured URL. Sentry's httpContext
+      // integration fills `request.url` from `location.href`, and
+      // `bootstrap()` in main.tsx captures the OAuth exchange failure BEFORE
+      // it strips `?code=` from the address bar — so the PKCE authorization
+      // code would otherwise be transmitted to, and retained by, the error
+      // backend. Mirrors the same scrub in the server's beforeSend.
+      if (event.request?.url?.includes("?")) {
+        event.request.url = event.request.url.split("?")[0];
+      }
+      if (event.request?.query_string) event.request.query_string = "<redacted>";
       if (event.request?.headers) {
         // biome-ignore lint/performance/noDelete: scrubbing PII; clearing the key is the intent
         delete event.request.headers.authorization;
