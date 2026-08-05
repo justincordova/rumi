@@ -176,7 +176,7 @@ export function MembersDialog({
     });
   }
 
-  async function addToWhitelist(email: string) {
+  async function addToWhitelist(email: string): Promise<boolean> {
     try {
       await apiFetch(`/api/rooms/${room.slug}/whitelist`, {
         method: "POST",
@@ -184,8 +184,10 @@ export function MembersDialog({
       });
       toast.success(`Added ${email} to whitelist`);
       void load();
+      return true;
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't add to whitelist");
+      return false;
     }
   }
 
@@ -199,7 +201,7 @@ export function MembersDialog({
     }
   }
 
-  async function addToBlacklist(email: string) {
+  async function addToBlacklist(email: string): Promise<boolean> {
     try {
       await apiFetch(`/api/rooms/${room.slug}/blacklist`, {
         method: "POST",
@@ -207,8 +209,10 @@ export function MembersDialog({
       });
       toast.success(`Added ${email} to blacklist`);
       void load();
+      return true;
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't add to blacklist");
+      return false;
     }
   }
 
@@ -420,7 +424,8 @@ function AddEmailInput({
   onSubmit,
 }: {
   placeholder: string;
-  onSubmit: (email: string) => void | Promise<void>;
+  /** Resolves false when the server rejected the address. */
+  onSubmit: (email: string) => Promise<boolean>;
 }) {
   const [value, setValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -436,8 +441,10 @@ function AddEmailInput({
     }
     setSubmitting(true);
     try {
-      await onSubmit(trimmed.toLowerCase());
-      setValue("");
+      // Only clear on success. The handlers swallow their errors into a toast,
+      // so an unconditional clear wiped the address the user typed and made
+      // them retype it to retry.
+      if (await onSubmit(trimmed.toLowerCase())) setValue("");
     } finally {
       setSubmitting(false);
     }
