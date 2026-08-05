@@ -501,6 +501,13 @@ function DangerZoneSection() {
         const body = err.body as DeleteAccountBlockedResponse | undefined;
         const list = body?.error.rooms ?? [];
         setBlockingRooms(list);
+        // Close the confirm dialog. The blocking-rooms panel renders in the
+        // section body, i.e. OUTSIDE the AlertDialog — leaving the dialog open
+        // buries it behind Radix's modal overlay and inside the inert
+        // outside-content region, so the user can never see (or click) the
+        // rooms they have to transfer.
+        setOpen(false);
+        setConfirmText("");
         toast.error(
           `Transfer ownership of ${list.length} ${
             list.length === 1 ? "room" : "rooms"
@@ -577,14 +584,10 @@ function DangerZoneSection() {
             />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => {
-                setConfirmText("");
-                setBlockingRooms(null);
-              }}
-            >
-              Cancel
-            </AlertDialogCancel>
+            {/* Deliberately does NOT clear blockingRooms — that list is the
+                only place the user can find out which rooms need an ownership
+                transfer, and it lives outside this dialog. */}
+            <AlertDialogCancel onClick={() => setConfirmText("")}>Cancel</AlertDialogCancel>
             <Button
               variant="destructive"
               disabled={confirmText !== "DELETE" || deleting}
