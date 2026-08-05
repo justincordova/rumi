@@ -154,6 +154,27 @@ export function createBillingService() {
         throw new AppError("stripe_not_configured", "Plan price IDs not configured", 503);
       }
 
+      // Refuse to open a fresh `mode: "subscription"` Checkout for a user who
+      // already has a live Stripe subscription. Stripe happily creates a
+      // SECOND subscription on the same customer, so a pro→max "change plan"
+      // click would leave the customer paying for both plans at once while our
+      // single `subscriptions` row (PK userId) records only whichever webhook
+      // landed last — the extra subscription then renews forever, invisible in
+      // the app. Plan changes for an existing subscriber must go through the
+      // Customer Portal, which mutates the subscription in place.
+      // `stripeSubscriptionId` is nulled on `customer.subscription.deleted`, so
+      // a lapsed customer can still re-subscribe here.
+      const existing = await db.query.subscriptions.findFirst({
+        where: eq(subscriptions.userId, opts.userId),
+      });
+      if (existing?.stripeSubscriptionId && existing.status !== "canceled") {
+        throw new AppError(
+          "invalid_state",
+          "You already have an active subscription. Use the billing portal to change your plan.",
+          409,
+        );
+      }
+
       const customerId = await this.findOrCreateStripeCustomer(opts.userId, opts.email);
       const stripe = getStripe();
 

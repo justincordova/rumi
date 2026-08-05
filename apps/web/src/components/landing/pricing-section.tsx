@@ -4,7 +4,7 @@ import { useSession } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { COMPARISON_ROWS, PLANS, type PlanKey } from "@/lib/plans";
 import { useSubscriptionStore } from "@/stores/subscription";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Check, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -19,6 +19,7 @@ export function PricingSection() {
   const pollUntilPlanChange = useSubscriptionStore((s) => s.pollUntilPlanChange);
   const [checkoutPlan, setCheckoutPlan] = useState<"pro" | "max" | null>(null);
   const embeddedEnabled = Boolean(env.VITE_STRIPE_PUBLISHABLE_KEY);
+  const navigate = useNavigate();
 
   const plan = (subscription?.plan as PlanKey) ?? "free";
 
@@ -31,6 +32,14 @@ export function PricingSection() {
   }, [authenticated, fetchSub]);
 
   function handleUpgrade(targetPlan: "pro" | "max") {
+    // Someone who already pays for a plan must switch through the Stripe
+    // Customer Portal (reachable from Settings → Billing). Embedded Checkout
+    // runs in `mode: "subscription"` and would add a SECOND subscription to
+    // the same customer, billing them for both plans concurrently.
+    if (plan !== "free") {
+      void navigate({ to: "/settings", search: { tab: "billing", checkout: undefined } });
+      return;
+    }
     setCheckoutPlan(targetPlan);
   }
 

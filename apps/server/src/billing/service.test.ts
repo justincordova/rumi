@@ -518,4 +518,70 @@ describe("billing service", () => {
       expect(mockStripe.customers.create).not.toHaveBeenCalled();
     });
   });
+
+  describe("createEmbeddedCheckoutSession", () => {
+    function seedSub(over: Partial<SubRow> = {}) {
+      subs.set("user_1", {
+        userId: "user_1",
+        plan: "pro",
+        status: "active",
+        cancelAtPeriodEnd: false,
+        currentPeriodEnd: new Date(Date.now() + 30 * 86400 * 1000),
+        trialEndsAt: null,
+        stripeCustomerId: "cus_existing",
+        stripeSubscriptionId: "sub_live",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...over,
+      });
+    }
+
+    it("refuses to open a second checkout for a live subscription", async () => {
+      seedSub();
+      const service = createBillingService();
+
+      await expect(
+        service.createEmbeddedCheckoutSession({
+          userId: "user_1",
+          email: "u@x.com",
+          plan: "max",
+          interval: "monthly",
+        }),
+      ).rejects.toThrow(/already have an active subscription/i);
+
+      // Never reached Stripe — no duplicate subscription can be created.
+      expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
+    });
+
+    it("allows re-subscribing after the subscription was deleted", async () => {
+      // `customer.subscription.deleted` nulls stripeSubscriptionId and sets
+      // status='canceled'; there is no live Stripe subscription to double up.
+      seedSub({ status: "canceled", stripeSubscriptionId: null });
+      const service = createBillingService();
+
+      const { clientSecret } = await service.createEmbeddedCheckoutSession({
+        userId: "user_1",
+        email: "u@x.com",
+        plan: "pro",
+        interval: "monthly",
+      });
+
+      expect(clientSecret).toBe("cs_test_secret");
+      expect(mockStripe.checkout.sessions.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("allows a first-time subscriber with no row", async () => {
+      const service = createBillingService();
+
+      const { clientSecret } = await service.createEmbeddedCheckoutSession({
+        userId: "user_1",
+        email: "u@x.com",
+        plan: "pro",
+        interval: "monthly",
+      });
+
+      expect(clientSecret).toBe("cs_test_secret");
+      expect(mockStripe.checkout.sessions.create).toHaveBeenCalledTimes(1);
+    });
+  });
 });

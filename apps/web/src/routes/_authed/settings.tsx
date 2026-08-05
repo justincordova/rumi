@@ -733,9 +733,17 @@ function BillingTab() {
           <Button
             variant="outline"
             size="sm"
+            disabled={isPaid && portalLoading}
             onClick={() => {
-              if (embeddedEnabled) {
-                setCheckoutPlan(plan === "pro" ? "max" : "pro");
+              // An existing subscriber must change plans through the Stripe
+              // Customer Portal, which mutates the live subscription in place.
+              // Opening embedded Checkout here would create a SECOND
+              // subscription on the same customer and bill them twice (the
+              // server rejects it with `invalid_state` for the same reason).
+              if (isPaid) {
+                handlePortal();
+              } else if (embeddedEnabled) {
+                setCheckoutPlan("pro");
                 setCheckoutInterval("monthly");
               } else {
                 navigate({ to: "/pricing" });
