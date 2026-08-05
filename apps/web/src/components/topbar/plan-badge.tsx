@@ -4,7 +4,7 @@ import { env } from "@/lib/env";
 import { PLANS } from "@/lib/plans";
 import { useSubscriptionStore } from "@/stores/subscription";
 import { useNavigate } from "@tanstack/react-router";
-import { Globe, Layout, Users, Zap } from "lucide-react";
+import { Globe, Layout, RefreshCw, Users, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const PLAN_LIMITS: Record<"free" | "pro" | "max", { rooms: string; tabs: string; users: string }> =
@@ -33,6 +33,25 @@ export function PlanBadge() {
 
   if (subStatus === "idle" || subStatus === "loading") {
     return <div className="h-6 w-20 rounded-full bg-muted animate-pulse-soft" />;
+  }
+
+  // If the mount-time retry also failed we still do not know the plan. Falling
+  // through would render "Free" plus an upgrade prompt to a paying customer and
+  // quote them the free-tier limits, so show an explicit unknown state that
+  // retries on demand instead of asserting a plan we could not load.
+  if (subStatus === "error") {
+    return (
+      <button
+        type="button"
+        onClick={() => void fetchSub()}
+        aria-label="Plan unavailable — select to retry"
+        title="Couldn't load your plan"
+        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+      >
+        Plan
+        <RefreshCw className="h-3 w-3" aria-hidden="true" />
+      </button>
+    );
   }
 
   const plan = (subscription?.plan as "free" | "pro" | "max") ?? "free";

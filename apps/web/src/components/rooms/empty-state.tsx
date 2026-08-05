@@ -7,6 +7,10 @@ export function EmptyState({ onCreate }: { onCreate: () => void }) {
   // The cap was hardcoded to the free plan's 3, so a Pro or Max subscriber who
   // had no rooms yet was told a limit far below what they pay for.
   const plan = useSubscriptionStore((s) => (s.subscription?.plan ?? "free") as PlanKey);
+  // ...and if the subscription never loaded we still do not know the plan, so
+  // the same "free plan / 3 rooms" line would be shown to a paying customer.
+  // Omit the cap entirely rather than state a wrong one.
+  const planKnown = useSubscriptionStore((s) => s.status === "ready");
   const maxRooms = PLAN_LIMITS[plan].maxRooms;
   const planLabel = plan === "free" ? "free plan" : `${plan === "pro" ? "Pro" : "Max"} plan`;
 
@@ -22,13 +26,15 @@ export function EmptyState({ onCreate }: { onCreate: () => void }) {
       <Button onClick={onCreate} size="lg" className="mt-8">
         Create room
       </Button>
-      <p className="text-[12px] text-muted-foreground mt-6">
-        You can create up to{" "}
-        <span className="font-medium text-foreground">
-          {maxRooms} {maxRooms === 1 ? "room" : "rooms"}
-        </span>{" "}
-        on the {planLabel}.
-      </p>
+      {planKnown && (
+        <p className="text-[12px] text-muted-foreground mt-6">
+          You can create up to{" "}
+          <span className="font-medium text-foreground">
+            {maxRooms} {maxRooms === 1 ? "room" : "rooms"}
+          </span>{" "}
+          on the {planLabel}.
+        </p>
+      )}
     </div>
   );
 }
