@@ -35,6 +35,17 @@ export function CookieBanner({
 }) {
   const [dismissed, setDismissed] = useState(() => getConsent() !== null);
 
+  // The preferences modal is a sibling, not a child: when the user records a
+  // decision there, this component never re-reads localStorage and the banner
+  // stays up. They then have no way to dismiss it except "Accept all" /
+  // "Necessary only", which writes a fresh record and silently overwrites the
+  // analytics choice they just saved.
+  useEffect(() => {
+    const onChange = () => setDismissed(getConsent() !== null);
+    window.addEventListener("rumi-consent-changed", onChange);
+    return () => window.removeEventListener("rumi-consent-changed", onChange);
+  }, []);
+
   if (dismissed) return null;
 
   function acceptAll() {
@@ -112,6 +123,13 @@ export function CookiePreferencesModal({
   // elements behind the overlay.
   useEffect(() => {
     if (!open) return;
+    // Re-read the stored record every time the modal opens. The lazy
+    // initializer above runs once at mount — before the user can click
+    // "Accept all" on the banner — so without this the Analytics switch shows
+    // a stale `false` while the stored record says `true`, and "Save
+    // preferences" then writes that stale value back, silently revoking
+    // consent the user granted.
+    setAnalytics(getConsent()?.analytics ?? false);
     dialogRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onOpenChange(false);
