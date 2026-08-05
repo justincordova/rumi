@@ -40,7 +40,13 @@
   --color-warning: #df8e1d;
   --color-border: #ccd0da;
   --color-border-strong: #bcc0cc;
-  --color-input: #ccd0da;
+  /* Catppuccin Latte `overlay2`. This token draws the only visible boundary of
+     text inputs, outline buttons and the off-state switch track — all of which
+     sit on a same-coloured fill, so WCAG 1.4.11 wants 3:1 against the adjacent
+     surface. The old #ccd0da measured 1.37:1, making an empty field's extent
+     effectively invisible. Distinct from --color-border, which is only used for
+     decorative dividers and card edges. */
+  --color-input: #7c7f93;
   --color-ring: #8839ef;
   --color-popover: #ffffff;
   --color-popover-foreground: #4c4f69;
@@ -139,7 +145,9 @@
   --color-destructive-foreground: #11111b;
   --color-border: #313244;
   --color-border-strong: #45475a;
-  --color-input: #313244;
+  /* Catppuccin Mocha `overlay1` — see the light-mode note. #313244 measured
+     1.40:1 against the app background. */
+  --color-input: #7f849c;
   --color-ring: #cba6f7;
   --color-popover: #1e1e2e;
   --color-popover-foreground: #cdd6f4;

@@ -222,20 +222,30 @@ function CookieToggle({
   disabled?: boolean;
   onChange?: (val: boolean) => void;
 }) {
+  // A wrapping <label> does not name a role="switch" button, so these toggles
+  // were announced as just "switch, checked". Reference the visible text and
+  // description explicitly instead.
+  const labelId = useId();
+  const descId = useId();
   return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: toggle button is the control
-    <label className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
       <div className="min-w-0">
-        <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p id={labelId} className="text-sm font-medium">
+          {label}
+        </p>
+        <p id={descId} className="text-xs text-muted-foreground">
+          {description}
+        </p>
       </div>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-labelledby={labelId}
+        aria-describedby={descId}
         disabled={disabled}
         onClick={() => onChange?.(!checked)}
-        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
           checked ? "bg-primary" : "bg-muted"
         } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       >
@@ -245,6 +255,6 @@ function CookieToggle({
           }`}
         />
       </button>
-    </label>
+    </div>
   );
 }

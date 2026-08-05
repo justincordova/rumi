@@ -172,10 +172,14 @@ export function RoomCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                // opacity-0 alone hid the control — and its focus ring — from
+                // keyboard users, who landed on an invisible, unnamed button.
+                // Reveal it on focus and while its menu is open too.
+                className="h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+                aria-label={`More actions for ${title}`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <MoreHorizontal className="h-4 w-4" />
+                <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent

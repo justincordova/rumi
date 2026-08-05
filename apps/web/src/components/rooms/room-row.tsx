@@ -217,10 +217,13 @@ export function RoomRow({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              // See room-card.tsx — opacity-0 hid this control and its focus
+              // ring from keyboard users.
+              className="h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+              aria-label={`More actions for ${title}`}
               onClick={(e) => e.stopPropagation()}
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent

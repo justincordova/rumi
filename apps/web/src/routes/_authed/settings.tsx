@@ -38,7 +38,7 @@ import {
   Trash2,
   User,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -201,13 +201,20 @@ function ToggleRow({
   disabled?: boolean;
   onChange: (v: boolean) => void;
 }) {
+  // The visible label is a plain sibling span, so the switch had no accessible
+  // name — screen readers announced only "switch, checked". Point at the span
+  // rather than duplicating the string into aria-label so the two cannot drift.
+  const labelId = useId();
   return (
     <div className="flex items-center justify-between">
-      <span className={`text-sm ${disabled ? "text-muted-foreground" : ""}`}>{label}</span>
+      <span id={labelId} className={`text-sm ${disabled ? "text-muted-foreground" : ""}`}>
+        {label}
+      </span>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-labelledby={labelId}
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${checked ? "bg-primary" : "bg-input"}`}
@@ -437,7 +444,11 @@ const SUPPORTED_PROVIDERS = [
     iconColor: "text-[#4285F4]",
     badgeBg: "bg-[#4285F4]/10",
     badgeBorder: "border-[#4285F4]/20",
-    badgeText: "text-[#4285F4]",
+    // Google blue on its own 10% tint measures 2.70:1 (light) / 4.10:1 (dark)
+    // at 12px, under the 4.5:1 AA floor. The brand mark stays in `iconColor`;
+    // the status word does not need to be brand-coloured. GitHub's badge
+    // already passes (9.81:1 / 17.22:1) and is left alone.
+    badgeText: "text-foreground",
   },
 ];
 
