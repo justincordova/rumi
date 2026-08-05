@@ -1,3 +1,4 @@
+import { CookiePreferencesModal } from "@/components/landing/cookie-consent";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { PricingNav } from "@/components/landing/pricing-nav";
 import { PricingSection } from "@/components/landing/pricing-section";
@@ -7,6 +8,7 @@ import { useSession } from "@/lib/auth";
 import { useSeoMeta } from "@/lib/seo";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
 
 export const Route = createFileRoute("/pricing")({
   component: PricingPage,
@@ -23,6 +25,7 @@ function PricingPage() {
   const { status } = useSession();
   const authenticated = status === "authenticated";
   const router = useRouter();
+  const [cookiePrefsOpen, setCookiePrefsOpen] = useState(false);
 
   useSeoMeta({
     title: "Pricing",
@@ -55,7 +58,11 @@ function PricingPage() {
         </div>
         <PricingSection />
       </main>
-      <LandingFooter onCookiePreferences={() => {}} />
+      <LandingFooter onCookiePreferences={() => setCookiePrefsOpen(true)} />
+      {/* The footer's "Cookies" link was wired to a no-op here, so the control
+          privacy.tsx points users at ("update your choice at any time from the
+          'Cookies' link in the footer") did nothing on this page. */}
+      <CookiePreferencesModal open={cookiePrefsOpen} onOpenChange={setCookiePrefsOpen} />
     </div>
   );
 }
