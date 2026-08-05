@@ -1,6 +1,6 @@
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import { type ReactNode, useEffect } from "react";
-import { EDITOR_FONTS, UI_FONTS } from "./fonts";
+import { DEFAULT_EDITOR_FONT, DEFAULT_UI_FONT, EDITOR_FONTS, UI_FONTS } from "./fonts";
 import { usePrefs } from "./prefs";
 
 function PrefsBridge({ children }: { children: ReactNode }) {
@@ -15,8 +15,12 @@ function PrefsBridge({ children }: { children: ReactNode }) {
   // Apply font CSS vars + font-feature-settings to :root.
   useEffect(() => {
     const root = document.documentElement;
-    const ui = UI_FONTS[uiFont];
-    const editor = EDITOR_FONTS[editorFont];
+    // `usePrefs` is persisted to localStorage and never revalidated, so a key
+    // retired from these maps survives in a returning user's saved prefs.
+    // Indexing blind would hand `undefined` to `.stack` below and throw inside
+    // the effect, taking the whole app to the error boundary on load.
+    const ui = UI_FONTS[uiFont] ?? UI_FONTS[DEFAULT_UI_FONT];
+    const editor = EDITOR_FONTS[editorFont] ?? EDITOR_FONTS[DEFAULT_EDITOR_FONT];
 
     root.style.setProperty("--ui-font", ui.stack);
     root.style.setProperty("--editor-font", editor.stack);
