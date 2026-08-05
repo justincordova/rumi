@@ -222,11 +222,19 @@ function ToggleRow({
 
 function NotificationsSection() {
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
+  // A failed fetch used to install DEFAULT_PREFS, which renders identically to
+  // server-loaded data — so a user who had turned email off was shown all three
+  // switches ON with no indication anything had gone wrong, and reasonably
+  // concluded their opt-out had been lost. Surface the failure instead.
   useEffect(() => {
     apiFetch<{ preferences: NotificationPrefs }>("/api/notifications/preferences")
-      .then((r) => setPrefs(r.preferences))
-      .catch(() => setPrefs(DEFAULT_PREFS));
+      .then((r) => {
+        setPrefs(r.preferences);
+        setLoadFailed(false);
+      })
+      .catch(() => setLoadFailed(true));
   }, []);
 
   async function update(patch: Partial<NotificationPrefs>) {
@@ -255,7 +263,13 @@ function NotificationsSection() {
           Email and desktop notification preferences.
         </p>
       </div>
-      {!prefs ? (
+      {loadFailed ? (
+        <div className="flex items-center justify-center py-5 rounded-lg border border-dashed border-border">
+          <span className="text-sm text-muted-foreground">
+            Couldn&apos;t load your notification preferences. Refresh to try again.
+          </span>
+        </div>
+      ) : !prefs ? (
         <div className="flex items-center justify-center py-5 rounded-lg border border-dashed border-border">
           <span className="text-sm text-muted-foreground">Loading…</span>
         </div>
@@ -314,7 +328,15 @@ function ProfileSection() {
 
   async function commit() {
     const trimmed = name.trim();
-    if (!trimmed || trimmed === user?.displayName) return;
+    // An empty name is rejected by the server (min length 1), so there is
+    // nothing to save — but leaving the input blank made it look like the
+    // clear had been accepted while the TopBar still showed the old name.
+    // Put the current value back so the field matches reality.
+    if (!trimmed) {
+      setName(user?.displayName ?? "");
+      return;
+    }
+    if (trimmed === user?.displayName) return;
     if (trimmed.length > 80) {
       toast.error("Display name must be 80 characters or fewer");
       setName(user?.displayName ?? "");
