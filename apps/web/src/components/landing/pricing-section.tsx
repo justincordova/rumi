@@ -63,7 +63,9 @@ export function PricingSection() {
         />
       )}
       <div className="text-center mb-10">
-        <h2 className="font-display text-3xl font-bold tracking-tight">Simple pricing</h2>
+        {/* h1: this is the only heading on /pricing (the section is not reused
+            elsewhere), so starting the outline at h2 left the page with none. */}
+        <h1 className="font-display text-3xl font-bold tracking-tight">Simple pricing</h1>
         <p className="mt-2 text-muted-foreground text-[15px]">
           Start free, upgrade when you need more.
         </p>
@@ -124,11 +126,13 @@ export function PricingSection() {
               )}
 
               <div className={`px-6 pt-8 pb-5 ${isPro ? "bg-primary/[0.03]" : ""}`}>
-                <h3
+                {/* h2: the plan names sit directly under the page h1, so h3
+                    skipped a level. */}
+                <h2
                   className={`text-lg font-semibold tracking-tight ${isPro ? "text-primary" : "text-foreground"}`}
                 >
                   {p.name}
-                </h3>
+                </h2>
                 <p className="text-sm text-muted-foreground mt-1">{p.description}</p>
                 <div className="mt-4">
                   {interval === "yearly" && p.key !== "free" ? (

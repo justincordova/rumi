@@ -119,11 +119,15 @@ function RoomPage() {
         isGuest={isGuest}
         role={role}
       />
-      <div className="flex-1 min-h-0">
+      {/* The room screen rendered no headings and no landmark, so assistive
+          tech had no way to identify the page or reach the editor. The heading
+          is visually hidden — the room name is already shown in the top bar. */}
+      <main className="flex-1 min-h-0">
+        <h1 className="sr-only">{room.name?.trim() || room.slug}</h1>
         {activeTab && (
           <TabEditor tab={activeTab} roomSlug={room.slug} role={role} key={activeTab.id} />
         )}
-      </div>
+      </main>
       <ConnectionStatus status={control.status} />
     </div>
   );

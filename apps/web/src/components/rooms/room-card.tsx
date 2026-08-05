@@ -151,7 +151,9 @@ export function RoomCard({
               className="w-full border border-border bg-surface rounded-md px-2 py-1 text-[15px] font-semibold ring-2 ring-ring/30 outline-none"
             />
           ) : (
-            <h3
+            // h2, not h3: the dashboard's only other heading is the h1
+            // greeting, so h3 skipped a level in the outline.
+            <h2
               className="text-[15px] font-semibold tracking-tight truncate cursor-pointer"
               onDoubleClick={
                 isOwner
@@ -163,7 +165,7 @@ export function RoomCard({
               }
             >
               {title}
-            </h3>
+            </h2>
           )}
         </div>
         {isOwner && (

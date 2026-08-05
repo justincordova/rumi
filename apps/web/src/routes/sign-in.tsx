@@ -31,7 +31,9 @@ function SignInPage() {
   return (
     <div className="relative min-h-screen grid place-items-center p-6 bg-gradient-subtle overflow-hidden">
       <div className="absolute inset-0 grid-dots opacity-30 pointer-events-none" />
-      <div className="relative w-full max-w-sm rounded-2xl border border-border bg-surface/80 backdrop-blur-md p-8 shadow-lg animate-fade-in">
+      {/* <main>: the page had no landmark at all, so assistive tech had no way
+          to skip past the decorative layers to the sign-in controls. */}
+      <main className="relative w-full max-w-sm rounded-2xl border border-border bg-surface/80 backdrop-blur-md p-8 shadow-lg animate-fade-in">
         <div className="flex flex-col items-center gap-4 text-center">
           <img src={logoT} alt="Rumi" className="h-14 w-14 object-contain" />
           <h1 className="font-display text-2xl font-semibold tracking-tight text-balance">
@@ -57,7 +59,7 @@ function SignInPage() {
             </Button>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
