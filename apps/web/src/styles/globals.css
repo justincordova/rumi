@@ -26,7 +26,12 @@
   --color-secondary: #e6e9ef;
   --color-secondary-foreground: #4c4f69;
   --color-muted: #e6e9ef;
-  --color-muted-foreground: #8c8fa1;
+  /* Catppuccin Latte `subtext1`. The lighter `overlay1` (#8c8fa1) this used to
+     be measured 2.8:1 on --color-background and 3.2:1 on --color-surface, so
+     every piece of secondary copy failed WCAG AA (4.5:1). `subtext0` (#6c6f85)
+     still only reaches 4.3:1 on the app background, so subtext1 is the lightest
+     value in the ramp that actually passes. */
+  --color-muted-foreground: #5c5f77;
   --color-accent: #dcd8f5;
   --color-accent-foreground: #8839ef;
   --color-destructive: #d20f39;
@@ -124,7 +129,10 @@
   --color-secondary: #313244;
   --color-secondary-foreground: #cdd6f4;
   --color-muted: #313244;
-  --color-muted-foreground: #7f849c;
+  /* Catppuccin Mocha `overlay2`. The previous `overlay1` (#7f849c) measured
+     4.44:1 on --color-surface and 3.46:1 on --color-surface-elevated, both
+     below the 4.5:1 AA floor for body text. */
+  --color-muted-foreground: #9399b2;
   --color-accent: #45475a;
   --color-accent-foreground: #cba6f7;
   --color-destructive: #f38ba8;
