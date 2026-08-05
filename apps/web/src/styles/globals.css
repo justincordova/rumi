@@ -135,10 +135,15 @@
   --color-secondary: #313244;
   --color-secondary-foreground: #cdd6f4;
   --color-muted: #313244;
-  /* Catppuccin Mocha `overlay2`. The previous `overlay1` (#7f849c) measured
+  /* Catppuccin Mocha `subtext0`. The previous `overlay1` (#7f849c) measured
      4.44:1 on --color-surface and 3.46:1 on --color-surface-elevated, both
-     below the 4.5:1 AA floor for body text. */
-  --color-muted-foreground: #9399b2;
+     below the 4.5:1 AA floor for body text. `overlay2` (#9399b2) computes to
+     4.53:1 on --color-muted but rendered at 4.45:1 once antialiased, so it had
+     no usable margin on the `bg-muted` + `text-muted-foreground` pairing used
+     by tab strips, role pills and avatar initials. subtext0 gives 5.74:1
+     there and 7.37:1 on --color-surface, still clearly secondary against
+     --color-foreground (11.3:1). */
+  --color-muted-foreground: #a6adc8;
   --color-accent: #45475a;
   --color-accent-foreground: #cba6f7;
   --color-destructive: #f38ba8;
