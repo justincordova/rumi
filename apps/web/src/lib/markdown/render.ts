@@ -7,8 +7,13 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
 
-const THEME_LIGHT = "github-light";
-const THEME_DARK = "github-dark";
+// High-contrast variants: the plain github themes' dimmest tokens measure
+// 3.49:1 (light) and 3.05:1 (dark), below the 4.5:1 AA floor for body text.
+// These names also feed SHIKI_TOKEN below, which allow-lists the classes Shiki
+// emits — they must stay in sync with lib/shiki.ts or the sanitizer strips
+// every highlight and code renders monochrome.
+const THEME_LIGHT = "github-light-high-contrast";
+const THEME_DARK = "github-dark-high-contrast";
 
 // `@shikijs/rehype` writes RAW HTML attribute names onto the hast nodes —
 // `class`, `style`, `tabindex` — not the hast property names `className` /

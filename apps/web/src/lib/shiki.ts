@@ -6,7 +6,11 @@ const loadedLangs = new Set<string>();
 export async function getHighlighter() {
   if (!instance) {
     instance = createHighlighter({
-      themes: ["github-light", "github-dark"],
+      // The plain github-light/github-dark themes fail WCAG AA inside the
+      // markdown preview: their worst tokens measure 3.49:1 (a parameter name
+      // on white) and 3.05:1 (a comment). The high-contrast variants of the
+      // same family reach 8.06:1 and 9.23:1.
+      themes: ["github-light-high-contrast", "github-dark-high-contrast"],
       langs: ["markdown"], // others loaded on demand
     }).catch((err) => {
       // Reset on init failure so the next call retries. Without this, a
