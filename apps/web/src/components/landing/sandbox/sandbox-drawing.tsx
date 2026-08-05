@@ -24,13 +24,22 @@ export default function SandboxDrawing() {
     let blocked = false;
     let timer: ReturnType<typeof setTimeout>;
 
+    // Suppress the scroll jump the browser makes when tldraw focuses its
+    // canvas on pointerdown. That jump lands within a frame or two, so the
+    // 300ms timer is only a backstop — release on pointerup as well.
+    // Without the pointerup release, ANY scroll in the 300ms after a tap got
+    // snapped back to `savedY`, so on the landing page a tap-then-scroll (the
+    // normal touch gesture) fought the user and jumped the page back.
+    const unblock = () => {
+      blocked = false;
+      clearTimeout(timer);
+    };
+
     const onDown = () => {
       savedY = window.scrollY;
       blocked = true;
       clearTimeout(timer);
-      timer = setTimeout(() => {
-        blocked = false;
-      }, 300);
+      timer = setTimeout(unblock, 300);
     };
 
     const onScroll = () => {
@@ -38,10 +47,14 @@ export default function SandboxDrawing() {
     };
 
     el.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("pointerup", unblock, true);
+    window.addEventListener("pointercancel", unblock, true);
     window.addEventListener("scroll", onScroll);
 
     return () => {
       el.removeEventListener("pointerdown", onDown, true);
+      window.removeEventListener("pointerup", unblock, true);
+      window.removeEventListener("pointercancel", unblock, true);
       window.removeEventListener("scroll", onScroll);
       clearTimeout(timer);
     };
