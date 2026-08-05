@@ -42,9 +42,15 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
   const [guestAccess, setGuestAccess] = useState<"none" | "view" | "edit">("none");
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // This dialog is opened by an ordinary button rather than a Radix
+  // DialogTrigger, so Radix has no trigger to hand focus back to on close and
+  // it fell to <body> — a keyboard user was dumped at the top of the document
+  // and had to tab all the way back. Remember the opener ourselves.
+  const openerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (open) {
+      openerRef.current = document.activeElement as HTMLElement | null;
       setName("");
       setVisibility("open");
       setGuestAccess("none");
@@ -99,6 +105,10 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
         <DialogPrimitive.Content
           className="fixed left-1/2 top-[15vh] z-50 w-full max-w-md -translate-x-1/2 rounded-xl border border-border bg-surface p-0 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-98 data-[state=open]:zoom-in-98 duration-150"
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            openerRef.current?.focus();
+          }}
         >
           <div className="px-5 pt-5 pb-2" onKeyDown={handleKeyDown}>
             <input

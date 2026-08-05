@@ -42,6 +42,10 @@ export function RoomCard({
   const [draft, setDraft] = useState(title);
   const inputRef = useRef<HTMLInputElement>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  // The menu sets onCloseAutoFocus to preventDefault, so by the time the
+  // delete confirmation opens its opener (a menu item) is already gone and
+  // closing it dropped focus on <body>. Hand focus back to the menu button.
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -177,6 +181,7 @@ export function RoomCard({
                 // opacity-0 alone hid the control — and its focus ring — from
                 // keyboard users, who landed on an invisible, unnamed button.
                 // Reveal it on focus and while its menu is open too.
+                ref={menuTriggerRef}
                 className="h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
                 aria-label={`More actions for ${title}`}
                 onClick={(e) => e.stopPropagation()}
@@ -278,7 +283,14 @@ export function RoomCard({
           </Button>
         </div>
       )}
-      <DeleteRoomDialog open={deleteOpen} onOpenChange={setDeleteOpen} slug={room.slug} />
+      <DeleteRoomDialog
+        open={deleteOpen}
+        onOpenChange={(v) => {
+          setDeleteOpen(v);
+          if (!v) requestAnimationFrame(() => menuTriggerRef.current?.focus());
+        }}
+        slug={room.slug}
+      />
     </div>
   );
 }
