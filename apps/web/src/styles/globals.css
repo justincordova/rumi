@@ -262,3 +262,22 @@
 .prose-document strong {
   font-weight: 600;
 }
+
+/* Shiki dual-theme output (markdown preview).
+   `defaultColor: false` makes Shiki emit its palette as `--shiki-light` /
+   `--shiki-dark` custom properties instead of a resolved `color`, leaving it
+   to CSS to pick one. Without these rules the variables are inert and every
+   code block renders as flat, unhighlighted text. Theme is driven by
+   `data-theme` on <html> (see lib/theme.tsx). Scoped under `.prose` so these
+   outrank @tailwindcss/typography's own `pre`/`code` color rules, which
+   otherwise repaint the block flat. */
+.prose .shiki,
+.prose .shiki span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+[data-theme="dark"] .prose .shiki,
+[data-theme="dark"] .prose .shiki span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}
