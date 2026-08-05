@@ -50,19 +50,39 @@ export default function SandboxMarkdown() {
       ytext.insert(0, MARKDOWN_SEED);
     }
 
+    let disposed = false;
+    // renderMarkdown lazily fetches Shiki grammar chunks, so two renders can
+    // take very different amounts of time and resolve out of order — the
+    // slower earlier one would then overwrite the newer HTML and leave the
+    // preview showing text the editor no longer contains. Stamp each run and
+    // only accept the latest.
+    let seq = 0;
     const render = async () => {
-      const html = await renderMarkdown(ytext.toString());
-      setPreviewHtml(html);
+      const mine = ++seq;
+      try {
+        const html = await renderMarkdown(ytext.toString());
+        if (disposed || mine !== seq) return;
+        setPreviewHtml(html);
+      } catch {
+        // A failed Shiki chunk fetch (offline, stale chunk after a deploy)
+        // must not surface as an unhandled rejection and must not leave the
+        // visitor staring at a blank pane next to a working editor.
+        if (disposed || mine !== seq) return;
+        setPreviewHtml(
+          '<p class="text-muted-foreground italic">Preview failed to render. Try refreshing.</p>',
+        );
+      }
     };
-    render();
+    void render();
 
     const observer = () => {
       clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(render, 400);
+      debounceRef.current = setTimeout(() => void render(), 400);
     };
     ytext.observe(observer);
 
     return () => {
+      disposed = true;
       ytext.unobserve(observer);
       clearTimeout(debounceRef.current);
     };
