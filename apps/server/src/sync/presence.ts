@@ -10,12 +10,30 @@ export interface AwarenessPayloadServer extends AwarenessPayloadClient {
   color: string; // server-stamped
 }
 
-// Deterministic color hash from user_id; 5 presence colors from design tokens.
+/**
+ * Presence palette, mirroring `--color-presence-1..5` in
+ * `apps/web/src/styles/globals.css`. Keep the two in sync.
+ *
+ * These are concrete colors, not CSS custom-property references. The previous
+ * value — `hsl(var(--presence-N))` — named a custom property that does not
+ * exist (the tokens are `--color-presence-N`) and wrapped a hex literal in
+ * `hsl()`, which is not valid syntax either. The declaration was therefore
+ * invalid at computed-value time everywhere it landed: the presence avatar
+ * fallback resolved to `transparent` (and, being an inline style, also
+ * defeated the `bg-muted` class behind it), leaving white initials invisible
+ * on the light theme, and tldraw's remote cursors lost their per-user color.
+ * A literal color also works in the non-CSS contexts this value reaches, such
+ * as tldraw's SVG cursors.
+ */
+export const PRESENCE_COLORS = ["#1e66f5", "#40a02b", "#fe640b", "#ea76cb", "#df8e1d"] as const;
+
+// Deterministic color hash from user_id.
 export function colorFor(userId: string): string {
   let h = 0;
   for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) | 0;
-  const idx = Math.abs(h) % 5;
-  return `hsl(var(--presence-${idx + 1}))`;
+  const idx = Math.abs(h) % PRESENCE_COLORS.length;
+  // biome-ignore lint/style/noNonNullAssertion: idx is bounded by the array length
+  return PRESENCE_COLORS[idx]!;
 }
 
 /**
