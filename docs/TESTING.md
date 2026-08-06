@@ -39,6 +39,30 @@ No per-file setup is needed for env vars — `bun test` handles it automatically
 
 - Mock `@hocuspocus/extension-database` in any test file that transitively imports server code, to prevent the Hocuspocus DB extension from leaking across test files (it's a singleton).
 
+### `mock.module` is global
+
+`mock.module()` replaces a module for the **whole run**, not just the calling
+file, and `bun test` discovers files in filesystem order — which differs
+between macOS and CI. Consequences:
+
+- **Never `mock.module()` a module that another test file exercises directly.**
+  `webhook.test.ts` stubbed `@/billing/service`; when CI happened to load it
+  before `billing/service.test.ts`, that file got the stub instead of the real
+  implementation and all 13 of its cases asserted against canned values. It
+  passed locally the whole time because the local order is reversed.
+- Prefer stubbing the **Fastify decorator** at runtime
+  (`app.billingService = stub` after `buildServer()`) over stubbing the module.
+  This is already how `dropUserConnections` is stubbed.
+- When a partial mock is unavoidable, spread the real module first so the other
+  exports survive (see the `drizzle-orm` mock in `billing/service.test.ts`).
+
+A test that passes locally but fails in CI is usually this. Note you **cannot**
+reproduce it by passing the files to `bun test` in CI's order — bun re-sorts
+them internally, so the local order wins regardless. Diagnose it by grepping for
+other `mock.module()` calls naming the module under test, and read the failing
+assertions: values that look canned (every call returning the same object, tests
+finishing in well under a millisecond) mean a stub is being exercised.
+
 ## Web tests
 
 - `happy-dom` provides `document`, `window`, etc. Setup is done per-file with

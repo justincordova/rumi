@@ -69,6 +69,31 @@ edits propagate continuously and converge automatically across all clients.
 No "use a desktop" banners or redirects. Components are designed to not
 actively break at any width.
 
+## Accessibility scope
+
+The bar is **WCAG 2.1 AA**, verified against the rendered UI rather than the
+source:
+
+- **Contrast.** 4.5:1 for body text, 3:1 for large text and for the boundary of
+  any control whose fill matches its surround (inputs, outline buttons, the
+  off-state switch track). Measured by sampling rendered glyph pixels — computed
+  styles miss Tailwind opacity modifiers, which compile to `oklab()` with an
+  alpha channel.
+- **Keyboard.** Every control reachable, with a visible focus indicator, in a
+  logical order. Dialogs trap focus and return it to the control that opened
+  them. A control that is invisible until hover must also reveal on
+  `focus-visible`.
+- **Names and structure.** Every control has an accessible name; each screen has
+  one `h1`, no skipped heading levels, and a `<main>` landmark.
+- **Targets.** 24×24px minimum, and 44×44px where a mis-tap is destructive or
+  changes a privacy choice.
+- **States.** Loading, empty, error and disabled states exist wherever the UI can
+  enter one. The UI must not assert a value it failed to load — e.g. a failed
+  subscription fetch renders an explicit unknown state, never "Free".
+
+Constrained tokens and the reasoning behind each value are recorded inline in
+`globals.css`; `AGENTS.md` lists the ones that will regress if lightened.
+
 ## Architecture
 
 Rumi is a TypeScript monorepo with three workspaces: a React web client, a Bun +
@@ -353,7 +378,7 @@ routes/
 | Yjs client transport | `@hocuspocus/provider` | Matches the server; handles reconnection and resync automatically |
 | Frontend state | Zustand (app-level UI); Yjs (document state) | Right-sized for app-level UI state |
 | Routing | TanStack Router | Fully type-safe routes; modern |
-| Styling | Tailwind v4 with Catppuccin theme tokens | Native CSS engine; pairs well with shadcn/ui. Catppuccin Latte (light) + Mocha (dark). |
+| Styling | Tailwind v4 with Catppuccin theme tokens | Native CSS engine; pairs well with shadcn/ui. Catppuccin Latte (light) + Mocha (dark). A few tokens are pinned to the darkest/lightest ramp entry that clears WCAG AA rather than the nominal palette value — see Accessibility scope. |
 | Linting/formatting | Biome | Single tool replaces ESLint + Prettier; fast |
 | Testing | `bun test` | Built into the runtime; Jest-compatible API; zero config |
 | Logging | Pino (built-in to Fastify) + `pino-pretty` for dev | Modern structured logging |

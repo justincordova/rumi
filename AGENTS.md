@@ -146,6 +146,11 @@ duplicated per-component polling.
   throws under `verbatimModuleSyntax`.
 - **Hocuspocus `Server` is a singleton** — mock `@hocuspocus/extension-database`
   in tests to prevent DB extension leaking across test files.
+- **`mock.module` is global and order-dependent** — never mock a module that
+  another test file exercises directly. `webhook.test.ts` mocking
+  `@/billing/service` handed `service.test.ts` the stub and broke CI only,
+  because bun's file order differs between macOS and the CI filesystem. Stub
+  the Fastify decorator (`app.billingService`) at runtime instead.
 - **`context` in Hocuspocus hooks is typed as `unknown`** — cast with
   `const ctx = context as any` and add a biome-ignore comment.
 - **First tab seed content**: server inserts only the DB row. Client
@@ -182,6 +187,23 @@ duplicated per-component polling.
   per-file `beforeAll`/`afterAll` in web tests. Root preload only sets env vars.
 - **Notification type `room_access_granted`** — this is the active notification
   type (not `invite_received` which is legacy/kept for backward compat).
+- **Shiki theme names are coupled to the sanitizer** — `lib/shiki.ts` and
+  `THEME_LIGHT`/`THEME_DARK` in `lib/markdown/render.ts` must name the same
+  themes. `render.ts` builds its `rehype-sanitize` class allow-list from those
+  constants, so a mismatch strips every highlight class and code renders
+  monochrome. Currently `github-{light,dark}-high-contrast` — the plain
+  variants fail AA (3.49:1 / 3.05:1 on their dimmest tokens).
+- **Several colour tokens are contrast-constrained** — `--color-muted-foreground`,
+  `--color-input`, `--color-success` and `--color-warning` were each picked as
+  the lightest value that clears WCAG AA on the surfaces they actually land on
+  (comments in `globals.css` record the measurements). Lightening them, or
+  reintroducing a `/50`-style opacity modifier on body text, reopens a
+  measured failure.
+- **Dialogs restore focus themselves** — nothing here uses a Radix
+  `DialogTrigger`, so `ui/dialog.tsx` and `ui/alert-dialog.tsx` capture
+  `document.activeElement` in `onOpenAutoFocus` and restore it in
+  `onCloseAutoFocus`. Dialogs opened from a dropdown item need the opener
+  passed explicitly (see `room-card.tsx`), since the menu item is gone by then.
 
 ## API conventions
 
@@ -193,7 +215,9 @@ duplicated per-component polling.
 - Responses wrap in envelope: `{ room: ... }`, `{ rooms: [...] }`. DELETE returns 204.
 - Errors: `AppError` / `AuthError` subclasses → `{ error: { code, message } }`.
 - Services decorated on Fastify instance (`app.service`, `app.tabsService`,
-  `app.notifications`). Routes call these, never the DB directly.
+  `app.notifications`, `app.billingService`). Routes call these, never the DB
+  directly. Both billing plugins share the one decorated instance, so tests can
+  swap it without touching the module registry.
 
 ## Further reading
 
