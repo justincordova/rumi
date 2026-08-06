@@ -141,7 +141,7 @@ export function PricingSection() {
                         {p.monthlyEquivalent.yearly}
                       </span>
                       <span className="text-sm text-muted-foreground">/mo</span>
-                      <span className="text-sm text-muted-foreground/50 line-through">
+                      <span className="text-sm text-muted-foreground line-through">
                         {p.price.monthly}/mo
                       </span>
                     </div>

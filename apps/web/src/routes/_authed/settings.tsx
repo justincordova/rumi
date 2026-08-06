@@ -868,7 +868,7 @@ function CancelPlanSection({
         <AlertDialogTrigger asChild>
           <button
             type="button"
-            className="text-sm text-destructive/70 hover:text-destructive transition-colors"
+            className="text-sm text-destructive underline-offset-2 transition-colors hover:underline"
           >
             Cancel my plan
           </button>

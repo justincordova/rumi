@@ -118,12 +118,12 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
               placeholder="Room name"
               aria-label="Room name"
               maxLength={100}
-              className="w-full bg-transparent text-lg font-medium tracking-tight text-foreground placeholder:text-muted-foreground/60 outline-none ring-0 focus:ring-0 border-0 focus:border-0 caret-primary"
+              className="w-full bg-transparent text-lg font-medium tracking-tight text-foreground placeholder:text-muted-foreground outline-none ring-0 focus:ring-0 border-0 focus:border-0 caret-primary"
             />
             {name.trim().length === 0 && (
-              <p className="mt-1.5 text-[12px] text-muted-foreground/50">
+              <p className="mt-1.5 text-[12px] text-muted-foreground">
                 Leave blank for a generated name like{" "}
-                <span className="font-mono text-muted-foreground/70">quiet-fox-42</span>
+                <span className="font-mono text-muted-foreground">quiet-fox-42</span>
               </p>
             )}
           </div>
@@ -154,7 +154,7 @@ export function CreateRoomDialog({ open, onOpenChange }: Props) {
                 );
               })}
             </fieldset>
-            <p className="text-[12px] text-muted-foreground/60 leading-snug">{activeDesc}</p>
+            <p className="text-[12px] text-muted-foreground leading-snug">{activeDesc}</p>
 
             {visibility === "open" && (
               <fieldset className="m-0 border-0 p-0 pt-1">

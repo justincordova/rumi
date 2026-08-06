@@ -228,7 +228,7 @@ function DashboardPage() {
             </div>
           )}
         </div>
-        <p className="absolute bottom-4 left-0 right-0 text-center text-[12px] text-muted-foreground/50">
+        <p className="absolute bottom-4 left-0 right-0 text-center text-[12px] text-muted-foreground">
           &copy; {new Date().getFullYear()} Rumi
         </p>
       </main>

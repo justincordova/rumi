@@ -42,7 +42,7 @@ export function LandingFooter({ onCookiePreferences }: { onCookiePreferences: ()
             </button>
           </nav>
         </div>
-        <p className="mt-3 text-center text-[11px] text-muted-foreground/50">
+        <p className="mt-3 text-center text-[11px] text-muted-foreground">
           &copy; {new Date().getFullYear()} Rumi
         </p>
       </div>
