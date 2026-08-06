@@ -206,7 +206,10 @@ function DashboardPage() {
               {displayed.map((r, i) => (
                 <div
                   key={r.id}
-                  className="animate-fade-in"
+                  // h-full so the card fills the grid row: cards in the same
+                  // row rendered at different heights (99px next to 141px when
+                  // one carried Accept/Decline), leaving a ragged bottom edge.
+                  className="animate-fade-in h-full"
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
                   <RoomCard room={r} />

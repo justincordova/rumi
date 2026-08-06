@@ -117,7 +117,7 @@ export function RoomCard({
       role="button"
       tabIndex={0}
       aria-label={`Open room ${title}`}
-      className="group relative rounded-xl border border-border bg-surface p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="group relative flex h-full flex-col rounded-xl border border-border bg-surface p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       onClick={() => {
         if (!editing && !menuOpen && !deleteOpen) {
           navigate({ to: "/r/$slug", params: { slug: room.slug }, search: { tab: undefined } });
@@ -228,7 +228,10 @@ export function RoomCard({
           </DropdownMenu>
         )}
       </div>
-      <div className="mt-4 flex items-center gap-2.5 text-[12px] text-muted-foreground">
+      {/* mt-auto pins the meta row (and the Accept/Decline row after it) to the
+          bottom now that the card stretches to fill its grid row; pt-4 keeps
+          the old gap when the card is not being stretched. */}
+      <div className="mt-auto flex items-center gap-2.5 pt-4 text-[12px] text-muted-foreground">
         {room.visibility === "private" ? (
           <span className="flex items-center gap-1">
             <Lock className="h-3 w-3" /> Private
