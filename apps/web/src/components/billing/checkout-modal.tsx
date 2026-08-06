@@ -24,6 +24,11 @@ const stripePromise = env.VITE_STRIPE_PUBLISHABLE_KEY
   : null;
 
 export function CheckoutModal({ open, onOpenChange, plan, interval }: Props) {
+  // Opened by an ordinary button rather than a Radix DialogTrigger, so Radix
+  // has no trigger to hand focus back to on close and it falls to <body>.
+  // Same treatment as create-room-dialog.tsx and the ui/dialog wrapper.
+  const openerRef = useRef<HTMLElement | null>(null);
+
   if (!stripePromise) return null;
 
   return (
@@ -32,7 +37,17 @@ export function CheckoutModal({ open, onOpenChange, plan, interval }: Props) {
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           className="fixed left-1/2 top-1/2 z-50 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-background shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-150 overflow-hidden"
-          onOpenAutoFocus={(e) => e.preventDefault()}
+          onOpenAutoFocus={(e) => {
+            openerRef.current = document.activeElement as HTMLElement | null;
+            e.preventDefault();
+          }}
+          onCloseAutoFocus={(e) => {
+            const opener = openerRef.current;
+            if (opener && opener !== document.body && document.contains(opener)) {
+              e.preventDefault();
+              opener.focus();
+            }
+          }}
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <span className="text-[15px] font-semibold">
