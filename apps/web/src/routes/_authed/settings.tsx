@@ -147,7 +147,7 @@ function AppearanceSection() {
   const setTheme = usePrefs((s) => s.setTheme);
 
   return (
-    <section className="border rounded-xl p-5 space-y-4">
+    <section className="rounded-xl border border-border bg-surface p-5 space-y-4">
       <div>
         <h2 className="text-[15px] font-semibold">Appearance</h2>
         <p className="text-[13px] text-muted-foreground mt-0.5">
@@ -263,7 +263,7 @@ function NotificationsSection() {
   }
 
   return (
-    <section className="border rounded-xl p-5 space-y-4">
+    <section className="rounded-xl border border-border bg-surface p-5 space-y-4">
       <div>
         <h2 className="text-[15px] font-semibold">Notifications</h2>
         <p className="text-[13px] text-muted-foreground mt-0.5">
@@ -368,7 +368,7 @@ function ProfileSection() {
   }
 
   return (
-    <section className="border rounded-xl p-5 space-y-4">
+    <section className="rounded-xl border border-border bg-surface p-5 space-y-4">
       <div>
         <h2 className="text-[15px] font-semibold">Profile</h2>
         <p className="text-[13px] text-muted-foreground mt-0.5">
@@ -465,7 +465,7 @@ function LinkedAccountsSection() {
   }
 
   return (
-    <section className="border rounded-xl p-5 space-y-4">
+    <section className="rounded-xl border border-border bg-surface p-5 space-y-4">
       <div>
         <h2 className="text-[15px] font-semibold">Linked Accounts</h2>
         <p className="text-[13px] text-muted-foreground mt-0.5">
@@ -554,7 +554,7 @@ function DangerZoneSection() {
   }
 
   return (
-    <section className="border border-destructive/30 rounded-xl p-5 space-y-3">
+    <section className="rounded-xl border border-destructive/30 bg-surface p-5 space-y-3">
       <div className="flex items-center gap-2">
         <Trash2 className="h-4 w-4 text-destructive" />
         <h2 className="text-[15px] font-semibold text-destructive">Delete account</h2>
@@ -712,7 +712,7 @@ function BillingTab() {
   if (!loaded) {
     return (
       <div className="space-y-4">
-        <div className="border rounded-xl p-5 space-y-4 animate-pulse-soft">
+        <div className="rounded-xl border border-border bg-surface p-5 space-y-4 animate-pulse-soft">
           <div className="h-4 w-24 rounded bg-muted" />
           <div className="h-3 w-48 rounded bg-muted" />
           <div className="flex items-center justify-between">
@@ -720,7 +720,7 @@ function BillingTab() {
             <div className="h-8 w-24 rounded-md bg-muted" />
           </div>
         </div>
-        <div className="border rounded-xl p-5 space-y-4 animate-pulse-soft">
+        <div className="rounded-xl border border-border bg-surface p-5 space-y-4 animate-pulse-soft">
           <div className="h-4 w-16 rounded bg-muted" />
           <div className="h-3 w-64 rounded bg-muted" />
           <div className="h-8 w-32 rounded-md bg-muted" />
@@ -746,7 +746,7 @@ function BillingTab() {
       )}
 
       {/* Current plan */}
-      <section className="border rounded-xl p-5 space-y-4">
+      <section className="rounded-xl border border-border bg-surface p-5 space-y-4">
         <div>
           <h2 className="text-[15px] font-semibold">Current plan</h2>
           <p className="text-[13px] text-muted-foreground mt-0.5">
@@ -793,7 +793,7 @@ function BillingTab() {
 
       {/* Billing management */}
       {isPaid ? (
-        <section className="border rounded-xl p-5 space-y-4">
+        <section className="rounded-xl border border-border bg-surface p-5 space-y-4">
           <div>
             <h2 className="text-[15px] font-semibold">Billing</h2>
             <p className="text-[13px] text-muted-foreground mt-0.5">
@@ -813,7 +813,7 @@ function BillingTab() {
           </Button>
         </section>
       ) : (
-        <section className="border rounded-xl p-5 space-y-4">
+        <section className="rounded-xl border border-border bg-surface p-5 space-y-4">
           <div>
             <h2 className="text-[15px] font-semibold">Billing</h2>
             <p className="text-[13px] text-muted-foreground mt-0.5">
@@ -858,7 +858,7 @@ function CancelPlanSection({
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
-    <section className="border rounded-xl p-5 space-y-3">
+    <section className="rounded-xl border border-border bg-surface p-5 space-y-3">
       <h2 className="text-[15px] font-semibold">Cancel plan</h2>
       <p className="text-[13px] text-muted-foreground">
         Downgrade to the Free plan at the end of your billing period. You&apos;ll keep access until

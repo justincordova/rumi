@@ -96,7 +96,11 @@ export function PricingSection() {
             }`}
           >
             Yearly
-            <span className="ml-1.5 inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+            {/* Solid rather than a 10% tint: brand purple on its own tint
+                measured 4.01:1 at 10px, and the purple has too little headroom
+                on a light background for any tint to reach 4.5:1. Filled gives
+                5.4:1 and matches the "Recommended" badge below. */}
+            <span className="ml-1.5 inline-flex items-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
               -17%
             </span>
           </button>
